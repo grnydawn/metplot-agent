@@ -6,6 +6,7 @@ Cached at .ncplot/inspections/<hash>.json with mtime-based invalidation.
 """
 from __future__ import annotations
 
+import time as _time
 from typing import Any
 
 from src.mcp.netcdf_reader import cache, envelope
@@ -39,6 +40,7 @@ def inspect(
     if cached is not None:
         return envelope.success(cached)
 
+    t0 = _time.monotonic()
     try:
         ds = adapter.open(cls.paths or [path], ssh_config=ssh_config)
     except FileNotFoundError as e:
@@ -63,6 +65,14 @@ def inspect(
             return _ssh_auth_failed_envelope(cls, str(e))
         return envelope.error(envelope.ErrorCode.INTERNAL_ERROR,
                               repr(e), context={"path": path})
+    elapsed = _time.monotonic() - t0
+    warnings: list[dict[str, Any]] = []
+    if elapsed > 30 and cls.kind in (PathKind.REMOTE_URL, PathKind.SSH_REMOTE):
+        warnings.append(envelope.warn(
+            envelope.WarningCode.SLOW_REMOTE_READ,
+            f"open took {elapsed:.0f}s; consider sshfs / staging",
+            context={"elapsed_seconds": elapsed},
+        ))
 
     try:
         attrs = dict(ds.attrs)
@@ -114,7 +124,7 @@ def inspect(
         ds.close()
 
     cache.write_inspection(key, result)
-    return envelope.success(result)
+    return envelope.success(result, warnings=warnings)
 
 
 def _safe(v: Any) -> Any:

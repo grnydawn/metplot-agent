@@ -92,3 +92,23 @@ def test_ssh_inspect_retry_with_explicit_ssh_config(tmp_path, monkeypatch):
     assert env["ok"] is True
     # connect_explicit was called instead of silent_auth_chain
     ce.assert_called_once()
+
+
+import time
+def test_slow_remote_read_emits_warning(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    fake_client = MagicMock()
+    fake_handle = MagicMock()
+    def slow_open(*args, **kwargs):
+        time.sleep(0)  # we'll patch the timer instead
+        return _make_synthetic_dataset()
+    with patch("src.mcp.netcdf_reader.paths.ssh.silent_auth_chain",
+               return_value=(fake_client, [])), \
+         patch("src.mcp.netcdf_reader.paths.ssh.open_sftp_file",
+               return_value=fake_handle), \
+         patch("xarray.open_dataset", side_effect=slow_open), \
+         patch("time.monotonic", side_effect=[0.0, 35.0, 35.0, 35.0]):
+        env = inspect("ssh://hpc.example.org/x.nc",
+                      adapter=NetCDFAdapter())
+    assert env["ok"] is True
+    assert any(w["code"] == "slow_remote_read" for w in env["warnings"])
