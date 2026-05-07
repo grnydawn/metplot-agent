@@ -27,9 +27,11 @@ def peek(
     lat: Any = None,
     lon: Any = None,
     adapter: FormatAdapter,
+    ssh_config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     spec_env = resolve_spec(path, variable, time=time, level=level,
-                             lat=lat, lon=lon, adapter=adapter)
+                             lat=lat, lon=lon, adapter=adapter,
+                             ssh_config=ssh_config)
     if not spec_env["ok"]:
         return spec_env
     spec = spec_env["result"]
@@ -43,7 +45,7 @@ def peek(
         )
 
     cls = classify(path)
-    ds = adapter.open(cls.paths)
+    ds = adapter.open(cls.paths, ssh_config=ssh_config)
     try:
         da = _apply_selectors(ds[variable], spec["resolved"])
         values = da.load().values

@@ -42,7 +42,10 @@ class NetCDFAdapter:
         # NetCDF specifics live in paths.multi_file (Task 30+).
         return [path]
 
-    def open(self, paths: list[str], file_objects: list[Any] | None = None) -> xr.Dataset:
+    def open(
+        self, paths: list[str], file_objects: list[Any] | None = None,
+        ssh_config: dict[str, Any] | None = None,
+    ) -> xr.Dataset:
         from src.mcp.netcdf_reader.paths.classify import classify, PathKind
 
         if file_objects:
@@ -56,14 +59,29 @@ class NetCDFAdapter:
             if cls.kind == PathKind.SSH_REMOTE:
                 from src.mcp.netcdf_reader.paths.ssh import (
                     SSHConfig, parse_ssh_config_for_host,
-                    silent_auth_chain, open_sftp_file,
+                    silent_auth_chain, connect_explicit, open_sftp_file,
                 )
-                cfg = parse_ssh_config_for_host(cls.host)
-                if cls.user:
-                    cfg.user = cls.user
-                if cls.port:
-                    cfg.port = cls.port
-                client, _attempts = silent_auth_chain(cfg)
+                if ssh_config:
+                    cfg = SSHConfig(
+                        host=ssh_config.get("host") or cls.host,
+                        port=ssh_config.get("port") or cls.port or 22,
+                        user=ssh_config.get("user") or cls.user,
+                    )
+                    auth = ssh_config.get("auth", {})
+                    method = auth.get("method")
+                    if method == "password":
+                        cfg.password = auth.get("password")
+                    elif method == "identity_file":
+                        cfg.identity_file = auth.get("identity_file")
+                        cfg.passphrase = auth.get("passphrase")
+                    client = connect_explicit(cfg)
+                else:
+                    cfg = parse_ssh_config_for_host(cls.host)
+                    if cls.user:
+                        cfg.user = cls.user
+                    if cls.port:
+                        cfg.port = cls.port
+                    client, _attempts = silent_auth_chain(cfg)
                 handle = open_sftp_file(client, cls.remote_path)
                 return xr.open_dataset(handle, engine="h5netcdf",
                                        decode_times=True, chunks="auto")

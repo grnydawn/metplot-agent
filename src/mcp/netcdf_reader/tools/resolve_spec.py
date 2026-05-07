@@ -31,6 +31,7 @@ def resolve_spec(
     region: str | None = None,
     regrid: str | None = None,
     adapter: FormatAdapter,
+    ssh_config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     try:
         cls = classify(path)
@@ -39,7 +40,7 @@ def resolve_spec(
                               context={"path": path})
 
     try:
-        ds = adapter.open(cls.paths)
+        ds = adapter.open(cls.paths, ssh_config=ssh_config)
     except FileNotFoundError as e:
         return envelope.error(envelope.ErrorCode.FILE_NOT_FOUND, str(e),
                               context={"path": path})

@@ -108,10 +108,12 @@ def read_slice(
     regrid: str | None = None,
     max_inline_bytes: int = 100_000,
     adapter: FormatAdapter,
+    ssh_config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     spec_env = resolve_spec(
         path, variable, time=time, level=level, lat=lat, lon=lon,
         region=region, regrid=regrid, adapter=adapter,
+        ssh_config=ssh_config,
     )
     if not spec_env["ok"]:
         return spec_env
@@ -120,7 +122,7 @@ def read_slice(
 
     if estimated > max_inline_bytes:
         cls = classify(path)
-        ds = adapter.open(cls.paths)
+        ds = adapter.open(cls.paths, ssh_config=ssh_config)
         try:
             da = _apply_selectors(ds[variable], spec["resolved"])
             sliced = da.load()
@@ -159,7 +161,7 @@ def read_slice(
             ds.close()
 
     cls = classify(path)
-    ds = adapter.open(cls.paths)
+    ds = adapter.open(cls.paths, ssh_config=ssh_config)
     try:
         da = _apply_selectors(ds[variable], spec["resolved"])
         values = da.load().values

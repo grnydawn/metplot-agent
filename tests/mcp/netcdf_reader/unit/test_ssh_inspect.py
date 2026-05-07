@@ -69,3 +69,26 @@ def test_ssh_inspect_handles_auth_failed(tmp_path, monkeypatch):
     # silent chain failure raised SSHAuthFailed (rare); should still be
     # converted to ssh_auth_needed envelope so the user can retry.
     assert env["error"]["code"] in ("ambiguous", "ssh_auth_failed")
+
+
+def test_ssh_inspect_retry_with_explicit_ssh_config(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    fake_client = MagicMock()
+    fake_handle = MagicMock()
+    with patch("src.mcp.netcdf_reader.paths.ssh.connect_explicit",
+               return_value=fake_client) as ce, \
+         patch("src.mcp.netcdf_reader.paths.ssh.open_sftp_file",
+               return_value=fake_handle), \
+         patch("xarray.open_dataset",
+               return_value=_make_synthetic_dataset()):
+        env = inspect(
+            "ssh://hpc.example.org/data.nc",
+            adapter=NetCDFAdapter(),
+            ssh_config={
+                "user": "u", "host": "hpc.example.org", "port": 22,
+                "auth": {"method": "password", "password": "secret"},
+            },
+        )
+    assert env["ok"] is True
+    # connect_explicit was called instead of silent_auth_chain
+    ce.assert_called_once()
