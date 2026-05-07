@@ -51,3 +51,24 @@ def test_inspect_missing_file_returns_error(tmp_path, monkeypatch):
     assert env["ok"] is False
     # ClassifyError converted to file_not_found
     assert env["error"]["code"] in ("file_not_found", "unsupported_path_scheme")
+
+
+def test_inspect_multifile_glob(cf_multifile_dir, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    glob_path = str(cf_multifile_dir / "*.nc")
+    env = inspect(glob_path, adapter=NetCDFAdapter())
+    assert env["ok"] is True
+    r = env["result"]
+    assert r["kind"] == "local_multi"
+    assert len(r["files"]) == 3
+    assert r["time"]["n"] == 6
+    assert "tos" in [v["name"] for v in r["variables"]]
+
+
+def test_inspect_multifile_directory(cf_multifile_dir, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    env = inspect(str(cf_multifile_dir), adapter=NetCDFAdapter())
+    assert env["ok"] is True
+    r = env["result"]
+    assert r["kind"] == "local_multi"
+    assert len(r["files"]) == 3
