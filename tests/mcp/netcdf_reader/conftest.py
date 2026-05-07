@@ -87,3 +87,66 @@ def cf_multifile_dir(tmp_path: Path) -> Path:
         )
         ds.to_netcdf(out / f"tos_2024-09-{day}.nc")
     return out
+
+
+@pytest.fixture
+def wrf_file(tmp_path: Path) -> Path:
+    """Mimics WRF: TITLE attr, Times byte-strings, staggered dims, 2D XLAT/XLONG."""
+    import numpy as np
+    import xarray as xr
+    n_t, n_z, n_y, n_x = 3, 4, 5, 6
+    times_str = ["2024-09-01_00:00:00", "2024-09-01_06:00:00", "2024-09-01_12:00:00"]
+    times = np.array([list(s.encode("ascii")) for s in times_str], dtype="S1").reshape(n_t, 19)
+    xlat = np.tile(np.linspace(25, 50, n_y).reshape(n_y, 1), (1, n_x)).astype("float32")
+    xlong = np.tile(np.linspace(-130, -90, n_x).reshape(1, n_x), (n_y, 1)).astype("float32")
+    rng = np.random.default_rng(0)
+    t2 = rng.normal(290, 5, size=(n_t, n_y, n_x)).astype("float32")
+    u_stag = rng.normal(5, 2, size=(n_t, n_z, n_y, n_x + 1)).astype("float32")
+    ds = xr.Dataset(
+        {
+            "Times": (("Time", "DateStrLen"), times),
+            "T2": (("Time", "south_north", "west_east"), t2,
+                   {"description": "TEMP at 2 M", "units": "K"}),
+            "U": (("Time", "bottom_top", "south_north", "west_east_stag"), u_stag,
+                  {"description": "x-wind component", "units": "m s-1"}),
+            "XLAT": (("south_north", "west_east"), xlat, {"units": "degree_north"}),
+            "XLONG": (("south_north", "west_east"), xlong, {"units": "degree_east"}),
+        },
+        attrs={"TITLE": "OUTPUT FROM WRF V4.5", "GRIDTYPE": "C", "MMINLU": "USGS"},
+    )
+    p = tmp_path / "wrfout.nc"
+    ds.to_netcdf(p)
+    return p
+
+
+@pytest.fixture
+def roms_file(tmp_path: Path) -> Path:
+    """Mimics ROMS: s_rho/Cs_r vertical, lat_rho/lon_rho 2D, ocean_time."""
+    import numpy as np
+    import xarray as xr
+    n_t, n_s, n_y, n_x = 2, 3, 4, 5
+    ocean_time = np.array(
+        ["2024-09-01", "2024-09-02"], dtype="datetime64[D]"
+    )
+    s_rho = np.linspace(-1.0, 0.0, n_s)
+    cs_r = -np.linspace(0.5, 0.0, n_s)
+    lat_rho = np.tile(np.linspace(30, 35, n_y).reshape(n_y, 1), (1, n_x)).astype("float32")
+    lon_rho = np.tile(np.linspace(-75, -70, n_x).reshape(1, n_x), (n_y, 1)).astype("float32")
+    rng = np.random.default_rng(0)
+    temp = rng.normal(15, 3, size=(n_t, n_s, n_y, n_x)).astype("float32")
+    ds = xr.Dataset(
+        {
+            "temp": (("ocean_time", "s_rho", "eta_rho", "xi_rho"), temp,
+                     {"long_name": "potential temperature", "units": "C"}),
+            "lat_rho": (("eta_rho", "xi_rho"), lat_rho, {"units": "degree_north"}),
+            "lon_rho": (("eta_rho", "xi_rho"), lon_rho, {"units": "degree_east"}),
+            "s_rho": (("s_rho",), s_rho, {"long_name": "S-coord at rho",
+                                          "standard_name": "ocean_s_coordinate_g2"}),
+            "Cs_r": (("s_rho",), cs_r, {"long_name": "S-coord stretching at rho"}),
+        },
+        coords={"ocean_time": ocean_time},
+        attrs={"type": "ROMS/TOMS history file"},
+    )
+    p = tmp_path / "roms.nc"
+    ds.to_netcdf(p)
+    return p
