@@ -79,3 +79,89 @@ def parse_ssh_config_for_host(
     return SSHConfig(
         host=host, port=port, user=user, identity_file=identity, jump=jump,
     )
+
+
+@dataclass
+class AuthAttempt:
+    method: str
+    result: str  # "success" | "no_keys" | "rejected" | "skipped"
+    detail: str = ""
+
+
+class SSHAuthNeeded(Exception):
+    """Raised when silent auth chain exhausts all options. The agent
+    layer converts this into an `ssh_auth_needed` envelope."""
+    def __init__(self, cfg: SSHConfig, attempts: list[AuthAttempt],
+                 may_need_jump_host: bool = False):
+        self.cfg = cfg
+        self.attempts = attempts
+        self.may_need_jump_host = may_need_jump_host
+        super().__init__(f"SSH auth needed for {cfg.user}@{cfg.host}")
+
+
+def _default_identity_files() -> list[str]:
+    home = Path.home()
+    return [str(home / ".ssh" / n)
+            for n in ("id_ed25519", "id_rsa", "id_ecdsa")
+            if (home / ".ssh" / n).exists()]
+
+
+def silent_auth_chain(
+    cfg: SSHConfig,
+) -> tuple[paramiko.SSHClient, list[AuthAttempt]]:
+    """Try each silent auth method in order. Return the connected
+    client + the trace of attempts. Raise SSHAuthNeeded on total failure.
+    """
+    attempts: list[AuthAttempt] = []
+    user = cfg.user or os.environ.get("USER") or "root"
+
+    # 1. ssh-agent (only if SSH_AUTH_SOCK is set)
+    if os.environ.get("SSH_AUTH_SOCK"):
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        try:
+            client.connect(
+                hostname=cfg.host, port=cfg.port, username=user,
+                allow_agent=True, look_for_keys=False,
+                timeout=10,
+            )
+            attempts.append(AuthAttempt("ssh_agent", "success"))
+            return client, attempts
+        except paramiko.AuthenticationException:
+            attempts.append(AuthAttempt("ssh_agent", "rejected"))
+        except (OSError, paramiko.SSHException) as e:
+            attempts.append(AuthAttempt("ssh_agent", "rejected", str(e)))
+    else:
+        attempts.append(AuthAttempt("ssh_agent", "skipped",
+                                    "SSH_AUTH_SOCK not set"))
+
+    # 2. Default identity files
+    if cfg.identity_file:
+        candidates = [cfg.identity_file]
+    else:
+        candidates = _default_identity_files()
+    if not candidates:
+        attempts.append(AuthAttempt("default_identity_files", "no_keys"))
+    for ident in candidates:
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        try:
+            client.connect(
+                hostname=cfg.host, port=cfg.port, username=user,
+                key_filename=ident, allow_agent=False, look_for_keys=False,
+                timeout=10,
+            )
+            attempts.append(AuthAttempt("default_identity_files", "success",
+                                        ident))
+            return client, attempts
+        except paramiko.AuthenticationException:
+            attempts.append(AuthAttempt("default_identity_files", "rejected",
+                                        ident))
+        except paramiko.PasswordRequiredException:
+            attempts.append(AuthAttempt("default_identity_files",
+                                        "needs_passphrase", ident))
+        except (OSError, paramiko.SSHException) as e:
+            attempts.append(AuthAttempt("default_identity_files",
+                                        "rejected", f"{ident}: {e}"))
+
+    raise SSHAuthNeeded(cfg=cfg, attempts=attempts)
