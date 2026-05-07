@@ -165,3 +165,33 @@ def silent_auth_chain(
                                         "rejected", f"{ident}: {e}"))
 
     raise SSHAuthNeeded(cfg=cfg, attempts=attempts)
+
+
+class SSHAuthFailed(Exception):
+    pass
+
+
+def connect_explicit(cfg: SSHConfig) -> paramiko.SSHClient:
+    """Connect using credentials present in `cfg`. Raises SSHAuthFailed
+    on rejection. Never logs sensitive fields."""
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    user = cfg.user or os.environ.get("USER") or "root"
+    try:
+        kwargs: dict[str, Any] = dict(
+            hostname=cfg.host, port=cfg.port, username=user,
+            allow_agent=False, look_for_keys=False, timeout=10,
+        )
+        if cfg.password is not None:
+            kwargs["password"] = cfg.password
+        if cfg.identity_file is not None:
+            kwargs["key_filename"] = cfg.identity_file
+            if cfg.passphrase is not None:
+                kwargs["passphrase"] = cfg.passphrase
+        client.connect(**kwargs)
+        return client
+    except paramiko.AuthenticationException as e:
+        raise SSHAuthFailed(f"auth rejected for {user}@{cfg.host}") from None
+    except (OSError, paramiko.SSHException) as e:
+        # Don't include cfg in the exception message — could leak
+        raise SSHAuthFailed(f"connection error: {type(e).__name__}") from None
