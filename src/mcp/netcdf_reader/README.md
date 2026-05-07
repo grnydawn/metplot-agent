@@ -1,54 +1,85 @@
-# netcdf-reader MCP server
+# netcdf-reader MCP
 
-Provides NetCDF inspection and slicing tools to AI agents.
+MCP server for inspecting and reading NetCDF data. Implements the
+cycle-1 surface defined in `docs/specs/2026-05-06-cycle-1-netcdf-reader.md`.
 
-## Tools exposed
+## Tools
 
-### `inspect(path: str) -> dict`
-Open a NetCDF file and return a structured summary:
-- variables: list of {name, dims, shape, dtype, units, long_name}
-- coords: list of coordinate variables with ranges
-- dims: dimension sizes
-- time: parsed range, frequency, calendar
-- spatial: lon/lat extent and resolution, longitude convention (0..360 vs -180..180)
-- vertical: levels with units if present
-- attrs: global attributes
-- warnings: list of any anomalies (non-monotonic coords, missing units, etc.)
+| Tool | Group | Purpose |
+|------|-------|---------|
+| `inspect(path)` | D-path | Metadata summary; cached |
+| `resolve_spec(path, variable, ...)` | D-path | Validate selectors → normalized spec |
+| `regrid_to_centers(spec)` | D-path | Annotate U/V/W destaggering on a spec |
+| `peek(path, variable, ...)` | C-path | Single-point lookup; ≤10 KB hard cap |
+| `read_slice(path, variable, ..., max_inline_bytes)` | C-path | Inline (<100 KB default) or session-temp file |
+| `compute_stats(path, variable, ...)` | C-path | min/max/mean/std/percentiles 5/50/95 |
+| `find_variables(path, hint)` | help | Score variables by long_name/standard_name/etc. |
+| `find_time(path, hint)` | help | Parse "first"/"last"/ISO partials |
 
-Cached: subsequent `inspect()` calls on the same path read from
-`.ncplot/inspections/<file-hash>.json`.
+## Path schemes
 
-### `read_slice(path: str, variable: str, **selection) -> dict`
-Return a numerical slice as a structured payload:
-- selection kwargs: `time`, `level`, `lat`, `lon` (single value, slice, or list)
-- region: optional named region (resolved against `regions.json`)
-- regrid: optional, "centers" to interpolate staggered to cell centers
-- returns: `{values, coords, units, dims, fill_value}` — values is a JSON-safe
-  nested array (or a path to a temp file for large slices).
+| Scheme | How |
+|--------|-----|
+| `file` (or bare path) | xarray |
+| glob (`/data/*.nc`), directory | `open_mfdataset` with combine fallback |
+| `https://` / `http://` | OPeNDAP via xarray + netCDF4 (curl support) |
+| `s3://` | requires `s3fs` |
+| `ssh://[user@]host[:port]/path` | paramiko SFTP → h5netcdf engine |
 
-### `compute_stats(path: str, variable: str, **selection) -> dict`
-Cheap summary stats over a (sub)slice without returning the full array:
-- min, max, mean, std, fraction_nan, n_points
-- used by plotting skills for sanity-check reporting.
+## Response envelope
 
-### `regrid_to_centers(path: str, variable: str, **selection) -> dict`
-For staggered-grid variables (Arakawa C-grid U/V), interpolate to cell centers.
-Returns the same payload shape as `read_slice`.
+Every tool returns one of:
 
-## Dependencies
+```json
+// success
+{"ok": true, "result": {...}, "warnings": [...], "resolved": {...}}
 
-- `xarray` (with `netcdf4` and `cftime`)
-- `numpy`
-- `mcp` (MCP server SDK)
+// terminal error
+{"ok": false, "error": {"code": "<error_code>", "message": "...", "context": {...}}, "warnings": [...]}
 
-## Running standalone
-
-```bash
-python -m mcp.netcdf_reader.server
+// ambiguity (skill should ask the user)
+{"ok": false, "error": {"code": "ambiguous", "subcode": "...", "candidates": [...], "prompt": "...", "retry_with_param": "..."}, "warnings": []}
 ```
 
-Or via the MCP launch stanza emitted by each target builder.
+See `envelope.py` for the full error/warning code taxonomy.
 
-## Implementation status
+## SSH credential flow
 
-Stub. `server.py` defines the tool signatures; the bodies are TODO.
+Silent auth chain: `~/.ssh/config` → ssh-agent → default identity files.
+On exhaustion, returns `ambiguous + ssh_auth_needed` with candidate
+methods. Caller retries with `ssh_config={"user": ..., "host": ...,
+"auth": {"method": "password|identity_file", ...}}`. Credentials live
+in process memory only, never written to disk.
+
+## Install
+
+```bash
+pip install -e 'src/mcp/netcdf-reader[dev]'
+# Optional extras:
+pip install -e 'src/mcp/netcdf-reader[remote]'  # s3fs
+pip install -e 'src/mcp/netcdf-reader[wrf]'     # xwrf for WRF transforms
+pip install -e 'src/mcp/netcdf-reader[roms]'    # xroms for ROMS transforms
+```
+
+## Run
+
+```bash
+ncplot-netcdf-reader   # via stdio MCP transport
+```
+
+Or wire from a Claude Code plugin manifest (cycle 4).
+
+## Cache locations
+
+- `.ncplot/inspections/<hash>.json` — persistent inspection cache (mtime-keyed)
+- `.ncplot/slices/<session>/...` — session-scoped slice temp files (cleared at startup)
+
+## Testing
+
+```bash
+pytest tests/mcp/netcdf-reader/unit/ -v          # synthetic fixtures, fast
+NCPLOT_INTEGRATION=1 pytest tests/mcp/netcdf-reader/integration/ -m integration
+NCPLOT_REAL_SSH=1 pytest tests/mcp/netcdf-reader/integration/ -m real_ssh
+```
+
+See `tests/mcp/netcdf-reader/REAL_SSH_SETUP.md` for real-SSH test setup.
