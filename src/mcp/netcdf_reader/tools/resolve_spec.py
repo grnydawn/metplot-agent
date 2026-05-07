@@ -7,13 +7,15 @@ array values. Returns the spec the renderer (cycle 2) consumes.
 from __future__ import annotations
 
 import difflib
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 from src.mcp.netcdf_reader import envelope, selectors
-from src.mcp.netcdf_reader.adapter import FormatAdapter
 from src.mcp.netcdf_reader.paths.classify import ClassifyError, classify
+
+if TYPE_CHECKING:
+    from src.mcp.netcdf_reader.protocols import FormatAdapter
 
 
 def _close_matches(name: str, names: list[str], k: int = 3) -> list[str]:

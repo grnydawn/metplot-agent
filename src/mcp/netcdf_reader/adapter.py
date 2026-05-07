@@ -4,19 +4,17 @@ that lives at the seam between cycle 1's reader and a future _core/
 package. See spec §11."""
 from __future__ import annotations
 
-from typing import Any, Protocol, runtime_checkable
+from typing import Any
 
 import xarray as xr
 
-@runtime_checkable
-class FormatAdapter(Protocol):
-    name: str
-    supported_schemes: set[str]
+# Re-export FormatAdapter from the format-agnostic protocols module so that
+# `from src.mcp.netcdf_reader.adapter import FormatAdapter` continues to work
+# for any external caller, while internal format-agnostic modules (tools/*)
+# can import it directly from protocols.py without crossing the seam.
+from src.mcp.netcdf_reader.protocols import FormatAdapter
 
-    def claims(self, path: str) -> bool: ...
-    def expand(self, path: str) -> list[str]: ...
-    def open(self, paths: list[str], file_objects: list[Any] | None = None) -> xr.Dataset: ...
-    def detect_conventions(self, ds: xr.Dataset, attrs: dict[str, Any]) -> dict[str, Any]: ...
+__all__ = ["FormatAdapter", "NetCDFAdapter"]
 
 
 class NetCDFAdapter:

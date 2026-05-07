@@ -7,13 +7,15 @@ MCP users get usable disambiguation without external alias tables.
 from __future__ import annotations
 
 import difflib
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 from src.mcp.netcdf_reader import envelope
-from src.mcp.netcdf_reader.adapter import FormatAdapter
 from src.mcp.netcdf_reader.paths.classify import classify
+
+if TYPE_CHECKING:
+    from src.mcp.netcdf_reader.protocols import FormatAdapter
 
 
 def _score(hint: str, candidate: str | None) -> float:

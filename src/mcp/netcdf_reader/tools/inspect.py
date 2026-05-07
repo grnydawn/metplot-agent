@@ -7,16 +7,18 @@ Cached at .ncplot/inspections/<hash>.json with mtime-based invalidation.
 from __future__ import annotations
 
 import time as _time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.mcp.netcdf_reader import cache, envelope
-from src.mcp.netcdf_reader.adapter import FormatAdapter
 from src.mcp.netcdf_reader.conventions import cf as _cf
 from src.mcp.netcdf_reader.conventions import roms as _roms
 from src.mcp.netcdf_reader.conventions import wrf as _wrf
 from src.mcp.netcdf_reader.paths.classify import (
     ClassifyError, PathKind, classify,
 )
+
+if TYPE_CHECKING:
+    from src.mcp.netcdf_reader.protocols import FormatAdapter
 
 
 def inspect(

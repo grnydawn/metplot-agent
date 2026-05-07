@@ -2,15 +2,17 @@
 """⤴ format-agnostic — eligible for _core/ lift."""
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 from src.mcp.netcdf_reader import envelope
-from src.mcp.netcdf_reader.adapter import FormatAdapter
 from src.mcp.netcdf_reader.paths.classify import classify
 from src.mcp.netcdf_reader.tools.read_slice import _apply_selectors
 from src.mcp.netcdf_reader.tools.resolve_spec import resolve_spec
+
+if TYPE_CHECKING:
+    from src.mcp.netcdf_reader.protocols import FormatAdapter
 
 
 def compute_stats(

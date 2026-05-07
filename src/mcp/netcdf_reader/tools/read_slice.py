@@ -11,14 +11,16 @@ import json
 import os
 import time as _time
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 from src.mcp.netcdf_reader import envelope
-from src.mcp.netcdf_reader.adapter import FormatAdapter
 from src.mcp.netcdf_reader.paths.classify import classify
 from src.mcp.netcdf_reader.tools.resolve_spec import resolve_spec
+
+if TYPE_CHECKING:
+    from src.mcp.netcdf_reader.protocols import FormatAdapter
 
 _SESSION_ID: str | None = None
 
