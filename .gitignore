@@ -25,9 +25,16 @@ venv/
 
 # secrets
 .env
+.env.test
 *.local
 
 # data — don't accidentally commit large NetCDF samples
 *.nc
 *.nc4
 !tests/fixtures/*.nc
+
+# Claude Code local config
+.claude/
+
+# pinned-real-files integration fixtures (gitignored, populated by download_samples.sh)
+tests/mcp/netcdf_reader/integration/data/
