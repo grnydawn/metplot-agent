@@ -36,7 +36,7 @@ def inspect(path: str, *, adapter: FormatAdapter) -> dict[str, Any]:
         return envelope.success(cached)
 
     try:
-        ds = adapter.open(cls.paths)
+        ds = adapter.open(cls.paths or [path])
     except FileNotFoundError as e:
         return envelope.error(envelope.ErrorCode.FILE_NOT_FOUND,
                               str(e), context={"path": path})

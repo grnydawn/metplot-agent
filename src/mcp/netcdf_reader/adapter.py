@@ -8,7 +8,6 @@ from typing import Any, Protocol, runtime_checkable
 
 import xarray as xr
 
-
 @runtime_checkable
 class FormatAdapter(Protocol):
     name: str
@@ -44,16 +43,33 @@ class NetCDFAdapter:
         return [path]
 
     def open(self, paths: list[str], file_objects: list[Any] | None = None) -> xr.Dataset:
+        from src.mcp.netcdf_reader.paths.classify import classify, PathKind
+
         if file_objects:
-            # One file_object per path; used by SSH path (later task).
             if len(file_objects) != 1:
                 raise NotImplementedError("multi-file SSH not yet wired")
             return xr.open_dataset(file_objects[0], engine="h5netcdf",
                                    decode_times=True, chunks="auto")
+
         if len(paths) == 1:
+            cls = classify(paths[0])
+            if cls.kind == PathKind.SSH_REMOTE:
+                from src.mcp.netcdf_reader.paths.ssh import (
+                    SSHConfig, parse_ssh_config_for_host,
+                    silent_auth_chain, open_sftp_file,
+                )
+                cfg = parse_ssh_config_for_host(cls.host)
+                if cls.user:
+                    cfg.user = cls.user
+                if cls.port:
+                    cfg.port = cls.port
+                client, _attempts = silent_auth_chain(cfg)
+                handle = open_sftp_file(client, cls.remote_path)
+                return xr.open_dataset(handle, engine="h5netcdf",
+                                       decode_times=True, chunks="auto")
             return xr.open_dataset(paths[0], decode_times=True, chunks="auto")
-        # Multi-file path delegates to paths.multi_file (Task 31)
-        from src.mcp.netcdf_reader.paths.multi_file import open_multi_file  # type: ignore[import-not-found]
+
+        from src.mcp.netcdf_reader.paths.multi_file import open_multi_file
         return open_multi_file(paths)
 
     def detect_conventions(self, ds: xr.Dataset, attrs: dict[str, Any]) -> dict[str, Any]:
