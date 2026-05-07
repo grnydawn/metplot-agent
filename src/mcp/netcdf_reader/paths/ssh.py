@@ -224,3 +224,10 @@ class ConnectionPool:
             cfg.password = None
             cfg.passphrase = None
         self._pool.clear()
+
+
+def open_sftp_file(client: paramiko.SSHClient, remote_path: str):
+    """Return a file-like handle for the remote NetCDF file. h5netcdf
+    can read directly from this (it requires seek/tell/read)."""
+    sftp = client.open_sftp()
+    return sftp.open(remote_path, "rb")
