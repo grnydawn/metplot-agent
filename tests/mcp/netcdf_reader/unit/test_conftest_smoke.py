@@ -11,3 +11,7 @@ def test_cf_3d_fixture_opens(cf_3d_file):
     assert "tos" in ds.data_vars
     assert float(ds["lon"].max()) > 180  # 0..360 convention
     ds.close()
+
+def test_multifile_fixture(cf_multifile_dir):
+    files = sorted(cf_multifile_dir.glob("*.nc"))
+    assert len(files) == 3

@@ -63,3 +63,27 @@ def cf_3d_file(tmp_path: Path) -> Path:
     p = tmp_path / "cf_3d.nc"
     ds.to_netcdf(p)
     return p
+
+
+@pytest.fixture
+def cf_multifile_dir(tmp_path: Path) -> Path:
+    """Three CF files split on time, sortable by name."""
+    import numpy as np
+    import xarray as xr
+    out = tmp_path / "multi"; out.mkdir()
+    for i, day in enumerate(["01", "02", "03"]):
+        times = np.array([f"2024-09-{day}T00", f"2024-09-{day}T12"],
+                         dtype="datetime64[h]")
+        lat = np.linspace(-90, 90, 9)
+        lon = np.linspace(0, 350, 18)
+        rng = np.random.default_rng(i)
+        data = rng.normal(290, 5, size=(2, 9, 18)).astype("float32")
+        ds = xr.Dataset(
+            {"tos": xr.DataArray(data, dims=("time", "lat", "lon"),
+                                  coords={"time": times, "lat": lat, "lon": lon},
+                                  attrs={"long_name": "Sea Surface Temperature",
+                                         "units": "K"})},
+            attrs={"Conventions": "CF-1.7"},
+        )
+        ds.to_netcdf(out / f"tos_2024-09-{day}.nc")
+    return out
