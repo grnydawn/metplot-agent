@@ -6,6 +6,11 @@ for large slices (Task 16 adds the file-form branch).
 """
 from __future__ import annotations
 
+import hashlib
+import json
+import os
+import time as _time
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -14,6 +19,32 @@ from src.mcp.netcdf_reader import envelope
 from src.mcp.netcdf_reader.adapter import FormatAdapter
 from src.mcp.netcdf_reader.paths.classify import ClassifyError, classify
 from src.mcp.netcdf_reader.tools.resolve_spec import resolve_spec
+
+_SESSION_ID: str | None = None
+
+
+def _session_id() -> str:
+    global _SESSION_ID
+    if _SESSION_ID is None:
+        _SESSION_ID = f"pid{os.getpid()}-{int(_time.time())}"
+    return _SESSION_ID
+
+
+def _slice_dir() -> Path:
+    d = Path.cwd() / ".ncplot" / "slices" / _session_id()
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _slice_hash(spec: dict[str, Any]) -> str:
+    h = hashlib.sha256()
+    h.update(json.dumps({
+        "path": spec["path"],
+        "variable": spec["variable"],
+        "resolved": spec["resolved"],
+        "applied_transforms": spec["applied_transforms"],
+    }, sort_keys=True, default=str).encode("utf-8"))
+    return h.hexdigest()[:16]
 
 
 def _to_json_safe(arr: np.ndarray) -> Any:
@@ -89,14 +120,44 @@ def read_slice(
     estimated = int(spec["estimated_bytes"])
 
     if estimated > max_inline_bytes:
-        # File-form lands in Task 16. Until then, return size_limit_exceeded.
-        return envelope.error(
-            envelope.ErrorCode.SIZE_LIMIT_EXCEEDED,
-            f"slice would be {estimated} bytes, exceeds {max_inline_bytes}",
-            context={"estimated_bytes": estimated,
-                     "max_inline_bytes": max_inline_bytes,
-                     "shape": spec["slice_shape"]},
-        )
+        cls = classify(path)
+        ds = adapter.open(cls.paths)
+        try:
+            da = _apply_selectors(ds[variable], spec["resolved"])
+            sliced = da.load()
+            out_path = _slice_dir() / f"{_slice_hash(spec)}.nc"
+            sliced.to_netcdf(out_path)
+            values = sliced.values
+            nan_count = int(np.isnan(values).sum()) if values.dtype.kind == "f" else 0
+            total = int(values.size)
+            stats = {
+                "min": float(np.nanmin(values)) if values.dtype.kind == "f" else float(values.min()),
+                "max": float(np.nanmax(values)) if values.dtype.kind == "f" else float(values.max()),
+                "mean": float(np.nanmean(values)) if values.dtype.kind == "f" else float(values.mean()),
+                "fraction_nan": nan_count / total if total else 0.0,
+            }
+            coords_summary: dict[str, dict[str, Any]] = {}
+            for d in sliced.dims:
+                if d in sliced.coords:
+                    cv = np.asarray(sliced[d].values)
+                    coords_summary[str(d)] = {
+                        "n": int(cv.size),
+                        "range": [_to_json_safe(cv.min()), _to_json_safe(cv.max())],
+                    }
+            result = {
+                "form": "file",
+                "path": str(out_path),
+                "format": "netcdf",
+                "size_bytes": out_path.stat().st_size,
+                "dims": [str(d) for d in sliced.dims],
+                "shape": list(values.shape),
+                "coords_summary": coords_summary,
+                "units": ds[variable].attrs.get("units"),
+                "stats": stats,
+            }
+            return envelope.success(result)
+        finally:
+            ds.close()
 
     cls = classify(path)
     ds = adapter.open(cls.paths)

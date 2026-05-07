@@ -45,16 +45,30 @@ def test_read_slice_inline_nan_serialization(tmp_path, monkeypatch):
     assert "NaN" in flat
 
 
-def test_read_slice_size_limit_exceeded(cf_4d_file, tmp_path, monkeypatch):
-    # Force a very small inline cap so the full slice exceeds it
+def test_read_slice_file_form_when_above_threshold(cf_4d_file, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     env = read_slice(
         str(cf_4d_file), variable="ta",
         adapter=NetCDFAdapter(),
-        max_inline_bytes=100,  # tiny
+        max_inline_bytes=100,
     )
-    # Will trigger file-form path (Task 16). For Task 15 we expect
-    # size_limit_exceeded if file form not implemented yet.
-    # After Task 16 lands, this becomes form == "file".
-    # Skip until file form is implemented:
-    pytest.skip("file form lands in Task 16")
+    assert env["ok"] is True
+    r = env["result"]
+    assert r["form"] == "file"
+    assert r["path"].endswith(".nc")
+    assert r["format"] == "netcdf"
+    assert r["size_bytes"] > 0
+    # The temp file should exist on disk
+    from pathlib import Path
+    assert Path(r["path"]).exists()
+
+
+def test_read_slice_file_form_dir_under_session(cf_4d_file, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    env = read_slice(
+        str(cf_4d_file), variable="ta",
+        adapter=NetCDFAdapter(),
+        max_inline_bytes=100,
+    )
+    r = env["result"]
+    assert ".ncplot/slices/" in r["path"]
