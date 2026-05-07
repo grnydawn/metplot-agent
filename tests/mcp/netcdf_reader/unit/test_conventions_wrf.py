@@ -2,6 +2,9 @@ import numpy as np
 import xarray as xr
 
 from src.mcp.netcdf_reader.conventions.wrf import decode_times, detect
+from src.mcp.netcdf_reader.conventions.wrf import (
+    annotate_staggered_variables, extract_spatial_wrf,
+)
 
 
 def test_wrf_detected_from_title(wrf_file):
@@ -50,4 +53,25 @@ def test_decode_times_returns_datetime64(wrf_file):
 def test_decode_times_returns_none_when_absent(cf_3d_file):
     ds = xr.open_dataset(cf_3d_file)
     assert decode_times(ds) is None
+    ds.close()
+
+
+def test_annotate_staggered_marks_U_as_staggered(wrf_file):
+    ds = xr.open_dataset(wrf_file)
+    annotated = annotate_staggered_variables(ds)
+    by_name = {v["name"]: v for v in annotated}
+    assert by_name["U"]["is_staggered"] is True
+    assert by_name["U"]["grid_kind"] == "U"
+    assert by_name["T2"]["is_staggered"] is False
+    assert by_name["T2"]["grid_kind"] == "scalar"
+    ds.close()
+
+
+def test_extract_spatial_wrf_curvilinear(wrf_file):
+    ds = xr.open_dataset(wrf_file)
+    s = extract_spatial_wrf(ds)
+    assert s["coord_kind"] == "curvilinear"
+    assert s["lat_name"] == "XLAT"
+    assert s["lon_name"] == "XLONG"
+    assert s["lon_convention"] == "-180..180"
     ds.close()

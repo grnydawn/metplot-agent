@@ -62,3 +62,59 @@ def decode_times(ds: xr.Dataset) -> np.ndarray | None:
     # WRF format: "2024-09-01_06:00:00" → ISO "2024-09-01T06:00:00"
     iso = [s.replace("_", "T").rstrip("\x00 ") for s in rows]
     return np.array(iso, dtype="datetime64[s]")
+
+
+def _grid_kind_from_dims(dims: tuple[str, ...]) -> str:
+    if "west_east_stag" in dims:
+        return "U"
+    if "south_north_stag" in dims:
+        return "V"
+    if "bottom_top_stag" in dims:
+        return "W"
+    return "scalar"
+
+
+def annotate_staggered_variables(ds: xr.Dataset) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    for name, da in ds.data_vars.items():
+        gk = _grid_kind_from_dims(tuple(str(d) for d in da.dims))
+        out.append({
+            "name": str(name),
+            "long_name": da.attrs.get("long_name") or da.attrs.get("description"),
+            "standard_name": da.attrs.get("standard_name"),
+            "units": da.attrs.get("units"),
+            "dims": [str(d) for d in da.dims],
+            "shape": list(da.shape),
+            "dtype": str(da.dtype),
+            "grid_kind": gk,
+            "is_staggered": gk != "scalar",
+        })
+    return out
+
+
+def extract_spatial_wrf(ds: xr.Dataset) -> dict[str, Any] | None:
+    if "XLAT" not in ds.coords and "XLAT" not in ds.data_vars:
+        return None
+    lat = ds["XLAT"]
+    lon = ds["XLONG"]
+    # WRF XLAT/XLONG can be (Time, south_north, west_east); take first time
+    if lat.ndim == 3:
+        lat = lat.isel({lat.dims[0]: 0})
+        lon = lon.isel({lon.dims[0]: 0})
+    coord_kind = "curvilinear" if lat.ndim == 2 else "rectilinear"
+    lon_min = float(lon.min())
+    lon_max = float(lon.max())
+    if lon_min >= 0 and lon_max > 180:
+        lon_convention = "0..360"
+    elif lon_min < 0:
+        lon_convention = "-180..180"
+    else:
+        lon_convention = "mixed"
+    return {
+        "coord_kind": coord_kind,
+        "lat_name": "XLAT",
+        "lon_name": "XLONG",
+        "lat_range": [float(lat.min()), float(lat.max())],
+        "lon_range": [lon_min, lon_max],
+        "lon_convention": lon_convention,
+    }
