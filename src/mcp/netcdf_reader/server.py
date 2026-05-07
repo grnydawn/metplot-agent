@@ -104,7 +104,10 @@ def main() -> None:
 
     async def _run() -> None:
         async with stdio_server() as (read, write):
-            await server.run(read, write, server.create_initialization_options())
+            try:
+                await server.run(read, write, server.create_initialization_options())
+            finally:
+                lifecycle.on_shutdown()
 
     asyncio.run(_run())
 
