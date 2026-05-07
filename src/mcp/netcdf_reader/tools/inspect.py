@@ -52,6 +52,7 @@ def inspect(path: str, *, adapter: FormatAdapter) -> dict[str, Any]:
             vertical = _cf.extract_vertical(ds)  # falls back; eta detected by name
             # WRF time decoding
             decoded = _wrf.decode_times(ds)
+            t: dict[str, Any] | None
             if decoded is not None:
                 t = {
                     "name": "Time",

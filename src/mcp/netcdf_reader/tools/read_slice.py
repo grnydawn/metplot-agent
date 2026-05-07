@@ -17,7 +17,7 @@ import numpy as np
 
 from src.mcp.netcdf_reader import envelope
 from src.mcp.netcdf_reader.adapter import FormatAdapter
-from src.mcp.netcdf_reader.paths.classify import ClassifyError, classify
+from src.mcp.netcdf_reader.paths.classify import classify
 from src.mcp.netcdf_reader.tools.resolve_spec import resolve_spec
 
 _SESSION_ID: str | None = None
@@ -60,7 +60,6 @@ def _to_json_safe(arr: np.ndarray) -> Any:
 
 def _apply_selectors(da, resolved: dict[str, Any]):
     """Apply resolved selectors to an xarray DataArray."""
-    sel: dict[str, Any] = {}
     isel: dict[str, Any] = {}
     if "time_index" in resolved:
         for d in da.dims:

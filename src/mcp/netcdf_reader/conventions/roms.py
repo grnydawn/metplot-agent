@@ -34,9 +34,11 @@ def detect(ds: xr.Dataset, attrs: dict[str, Any]) -> dict[str, Any] | None:
 def extract_spatial_roms(ds: xr.Dataset) -> dict[str, Any] | None:
     if "lat_rho" not in ds.data_vars and "lat_rho" not in ds.coords:
         return None
-    lat = ds["lat_rho"]; lon = ds["lon_rho"]
+    lat = ds["lat_rho"]
+    lon = ds["lon_rho"]
     coord_kind = "curvilinear" if lat.ndim == 2 else "rectilinear"
-    lon_min = float(lon.min()); lon_max = float(lon.max())
+    lon_min = float(lon.min())
+    lon_max = float(lon.max())
     if lon_min >= 0 and lon_max > 180:
         conv = "0..360"
     elif lon_min < 0:

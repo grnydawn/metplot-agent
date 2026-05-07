@@ -1,5 +1,4 @@
 # tests/mcp/netcdf_reader/unit/test_lifecycle.py
-from pathlib import Path
 from src.mcp.netcdf_reader.lifecycle import cleanup_old_slice_dirs
 
 

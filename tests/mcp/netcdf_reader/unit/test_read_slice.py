@@ -1,6 +1,5 @@
 # tests/mcp/netcdf_reader/unit/test_read_slice.py
 import numpy as np
-import pytest
 import xarray as xr
 
 from src.mcp.netcdf_reader.adapter import NetCDFAdapter

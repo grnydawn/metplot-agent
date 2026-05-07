@@ -14,7 +14,8 @@ def test_compute_stats_returns_required_fields(cf_3d_file):
 
 
 def test_compute_stats_numeric_correctness(tmp_path):
-    import xarray as xr, numpy as np
+    import xarray as xr
+    import numpy as np
     arr = np.arange(100, dtype="float32").reshape(10, 10)
     ds = xr.Dataset({"v": (("y", "x"), arr)},
                     attrs={"Conventions": "CF-1.7"})

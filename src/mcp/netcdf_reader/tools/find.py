@@ -19,7 +19,8 @@ from src.mcp.netcdf_reader.paths.classify import classify
 def _score(hint: str, candidate: str | None) -> float:
     if not candidate:
         return 0.0
-    h = hint.lower(); c = candidate.lower()
+    h = hint.lower()
+    c = candidate.lower()
     if h == c:
         return 1.0
     if h in c:
@@ -36,7 +37,9 @@ def find_variables(path: str, hint: str, *, adapter: FormatAdapter) -> dict[str,
             ln = da.attrs.get("long_name")
             sn = da.attrs.get("standard_name")
             desc = da.attrs.get("description")
-            best_field = None; best_value = None; best_score = 0.0
+            best_field = None
+            best_value = None
+            best_score = 0.0
             for field_name, field_value in (("long_name", ln),
                                             ("standard_name", sn),
                                             ("description", desc),
@@ -65,11 +68,9 @@ def find_time(path: str, hint: str, *, adapter: FormatAdapter) -> dict[str, Any]
     ds = adapter.open(cls.paths)
     try:
         tcoord = None
-        tname = None
         for n in ("time", "Time", "ocean_time"):
             if n in ds.coords or n in ds.dims:
                 tcoord = ds[n].values
-                tname = n
                 break
         if tcoord is None:
             return envelope.error("internal_error", "no time coord", context={})
