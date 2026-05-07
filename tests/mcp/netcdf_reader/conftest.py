@@ -96,7 +96,7 @@ def wrf_file(tmp_path: Path) -> Path:
     import xarray as xr
     n_t, n_z, n_y, n_x = 3, 4, 5, 6
     times_str = ["2024-09-01_00:00:00", "2024-09-01_06:00:00", "2024-09-01_12:00:00"]
-    times = np.array([list(s.encode("ascii")) for s in times_str], dtype="S1").reshape(n_t, 19)
+    times = np.array([s.encode("ascii") for s in times_str], dtype="|S19").view("S1").reshape(n_t, 19)
     xlat = np.tile(np.linspace(25, 50, n_y).reshape(n_y, 1), (1, n_x)).astype("float32")
     xlong = np.tile(np.linspace(-130, -90, n_x).reshape(1, n_x), (n_y, 1)).astype("float32")
     rng = np.random.default_rng(0)

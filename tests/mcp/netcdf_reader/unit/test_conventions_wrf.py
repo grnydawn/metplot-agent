@@ -1,7 +1,7 @@
 import numpy as np
 import xarray as xr
 
-from src.mcp.netcdf_reader.conventions.wrf import detect
+from src.mcp.netcdf_reader.conventions.wrf import decode_times, detect
 
 
 def test_wrf_detected_from_title(wrf_file):
@@ -34,3 +34,20 @@ def test_wrf_detected_from_staggered_dims(tmp_path):
     assert result["primary"] == "WRF"
     assert result["confidence"] in ("medium", "low")
     ds2.close()
+
+
+def test_decode_times_returns_datetime64(wrf_file):
+    ds = xr.open_dataset(wrf_file)
+    times = decode_times(ds)
+    assert times is not None
+    assert times.dtype.kind == "M"
+    assert len(times) == 3
+    assert str(times[0]).startswith("2024-09-01T00")
+    assert str(times[2]).startswith("2024-09-01T12")
+    ds.close()
+
+
+def test_decode_times_returns_none_when_absent(cf_3d_file):
+    ds = xr.open_dataset(cf_3d_file)
+    assert decode_times(ds) is None
+    ds.close()

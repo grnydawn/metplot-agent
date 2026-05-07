@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
 import xarray as xr
 
 
@@ -45,3 +46,19 @@ def detect(ds: xr.Dataset, attrs: dict[str, Any]) -> dict[str, Any] | None:
         "evidence": evidence,
         "candidates": None,
     }
+
+
+def decode_times(ds: xr.Dataset) -> np.ndarray | None:
+    """Decode WRF Times byte-string array to CF datetime64."""
+    if "Times" not in ds.data_vars:
+        return None
+    raw = ds["Times"].values
+    # raw is shape (n_time, str_len) of bytes. Stitch bytes per row.
+    if raw.ndim == 2:
+        rows = [b"".join(row).decode("ascii", errors="replace") for row in raw]
+    else:
+        rows = [s.decode("ascii", errors="replace") if isinstance(s, bytes) else str(s)
+                for s in raw]
+    # WRF format: "2024-09-01_06:00:00" → ISO "2024-09-01T06:00:00"
+    iso = [s.replace("_", "T").rstrip("\x00 ") for s in rows]
+    return np.array(iso, dtype="datetime64[s]")
