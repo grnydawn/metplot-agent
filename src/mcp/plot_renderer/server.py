@@ -11,12 +11,14 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+Server: Any = None
+stdio_server: Any = None
+
 try:
     from mcp.server import Server
     from mcp.server.stdio import stdio_server
 except ImportError:  # pragma: no cover
-    Server = None  # type: ignore[assignment]
-    stdio_server = None  # type: ignore[assignment]
+    pass
 
 logger = logging.getLogger(__name__)
 
