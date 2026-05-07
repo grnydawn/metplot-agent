@@ -31,3 +31,6 @@ venv/
 *.nc
 *.nc4
 !tests/fixtures/*.nc
+
+# Claude Code local config
+.claude/
