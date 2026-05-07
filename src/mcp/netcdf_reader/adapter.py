@@ -4,7 +4,6 @@ that lives at the seam between cycle 1's reader and a future _core/
 package. See spec §11."""
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 import xarray as xr
@@ -54,7 +53,7 @@ class NetCDFAdapter:
         if len(paths) == 1:
             return xr.open_dataset(paths[0], decode_times=True, chunks="auto")
         # Multi-file path delegates to paths.multi_file (Task 31)
-        from src.mcp.netcdf_reader.paths.multi_file import open_multi_file
+        from src.mcp.netcdf_reader.paths.multi_file import open_multi_file  # type: ignore[import-not-found]
         return open_multi_file(paths)
 
     def detect_conventions(self, ds: xr.Dataset, attrs: dict[str, Any]) -> dict[str, Any]:

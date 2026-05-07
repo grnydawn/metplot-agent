@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
 import xarray as xr
 
 
@@ -63,8 +64,6 @@ def detect(ds: xr.Dataset, attrs: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-import numpy as np
-
 _LAT_NAMES = ("lat", "latitude", "y", "rlat", "nav_lat")
 _LON_NAMES = ("lon", "longitude", "x", "rlon", "nav_lon")
 _TIME_NAMES = ("time", "Time", "T", "ocean_time")
@@ -73,7 +72,7 @@ _TIME_NAMES = ("time", "Time", "T", "ocean_time")
 def extract_variables(ds: xr.Dataset) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     for name, da in ds.data_vars.items():
-        is_stag = any("stag" in d.lower() for d in da.dims)
+        is_stag = any("stag" in str(d).lower() for d in da.dims)
         out.append({
             "name": str(name),
             "long_name": da.attrs.get("long_name"),

@@ -32,11 +32,11 @@ def test_inspect_uses_cache_on_second_call(cf_3d_file, tmp_path, monkeypatch):
 
 
 def test_inspect_invalidates_cache_on_mtime_change(cf_3d_file, tmp_path, monkeypatch):
-    import os, time
+    import os
+    import time
     monkeypatch.chdir(tmp_path)
     inspect(str(cf_3d_file), adapter=NetCDFAdapter())
     cache_dir = tmp_path / ".ncplot" / "inspections"
-    files_before = sorted(cache_dir.glob("*.json"))
     time.sleep(0.01)
     os.utime(cf_3d_file, None)
     inspect(str(cf_3d_file), adapter=NetCDFAdapter())

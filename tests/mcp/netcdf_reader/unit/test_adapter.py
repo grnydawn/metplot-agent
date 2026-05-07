@@ -15,7 +15,8 @@ def test_adapter_implements_protocol():
 
 def test_adapter_claims_nc_files(tmp_path):
     a = NetCDFAdapter()
-    nc = tmp_path / "x.nc"; nc.write_bytes(b"")
+    nc = tmp_path / "x.nc"
+    nc.write_bytes(b"")
     assert a.claims(str(nc)) is True
     assert a.claims("https://example.org/x.nc") is True
     assert a.claims("ssh://h/x.nc") is True
