@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ncplot-netcdf-reader"
+version = "0.1.0"
+description = "MCP server for inspecting and reading NetCDF data"
+requires-python = ">=3.10"
+dependencies = [
+  "mcp>=1.0",
+  "xarray>=2024.1",
+  "netcdf4>=1.6",
+  "h5netcdf>=1.3",
+  "cftime>=1.6",
+  "numpy>=1.24",
+  "paramiko>=3.4",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "pytest-mock>=3.12", "ruff>=0.4", "mypy>=1.8"]
+remote = ["s3fs>=2024.1"]
+wrf = ["xwrf>=0.0.3"]
+roms = ["xroms>=0.5"]
+
+[project.scripts]
+ncplot-netcdf-reader = "src.mcp.netcdf_reader.server:main"
