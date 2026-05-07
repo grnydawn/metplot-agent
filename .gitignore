@@ -35,3 +35,6 @@ venv/
 
 # Claude Code local config
 .claude/
+
+# pinned-real-files integration fixtures (gitignored, populated by download_samples.sh)
+tests/mcp/netcdf_reader/integration/data/
