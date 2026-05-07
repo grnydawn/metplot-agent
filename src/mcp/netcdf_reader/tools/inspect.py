@@ -48,6 +48,15 @@ def inspect(path: str, *, adapter: FormatAdapter) -> dict[str, Any]:
                 else envelope.ErrorCode.FILE_NOT_FOUND)
         return envelope.error(code, msg, context={"path": path})
     except Exception as e:
+        # Catch SSHAuthNeeded / SSHAuthFailed without importing at top
+        # to keep paths/ssh.py optional for users who don't need SSH
+        from src.mcp.netcdf_reader.paths.ssh import (
+            SSHAuthNeeded, SSHAuthFailed,
+        )
+        if isinstance(e, SSHAuthNeeded):
+            return _ssh_auth_needed_envelope(e)
+        if isinstance(e, SSHAuthFailed):
+            return _ssh_auth_failed_envelope(cls, str(e))
         return envelope.error(envelope.ErrorCode.INTERNAL_ERROR,
                               repr(e), context={"path": path})
 
@@ -109,3 +118,56 @@ def _safe(v: Any) -> Any:
     if isinstance(v, (str, int, float, bool)) or v is None:
         return v
     return str(v)
+
+
+def _ssh_auth_needed_envelope(err: "SSHAuthNeeded") -> dict[str, Any]:
+    cfg = err.cfg
+    candidates = [
+        {"value": "identity_file", "label": "Path to a private key file",
+         "param": "identity_file", "sensitive": False, "evidence": [],
+         "confidence": 0.5},
+        {"value": "password",
+         "label": "Password (in-memory only, not stored)",
+         "param": "password", "sensitive": True, "evidence": [],
+         "confidence": 0.5},
+        {"value": "ssh_config_alias",
+         "label": "Use a ~/.ssh/config alias",
+         "param": "ssh_alias", "sensitive": False, "evidence": [],
+         "confidence": 0.5},
+    ]
+    tried = [
+        {"method": a.method, "result": a.result, "detail": a.detail}
+        for a in err.attempts
+    ]
+    return envelope.ambiguous(
+        subcode=envelope.AmbiguitySubcode.SSH_AUTH_NEEDED,
+        message=f"SSH authentication needed for {cfg.user}@{cfg.host}",
+        candidates=candidates,
+        prompt=(f"SSH auth needed for {cfg.user}@{cfg.host}. "
+                f"Pick a method to authenticate."),
+        retry_with_param="ssh_config",
+        context={
+            "host": cfg.host, "port": cfg.port, "user": cfg.user,
+            "tried": tried, "may_need_jump_host": err.may_need_jump_host,
+        },
+    )
+
+
+def _ssh_auth_failed_envelope(cls, msg: str) -> dict[str, Any]:
+    # On wrong creds, route back to the prompt so the user can retry.
+    candidates = [
+        {"value": "password", "label": "Re-enter password",
+         "param": "password", "sensitive": True, "evidence": [],
+         "confidence": 0.5},
+        {"value": "identity_file", "label": "Try a different key file",
+         "param": "identity_file", "sensitive": False, "evidence": [],
+         "confidence": 0.5},
+    ]
+    return envelope.ambiguous(
+        subcode=envelope.AmbiguitySubcode.SSH_AUTH_NEEDED,
+        message=f"SSH auth failed: {msg}",
+        candidates=candidates,
+        prompt=f"SSH auth was rejected. Pick a different method.",
+        retry_with_param="ssh_config",
+        context={"host": cls.host, "user": cls.user, "previous_error": msg},
+    )
