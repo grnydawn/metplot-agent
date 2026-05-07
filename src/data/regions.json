@@ -1,0 +1,55 @@
+{
+  "_comment": "Region bounding boxes used by netcdf-plot-map. Keep in sync with src/skills/netcdf-plot-map/references/regions.md (the markdown table is authoritative for documentation; this file is for programmatic lookup).",
+  "_format": {
+    "lon_min": "degrees east, -180..180 convention",
+    "lon_max": "degrees east, -180..180; may be < lon_min if region crosses dateline",
+    "lat_min": "degrees north",
+    "lat_max": "degrees north"
+  },
+  "regions": {
+    "north_atlantic":      {"lon_min":  -80, "lon_max":   0, "lat_min":  20, "lat_max":  70},
+    "tropical_atlantic":   {"lon_min":  -60, "lon_max":  20, "lat_min": -20, "lat_max":  20},
+    "south_atlantic":      {"lon_min":  -70, "lon_max":  20, "lat_min": -60, "lat_max":   0},
+    "north_pacific":       {"lon_min":  120, "lon_max": -100, "lat_min":  20, "lat_max":  65},
+    "tropical_pacific":    {"lon_min":  120, "lon_max":  -70, "lat_min": -20, "lat_max":  20},
+    "nino_3_4":            {"lon_min": -170, "lon_max": -120, "lat_min":  -5, "lat_max":   5},
+    "south_pacific":       {"lon_min":  150, "lon_max":  -70, "lat_min": -60, "lat_max":   0},
+    "indian_ocean":        {"lon_min":   30, "lon_max": 120, "lat_min": -40, "lat_max":  30},
+    "southern_ocean":      {"lon_min": -180, "lon_max": 180, "lat_min": -75, "lat_max": -40},
+    "arctic":              {"lon_min": -180, "lon_max": 180, "lat_min":  60, "lat_max":  90},
+
+    "conus":               {"lon_min": -125, "lon_max": -65, "lat_min":  24, "lat_max":  50},
+    "western_us":          {"lon_min": -125, "lon_max": -100, "lat_min":  30, "lat_max":  50},
+    "eastern_us":          {"lon_min": -100, "lon_max": -65, "lat_min":  24, "lat_max":  48},
+    "europe":              {"lon_min":  -15, "lon_max":  45, "lat_min":  35, "lat_max":  72},
+    "mediterranean":       {"lon_min":  -10, "lon_max":  40, "lat_min":  30, "lat_max":  48},
+    "west_africa":         {"lon_min":  -20, "lon_max":  30, "lat_min":  -5, "lat_max":  25},
+    "east_africa":         {"lon_min":   30, "lon_max":  55, "lat_min": -10, "lat_max":  20},
+    "south_asia":          {"lon_min":   65, "lon_max": 100, "lat_min":   5, "lat_max":  40},
+    "east_asia":           {"lon_min":  100, "lon_max": 150, "lat_min":  20, "lat_max":  55},
+    "australia":           {"lon_min":  110, "lon_max": 155, "lat_min": -45, "lat_max": -10},
+    "amazon":              {"lon_min":  -80, "lon_max": -45, "lat_min": -20, "lat_max":   5},
+
+    "tropics":             {"lon_min": -180, "lon_max": 180, "lat_min": -30, "lat_max":  30},
+    "inner_tropics":       {"lon_min": -180, "lon_max": 180, "lat_min": -23, "lat_max":  23},
+    "nh_extratropics":     {"lon_min": -180, "lon_max": 180, "lat_min":  30, "lat_max":  90},
+    "sh_extratropics":     {"lon_min": -180, "lon_max": 180, "lat_min": -90, "lat_max": -30},
+
+    "atl_tc":              {"lon_min": -100, "lon_max":   0, "lat_min":   0, "lat_max":  45},
+    "epac_tc":             {"lon_min": -180, "lon_max": -75, "lat_min":   0, "lat_max":  35},
+    "wpac_tc":             {"lon_min":  100, "lon_max": 180, "lat_min":   0, "lat_max":  45},
+    "nio_tc":              {"lon_min":   40, "lon_max": 100, "lat_min":   0, "lat_max":  30},
+    "sio_tc":              {"lon_min":   30, "lon_max": 120, "lat_min": -35, "lat_max":   0},
+    "spac_tc":             {"lon_min":  135, "lon_max": -120, "lat_min": -35, "lat_max":   0}
+  },
+  "aliases": {
+    "natl": "north_atlantic",
+    "natlantic": "north_atlantic",
+    "tatl": "tropical_atlantic",
+    "tropical pacific": "tropical_pacific",
+    "nino3.4": "nino_3_4",
+    "nino": "nino_3_4",
+    "us": "conus",
+    "north america land": "conus"
+  }
+}

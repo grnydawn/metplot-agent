@@ -1,0 +1,33 @@
+# build outputs
+build/
+dist/
+*.egg-info/
+*.skill
+
+# python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# editors
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# project-local refinement drafts (private to each user's environment)
+.ncplot/
+
+# secrets
+.env
+*.local
+
+# data — don't accidentally commit large NetCDF samples
+*.nc
+*.nc4
+!tests/fixtures/*.nc
