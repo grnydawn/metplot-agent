@@ -40,6 +40,16 @@ def inspect(path: str, *, adapter: FormatAdapter) -> dict[str, Any]:
     except FileNotFoundError as e:
         return envelope.error(envelope.ErrorCode.FILE_NOT_FOUND,
                               str(e), context={"path": path})
+    except OSError as e:
+        # network or SSH-style errors
+        msg = str(e)
+        code = (envelope.ErrorCode.REMOTE_FILE_NOT_FOUND
+                if cls.kind in ("remote_url", "ssh_remote")
+                else envelope.ErrorCode.FILE_NOT_FOUND)
+        return envelope.error(code, msg, context={"path": path})
+    except Exception as e:
+        return envelope.error(envelope.ErrorCode.INTERNAL_ERROR,
+                              repr(e), context={"path": path})
 
     try:
         attrs = dict(ds.attrs)
