@@ -57,7 +57,11 @@ class NetCDFAdapter:
         return open_multi_file(paths)
 
     def detect_conventions(self, ds: xr.Dataset, attrs: dict[str, Any]) -> dict[str, Any]:
-        # CF detection lives in conventions/cf.py; WRF/ROMS in their own modules.
-        # Wired here in Task 11+.
         from src.mcp.netcdf_reader.conventions import cf as _cf
+        from src.mcp.netcdf_reader.conventions import roms as _roms
+        from src.mcp.netcdf_reader.conventions import wrf as _wrf
+        # WRF and ROMS take precedence — they're more specific
+        for det in (_wrf.detect(ds, attrs), _roms.detect(ds, attrs)):
+            if det is not None:
+                return det
         return _cf.detect(ds, attrs)

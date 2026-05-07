@@ -11,6 +11,8 @@ from typing import Any
 from src.mcp.netcdf_reader import cache, envelope
 from src.mcp.netcdf_reader.adapter import FormatAdapter
 from src.mcp.netcdf_reader.conventions import cf as _cf
+from src.mcp.netcdf_reader.conventions import roms as _roms
+from src.mcp.netcdf_reader.conventions import wrf as _wrf
 from src.mcp.netcdf_reader.paths.classify import (
     ClassifyError, PathKind, classify,
 )
@@ -42,15 +44,45 @@ def inspect(path: str, *, adapter: FormatAdapter) -> dict[str, Any]:
     try:
         attrs = dict(ds.attrs)
         convention = adapter.detect_conventions(ds, attrs)
+        primary = convention.get("primary")
+
+        if primary == "WRF":
+            variables = _wrf.annotate_staggered_variables(ds)
+            spatial = _wrf.extract_spatial_wrf(ds)
+            vertical = _cf.extract_vertical(ds)  # falls back; eta detected by name
+            # WRF time decoding
+            decoded = _wrf.decode_times(ds)
+            if decoded is not None:
+                t = {
+                    "name": "Time",
+                    "calendar": "standard",
+                    "range": [str(decoded[0]), str(decoded[-1])],
+                    "step": None,
+                    "n": len(decoded),
+                    "monotonic": "increasing",
+                }
+            else:
+                t = _cf.extract_time(ds)
+        elif primary == "ROMS":
+            variables = _cf.extract_variables(ds)
+            spatial = _roms.extract_spatial_roms(ds)
+            vertical = _roms.extract_vertical_roms(ds)
+            t = _cf.extract_time(ds)
+        else:
+            variables = _cf.extract_variables(ds)
+            spatial = _cf.extract_spatial(ds)
+            vertical = _cf.extract_vertical(ds)
+            t = _cf.extract_time(ds)
+
         result = {
             "path": cls.raw,
             "kind": cls.kind,
             "files": cls.paths,
             "convention": convention,
-            "variables": _cf.extract_variables(ds),
-            "time": _cf.extract_time(ds),
-            "spatial": _cf.extract_spatial(ds),
-            "vertical": _cf.extract_vertical(ds),
+            "variables": variables,
+            "time": t,
+            "spatial": spatial,
+            "vertical": vertical,
             "dims": {str(k): int(v) for k, v in ds.sizes.items()},
             "attrs": {k: _safe(v) for k, v in attrs.items()},
         }

@@ -72,3 +72,27 @@ def test_inspect_multifile_directory(cf_multifile_dir, tmp_path, monkeypatch):
     r = env["result"]
     assert r["kind"] == "local_multi"
     assert len(r["files"]) == 3
+
+
+def test_inspect_wrf_detected(wrf_file, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    env = inspect(str(wrf_file), adapter=NetCDFAdapter())
+    assert env["ok"] is True
+    r = env["result"]
+    assert r["convention"]["primary"] == "WRF"
+    assert r["spatial"]["coord_kind"] == "curvilinear"
+    assert r["spatial"]["lat_name"] == "XLAT"
+    var_by_name = {v["name"]: v for v in r["variables"]}
+    assert var_by_name["U"]["is_staggered"] is True
+    assert var_by_name["U"]["grid_kind"] == "U"
+    assert var_by_name["T2"]["is_staggered"] is False
+
+
+def test_inspect_roms_detected(roms_file, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    env = inspect(str(roms_file), adapter=NetCDFAdapter())
+    assert env["ok"] is True
+    r = env["result"]
+    assert r["convention"]["primary"] == "ROMS"
+    assert r["vertical"]["kind"] == "sigma"
+    assert r["spatial"]["coord_kind"] == "curvilinear"
