@@ -6,7 +6,6 @@ _core/ without the lift dragging in NetCDF-specific code."""
 from __future__ import annotations
 
 import ast
-import re
 from pathlib import Path
 
 import pytest

@@ -10,7 +10,7 @@ This module is built up across Tasks 32–39. Read the spec §7.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -64,9 +64,10 @@ def parse_ssh_config_for_host(
             j_user, j_host = pj.split("@", 1)
         else:
             j_user, j_host = None, pj
+        j_port: int
         if ":" in j_host:
-            j_host, j_port = j_host.split(":", 1)
-            j_port = int(j_port)
+            j_host, j_port_s = j_host.split(":", 1)
+            j_port = int(j_port_s)
         else:
             j_port = 22
         jump_resolved = parse_ssh_config_for_host(j_host, config_path=config_path)
@@ -190,7 +191,7 @@ def connect_explicit(cfg: SSHConfig) -> paramiko.SSHClient:
                 kwargs["passphrase"] = cfg.passphrase
         client.connect(**kwargs)
         return client
-    except paramiko.AuthenticationException as e:
+    except paramiko.AuthenticationException:
         raise SSHAuthFailed(f"auth rejected for {user}@{cfg.host}") from None
     except (OSError, paramiko.SSHException) as e:
         # Don't include cfg in the exception message — could leak

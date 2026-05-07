@@ -18,6 +18,7 @@ from src.mcp.netcdf_reader.paths.classify import (
 )
 
 if TYPE_CHECKING:
+    from src.mcp.netcdf_reader.paths.ssh import SSHAuthNeeded
     from src.mcp.netcdf_reader.protocols import FormatAdapter
 
 
@@ -183,7 +184,7 @@ def _ssh_auth_failed_envelope(cls, msg: str) -> dict[str, Any]:
         subcode=envelope.AmbiguitySubcode.SSH_AUTH_NEEDED,
         message=f"SSH auth failed: {msg}",
         candidates=candidates,
-        prompt=f"SSH auth was rejected. Pick a different method.",
+        prompt="SSH auth was rejected. Pick a different method.",
         retry_with_param="ssh_config",
         context={"host": cls.host, "user": cls.user, "previous_error": msg},
     )

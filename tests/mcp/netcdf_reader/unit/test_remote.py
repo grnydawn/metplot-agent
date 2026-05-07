@@ -1,5 +1,4 @@
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 from src.mcp.netcdf_reader.adapter import NetCDFAdapter
 
 
@@ -11,7 +10,7 @@ def test_adapter_passes_http_url_to_open_dataset(monkeypatch):
         return MagicMock(data_vars={}, coords={}, dims={}, sizes={}, attrs={})
     monkeypatch.setattr("xarray.open_dataset", fake_open)
     a = NetCDFAdapter()
-    ds = a.open(["https://example.org/data.nc"])
+    a.open(["https://example.org/data.nc"])
     assert captured["path"] == "https://example.org/data.nc"
 
 

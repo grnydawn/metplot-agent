@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from src.mcp.netcdf_reader.paths.ssh import open_sftp_file
 
 

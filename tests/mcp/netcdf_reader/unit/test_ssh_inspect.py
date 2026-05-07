@@ -1,10 +1,13 @@
 # tests/mcp/netcdf_reader/unit/test_ssh_inspect.py
+import time
 from unittest.mock import MagicMock, patch
-import xarray as xr
+
 import numpy as np
+import xarray as xr
+
 from src.mcp.netcdf_reader.adapter import NetCDFAdapter
+from src.mcp.netcdf_reader.paths.ssh import AuthAttempt, SSHAuthNeeded, SSHConfig
 from src.mcp.netcdf_reader.tools.inspect import inspect
-from src.mcp.netcdf_reader.paths.ssh import SSHAuthNeeded, SSHConfig, AuthAttempt
 
 
 def _make_synthetic_dataset():
@@ -94,7 +97,6 @@ def test_ssh_inspect_retry_with_explicit_ssh_config(tmp_path, monkeypatch):
     ce.assert_called_once()
 
 
-import time
 def test_slow_remote_read_emits_warning(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     fake_client = MagicMock()

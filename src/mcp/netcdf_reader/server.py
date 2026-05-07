@@ -24,10 +24,10 @@ try:
     from mcp.server import Server
     from mcp.server.stdio import stdio_server
     import mcp.types as types
-except ImportError:
-    Server = None
-    stdio_server = None
-    types = None
+except ImportError:  # pragma: no cover
+    Server = None  # type: ignore[misc,assignment]
+    stdio_server = None  # type: ignore[misc,assignment]
+    types = None  # type: ignore[misc,assignment]
 
 _ADAPTER = NetCDFAdapter()
 

@@ -5,7 +5,7 @@ import paramiko
 import pytest
 
 from src.mcp.netcdf_reader.paths.ssh import (
-    SSHConfig, AuthAttempt, silent_auth_chain, SSHAuthNeeded,
+    SSHConfig, silent_auth_chain, SSHAuthNeeded,
 )
 
 

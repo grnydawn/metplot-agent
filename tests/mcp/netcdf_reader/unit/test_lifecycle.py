@@ -1,5 +1,11 @@
 # tests/mcp/netcdf_reader/unit/test_lifecycle.py
-from src.mcp.netcdf_reader.lifecycle import cleanup_old_slice_dirs
+from unittest.mock import MagicMock
+
+from src.mcp.netcdf_reader.lifecycle import (
+    cleanup_old_slice_dirs,
+    on_shutdown,
+    register_pool,
+)
 
 
 def test_cleanup_removes_old_session_dirs(tmp_path, monkeypatch):
@@ -25,10 +31,6 @@ def test_cleanup_keeps_current(tmp_path, monkeypatch):
 def test_cleanup_handles_missing_base(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     cleanup_old_slice_dirs(keep="any")  # should not raise
-
-
-from unittest.mock import MagicMock
-from src.mcp.netcdf_reader.lifecycle import register_pool, on_shutdown
 
 
 def test_on_shutdown_closes_registered_pools():

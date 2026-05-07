@@ -10,7 +10,7 @@ def test_connect_with_password():
     cfg = SSHConfig(host="h", user="u", password="secret")
     fake = MagicMock()
     with patch("paramiko.SSHClient", return_value=fake):
-        client = connect_explicit(cfg)
+        connect_explicit(cfg)
         fake.connect.assert_called_once()
         kwargs = fake.connect.call_args.kwargs
         assert kwargs["password"] == "secret"

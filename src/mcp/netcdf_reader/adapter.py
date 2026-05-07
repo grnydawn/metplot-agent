@@ -59,6 +59,8 @@ class NetCDFAdapter:
                     SSHConfig, parse_ssh_config_for_host,
                     silent_auth_chain, connect_explicit, open_sftp_file,
                 )
+                assert cls.host is not None
+                assert cls.remote_path is not None
                 if ssh_config:
                     cfg = SSHConfig(
                         host=ssh_config.get("host") or cls.host,
