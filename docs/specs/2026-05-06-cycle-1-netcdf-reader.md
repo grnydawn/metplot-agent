@@ -48,7 +48,7 @@ The `netcdf-reader` is one of two foundation MCP servers (the other is `plot-ren
 
 ## 2. Tool surface
 
-Nine callable tools, three logical groups.
+Eight callable tools across three logical groups, plus one implicit lifecycle hook (not callable from the agent, runs on MCP shutdown).
 
 ### Plotting path (D-path) — no array data crosses the agent
 
@@ -697,7 +697,7 @@ class FormatAdapter(Protocol):
         """Format-specific convention detection on top of core CF detection."""
 ```
 
-The cycle-1 reader implements one adapter (`NetCDFAdapter`). Generic tools take the adapter as a dependency. Five methods. Don't speculatively expand.
+The cycle-1 reader implements one adapter (`NetCDFAdapter`). Generic tools take the adapter as a dependency. Four methods plus two attributes — kept minimal on purpose. Don't speculatively expand.
 
 ### Future layout (not cycle 1)
 
