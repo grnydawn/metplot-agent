@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "plot-renderer"
+version = "0.1.0"
+description = "MCP server: matplotlib/cartopy plot rendering from structured specs"
+requires-python = ">=3.10"
+dependencies = [
+    "mcp>=1.0",
+    "matplotlib>=3.8",
+    "numpy>=1.24",
+    "xarray>=2024.1",
+    "h5netcdf>=1.3",
+    "dask[array]>=2024.1",
+]
+
+[project.optional-dependencies]
+maps  = ["cartopy>=0.22"]
+trend = ["scipy>=1.11"]
+dev   = ["pytest>=8", "ruff>=0.5", "mypy>=1.10", "scikit-image>=0.22"]
+
+[project.scripts]
+ncplot-plot-renderer = "src.mcp.plot_renderer.server:main"
