@@ -195,3 +195,32 @@ def connect_explicit(cfg: SSHConfig) -> paramiko.SSHClient:
     except (OSError, paramiko.SSHException) as e:
         # Don't include cfg in the exception message — could leak
         raise SSHAuthFailed(f"connection error: {type(e).__name__}") from None
+
+
+class ConnectionPool:
+    """Session-scoped pool keyed by (user, host, port). Credentials
+    live only in the in-memory cfg objects; cleared on close_all()."""
+    def __init__(self) -> None:
+        self._pool: dict[tuple[str, str, int], tuple[paramiko.SSHClient, SSHConfig]] = {}
+
+    def _key(self, cfg: SSHConfig) -> tuple[str, str, int]:
+        return (cfg.user or "", cfg.host, cfg.port)
+
+    def get_or_open(self, cfg: SSHConfig) -> paramiko.SSHClient:
+        k = self._key(cfg)
+        if k in self._pool:
+            return self._pool[k][0]
+        client = connect_explicit(cfg)
+        self._pool[k] = (client, cfg)
+        return client
+
+    def close_all(self) -> None:
+        for client, cfg in list(self._pool.values()):
+            try:
+                client.close()
+            except Exception:
+                pass
+            # Zero credentials
+            cfg.password = None
+            cfg.passphrase = None
+        self._pool.clear()
