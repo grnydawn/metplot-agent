@@ -3,14 +3,16 @@ from src.mcp.netcdf_reader.paths.classify import classify, PathKind, ClassifyErr
 
 
 def test_classify_local_single(tmp_path):
-    f = tmp_path / "data.nc"; f.write_bytes(b"")
+    f = tmp_path / "data.nc"
+    f.write_bytes(b"")
     k = classify(str(f))
     assert k.kind == PathKind.LOCAL_SINGLE
     assert k.scheme == "file"
     assert k.paths == [str(f.resolve())]
 
 def test_classify_file_url(tmp_path):
-    f = tmp_path / "data.nc"; f.write_bytes(b"")
+    f = tmp_path / "data.nc"
+    f.write_bytes(b"")
     k = classify(f"file://{f}")
     assert k.kind == PathKind.LOCAL_SINGLE
 

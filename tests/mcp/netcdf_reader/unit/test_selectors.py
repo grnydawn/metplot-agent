@@ -1,8 +1,7 @@
 import pytest
 from src.mcp.netcdf_reader.selectors import (
     parse_time, parse_level, parse_latlon,
-    TimeSelector, LevelSelector, LatLonSelector,
-    SelectorError,
+    TimeSelector, SelectorError,
 )
 
 

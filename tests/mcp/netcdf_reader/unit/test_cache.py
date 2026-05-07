@@ -1,8 +1,5 @@
-import json
-from pathlib import Path
-import pytest
 from src.mcp.netcdf_reader.cache import (
-    inspection_key, read_inspection, write_inspection, InspectionCache,
+    inspection_key, read_inspection, write_inspection,
 )
 
 
@@ -20,7 +17,8 @@ def test_inspection_key_changes_with_mtime(tmp_path):
     f.write_bytes(b"x" * 100)
     k1 = inspection_key([str(f)])
     # bump mtime
-    import os, time
+    import os
+    import time
     time.sleep(0.01)
     os.utime(f, None)
     k2 = inspection_key([str(f)])
@@ -28,8 +26,10 @@ def test_inspection_key_changes_with_mtime(tmp_path):
     assert k1 != k2
 
 def test_inspection_key_multifile_includes_all(tmp_path):
-    f1 = tmp_path / "a.nc"; f1.write_bytes(b"a")
-    f2 = tmp_path / "b.nc"; f2.write_bytes(b"b")
+    f1 = tmp_path / "a.nc"
+    f1.write_bytes(b"a")
+    f2 = tmp_path / "b.nc"
+    f2.write_bytes(b"b")
     k_pair = inspection_key([str(f1), str(f2)])
     k_single = inspection_key([str(f1)])
     assert k_pair != k_single

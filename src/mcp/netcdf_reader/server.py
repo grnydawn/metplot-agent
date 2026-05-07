@@ -21,8 +21,8 @@ try:
     from mcp.server import Server
     from mcp.server.stdio import stdio_server
 except ImportError:  # pragma: no cover
-    Server = None  # type: ignore[assignment]
-    stdio_server = None  # type: ignore[assignment]
+    Server = None  # type: ignore[misc,assignment]
+    stdio_server = None  # type: ignore[misc,assignment]
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,6 @@
-# tests/mcp/netcdf-reader/unit/test_envelope.py
-from src.mcp.netcdf_reader.envelope import success
+# tests/mcp/netcdf_reader/unit/test_envelope.py
+from src.mcp.netcdf_reader.envelope import ErrorCode, WarningCode, error, success
+
 
 def test_success_envelope_minimal():
     env = success({"foo": "bar"})
@@ -21,7 +22,6 @@ def test_success_envelope_with_warnings_and_resolved():
     assert env["warnings"][0]["code"] == "slow_remote_read"
     assert env["resolved"] == {"time_value": "2024-09-01T12:00:00"}
 
-from src.mcp.netcdf_reader.envelope import ErrorCode, WarningCode, error, ambiguous
 
 def test_error_code_constants_present():
     assert ErrorCode.FILE_NOT_FOUND == "file_not_found"
