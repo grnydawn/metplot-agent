@@ -25,6 +25,7 @@ venv/
 
 # secrets
 .env
+.env.test
 *.local
 
 # data — don't accidentally commit large NetCDF samples
