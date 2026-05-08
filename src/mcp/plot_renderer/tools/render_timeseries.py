@@ -32,13 +32,13 @@ def _apply_trendline(ax: Any, x_axis: Any, values: np.ndarray, kind: str) -> Non
                 color="black", linestyle="--", linewidth=1.0)
     elif kind == "lowess":
         try:
-            from scipy.signal import savgol_filter  # noqa: F401
+            from scipy.signal import savgol_filter  # type: ignore[import-untyped] # noqa: F401
         except (ImportError, ModuleNotFoundError) as e:
             raise _LowessUnavailable(
                 "scipy is required for lowess trendline; install with `uv pip install scipy`"
             ) from e
         # Use savgol as a smooth lowess-like estimate
-        from scipy.signal import savgol_filter
+        from scipy.signal import savgol_filter  # type: ignore[import-untyped]
         n = values.shape[0]
         window = max(5, n // 10)
         if window % 2 == 0:
@@ -99,9 +99,9 @@ def render_timeseries(spec: dict[str, Any]) -> dict[str, Any]:
         # 4. Render
         fig, ax = plt.subplots(figsize=(8.0, 4.5))
         if len(series) > 10:
-            color_cycle = plt.colormaps["tab20"].colors
+            color_cycle = plt.colormaps["tab20"].colors  # type: ignore[attr-defined]
         else:
-            color_cycle = plt.colormaps["tab10"].colors
+            color_cycle = plt.colormaps["tab10"].colors  # type: ignore[attr-defined]
         per_series_meta: list[dict[str, Any]] = []
         per_series_stats: list[dict[str, Any]] = []
         for i, s in enumerate(series):

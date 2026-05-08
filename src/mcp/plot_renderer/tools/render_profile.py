@@ -65,7 +65,7 @@ def render_profile(spec: dict[str, Any]) -> dict[str, Any]:
         vertical_axis = spec.get("vertical_axis") or resolved["vertical_axis"]
 
         fig, ax = plt.subplots(figsize=(5.0, 6.0))
-        color_cycle = plt.colormaps["tab10"].colors
+        color_cycle = plt.colormaps["tab10"].colors  # type: ignore[attr-defined]
         series_meta: list[dict[str, Any]] = []
         series_stats: list[dict[str, Any]] = []
         for i, s in enumerate(series):
