@@ -1,7 +1,6 @@
 # tests/targets/_common/test_mcp_bundling_helper.py
 from pathlib import Path
 
-import pytest
 
 from targets._common.mcp_bundling import MCP_SERVERS, bundle_mcp_servers
 

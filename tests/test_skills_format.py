@@ -35,7 +35,8 @@ def test_skills_lint_clean():
 def test_targets_have_build_module():
     targets_root = REPO_ROOT / "targets"
     assert targets_root.exists()
-    targets = [p for p in targets_root.iterdir() if p.is_dir()]
+    targets = [p for p in targets_root.iterdir()
+               if p.is_dir() and not p.name.startswith("_")]
     assert targets, "no targets registered"
     for t in targets:
         assert (t / "build.py").exists(), f"{t.name} missing build.py"
