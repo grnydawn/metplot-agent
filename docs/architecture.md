@@ -92,17 +92,37 @@ liability because subtly wrong refinements compound silently.
 
 ## Target-specific notes
 
-| Target          | Skills        | MCP    | Hooks    | Refiner trigger     |
-|-----------------|---------------|--------|----------|---------------------|
-| Claude Code     | native        | native | native   | Stop hook (auto)    |
-| Claude Desktop  | via project doc | native | none   | manual `/refine`    |
-| Codex           | AGENTS.md     | via SDK| via SDK  | manual              |
-| Cursor          | rules dir     | native | limited  | manual              |
-| Hermes          | native        | native | native   | built-in loop       |
+The host ecosystem converged sharply in 2025–2026: most major coding-agent
+hosts now load `SKILL.md` (YAML frontmatter + markdown body) natively, and
+all support stdio MCP. The compatibility matrix as of May 2026:
 
-For agents without native skill loaders, we concatenate skill content into a
-project-level instruction document (Claude Desktop) or AGENTS.md (Codex) at
-build time.
+| Target           | Skills          | MCP                    | Slash cmds  | Hooks               | Refiner trigger     | Status      |
+|------------------|-----------------|------------------------|-------------|---------------------|---------------------|-------------|
+| Claude Code      | native SKILL.md | native (`.mcp.json`)   | native (md) | native (PascalCase) | Stop hook (auto)    | ✅ shipped  |
+| Codex CLI        | native SKILL.md | native (`config.toml`) | via skills  | native (PascalCase) | Stop hook (auto)    | cycle 7     |
+| Codex Desktop    | shared w/ CLI   | shared w/ CLI          | shared      | shared              | shared              | cycle 7     |
+| Gemini CLI       | native SKILL.md | native (`settings.json`) | native (toml) | native (12 events) | SessionEnd (auto)   | cycle 7     |
+| Cursor           | native SKILL.md | native (`.cursor/mcp.json`) | native (md) | native (camelCase) | stop hook (auto)    | cycle 7     |
+| GitHub Copilot   | native SKILL.md | native (`.vscode/mcp.json`, `servers` key) | native (skills) | native (PascalCase) | Stop hook (auto)    | cycle 7     |
+| Antigravity      | native SKILL.md | native (`mcp_config.json`) | workflows (md) | none confirmed     | manual workflow     | cycle 7     |
+| Claude Desktop   | via project doc (no skill loader) | native (`claude_desktop_config.json`) | none   | none                | manual `/refine`    | cycle 7 polish |
+| Hermes           | (unverified — stub kept for potential future support) | (unverified) | (unverified) | (unverified) | (unverified) | not researched |
+
+The `.agents/skills/` interop directory is recognized by Codex, Gemini CLI,
+and GitHub Copilot — meaning the same skill source can be shared across
+those three hosts without per-host transformation. Anthropic's
+`SKILL.md` format is the schema everyone has converged on.
+
+Hosts without a native skill loader (Claude Desktop) still get the markdown
+bodies via concatenation into a project instructions document, with
+frontmatter stripped at build time.
+
+Hosts without a hook system (Antigravity, Claude Desktop) lose the
+automatic skill-refiner closed loop (cycle 6); the `/refine` command
+becomes a manual trigger instead.
+
+See `docs/research/2026-05-08-multi-host-survey.md` for the survey that
+informed this matrix.
 
 ## Non-goals
 

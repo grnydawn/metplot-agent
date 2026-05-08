@@ -44,7 +44,7 @@ ncplot-refine = "tools.apply_refinements:cli"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["tools*", "src*"]
+include = ["tools*", "src*", "targets*"]
 
 [tool.ruff]
 line-length = 100
