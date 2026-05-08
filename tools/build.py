@@ -61,7 +61,8 @@ def build_target(name: str, *, validate: bool = False) -> None:
     module = load_target_module(name, targets[name])
     if not hasattr(module, "build"):
         raise click.ClickException(f"{targets[name]} does not export build()")
-    click.echo(f"building {name} → {out_dir.relative_to(REPO_ROOT)}")
+    display = out_dir.relative_to(REPO_ROOT) if out_dir.is_relative_to(REPO_ROOT) else out_dir
+    click.echo(f"building {name} → {display}")
     module.build(SRC_ROOT, out_dir)
     click.echo("  done.")
     if validate:
