@@ -198,3 +198,17 @@ def apply(
         trace["fields_applied"].append(tmpl_field)
 
     return resolved, trace
+
+
+def source_provenance(template: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Extract the optional `source` provenance block from a style_template.
+
+    Returns None if absent. The renderer flows this block untouched into
+    `oracle.style_template_applied.source`.
+    """
+    if template is None:
+        return None
+    src = template.get("source")
+    if not isinstance(src, dict):
+        return None
+    return dict(src)
