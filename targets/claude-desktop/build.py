@@ -1,165 +1,109 @@
-"""Build the Claude Desktop integration from src/.
+"""Build the Claude Desktop bundle from src/.
 
-Claude Desktop doesn't load skills natively — its primary extension surface
-is MCP servers (configured in `claude_desktop_config.json`). This builder:
+Claude Desktop has no native skill loader, so we concatenate skill
+bodies into `project_instructions.md` — the user pastes this into
+their Claude Project's instructions panel.
 
-1. Emits an `mcp_config_snippet.json` the user merges into their Desktop config.
-2. Concatenates all skill bodies into a single `project_instructions.md` that
-   the user attaches to a Project, giving the model the same procedural
-   knowledge a real skill loader would inject.
-3. Bundles MCP server source so the user can run them locally.
-
-The skill-refiner closed-loop has reduced functionality here: there's no
-session-end hook, so refinement is manual via /refine.
+MCP servers ARE supported (stdio, configured via
+`claude_desktop_config.json`). Cycle-7 polish: bundle the servers
+with re-rooted source + patched pyproject (so users can `pip install`)
+and emit an entry-point-based config snippet.
 """
 
 from __future__ import annotations
 
 import json
-import re
 import shutil
 from pathlib import Path
 
-OUT_NAME = "ncplot-agent-claude-desktop"
+from targets._common.manifest import common_ncplot_block
+from targets._common.mcp_bundling import bundle_mcp_servers, MCP_SERVERS
+from targets._common.skills import INCLUDED_SKILLS
 
-FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n(.*)$", re.DOTALL)
+
+PLUGIN_NAME = "ncplot-agent"
 
 
 def build(src_root: Path, out_root: Path) -> None:
-    out_dir = out_root / OUT_NAME
-    if out_dir.exists():
-        shutil.rmtree(out_dir)
-    out_dir.mkdir(parents=True)
+    plugin_dir = out_root / PLUGIN_NAME
+    if plugin_dir.exists():
+        shutil.rmtree(plugin_dir)
+    plugin_dir.mkdir(parents=True)
+
+    # Concatenate skill bodies into project_instructions.md
+    pi = ["# ncplot-agent — Claude Desktop project instructions\n",
+          "Paste this content into your Claude Project's Custom Instructions "
+          "or Project Knowledge.\n",
+          "\n---\n"]
+    skills_src = src_root / "skills"
+    for name in sorted(INCLUDED_SKILLS):
+        skill_md = skills_src / name / "SKILL.md"
+        if not skill_md.exists():
+            raise RuntimeError(f"missing skill: {skill_md}")
+        text = skill_md.read_text()
+        # Strip YAML frontmatter
+        if text.startswith("---\n"):
+            end = text.find("\n---\n", 4)
+            if end > 0:
+                text = text[end + 5:]
+        pi.append(f"\n## Skill: {name}\n")
+        pi.append(text.strip() + "\n")
+        pi.append("\n---\n")
+    (plugin_dir / "project_instructions.md").write_text("".join(pi))
 
     # Bundle MCP servers
-    mcp_dst = out_dir / "mcp-servers"
-    mcp_dst.mkdir()
-    mcp_servers: dict[str, dict] = {}
-    for m in sorted((src_root / "mcp").iterdir()):
-        if not m.is_dir():
-            continue
-        shutil.copytree(m, mcp_dst / m.name)
-        entry = mcp_dst / m.name / "server.py"
-        if entry.exists():
-            # User needs to substitute INSTALL_PATH after copying.
-            mcp_servers[m.name] = {
-                "command": "python",
-                "args": ["INSTALL_PATH/mcp-servers/" + m.name + "/server.py"],
+    bundle_mcp_servers(src_root, plugin_dir / "mcp-servers")
+
+    # MCP config snippet (paste into ~/Library/Application Support/Claude/claude_desktop_config.json)
+    snippet = {
+        "mcpServers": {
+            s["external_name"]: {
+                "command": s["entry_point"],
+                "args": [],
             }
+            for s in MCP_SERVERS
+        }
+    }
+    (plugin_dir / "claude_desktop_config_snippet.json").write_text(
+        json.dumps(snippet, indent=2) + "\n")
 
-    # MCP config snippet
-    snippet = {"mcpServers": mcp_servers}
-    (out_dir / "mcp_config_snippet.json").write_text(
-        json.dumps(snippet, indent=2) + "\n"
+    # Audit metadata
+    (plugin_dir / ".ncplot.json").write_text(
+        json.dumps(common_ncplot_block(build_cycle=7), indent=2) + "\n")
+
+    (plugin_dir / "README.md").write_text(_readme())
+
+
+def _readme() -> str:
+    return (
+        "# ncplot-agent — Claude Desktop bundle\n\n"
+        "NetCDF plotting via natural language.\n\n"
+        "Claude Desktop has no native skill loader, so this bundle gives you:\n"
+        "1. A pre-concatenated `project_instructions.md` to paste into your "
+        "Claude Project.\n"
+        "2. Two installable MCP servers (`mcp-servers/`).\n"
+        "3. A config snippet for `claude_desktop_config.json`.\n\n"
+        "## Install\n\n"
+        "### 1. Install the MCP servers\n\n"
+        "```bash\n"
+        "pip install ./mcp-servers/netcdf_reader\n"
+        "pip install ./mcp-servers/plot_renderer\n"
+        "```\n\n"
+        "### 2. Merge the config snippet\n\n"
+        "On macOS:\n\n"
+        "```bash\n"
+        "# View existing config\n"
+        "cat ~/Library/Application\\ Support/Claude/claude_desktop_config.json\n"
+        "```\n\n"
+        "Merge `claude_desktop_config_snippet.json` into that file's "
+        "`mcpServers` block. Restart Claude Desktop.\n\n"
+        "### 3. Paste project_instructions.md into your Claude Project\n\n"
+        "Open the project, click the project title to access settings, paste "
+        "the contents of `project_instructions.md` into the Custom "
+        "Instructions area.\n\n"
+        "## Known limitations\n\n"
+        "- **No skill loader** → instructions are a single context dump rather "
+        "than dynamic skill activation.\n"
+        "- **No slash commands.**\n"
+        "- **No hooks** → cycle-6 self-improvement is manual only.\n"
     )
-
-    # Concatenate skills into project instructions
-    instructions = _concat_skills(src_root / "skills")
-    (out_dir / "project_instructions.md").write_text(instructions)
-
-    # Copy reference data
-    data_src = src_root / "data"
-    if data_src.exists():
-        shutil.copytree(data_src, out_dir / "data")
-
-    # README
-    (out_dir / "README.md").write_text(
-        _install_readme(list(mcp_servers))
-    )
-
-
-def _concat_skills(skills_root: Path) -> str:
-    """Concatenate all skill bodies into a project-attachable instructions doc.
-
-    Each skill becomes a section; references/ contents are inlined so the model
-    has them in context without filesystem access.
-    """
-    parts: list[str] = []
-    parts.append("# ncplot-agent — Project instructions\n")
-    parts.append(
-        "These are the skills the model should follow when working with NetCDF "
-        "files in this project. They were generated from the canonical skills "
-        "in the ncplot-agent repository. Refer to a skill by name when "
-        "responding to a request that matches its `When to use` section.\n"
-    )
-    parts.append(
-        "## Self-improvement loop (manual mode)\n"
-        "Claude Desktop has no session-end hooks, so the skill-refiner runs "
-        "manually. After a session with corrections or new patterns, ask: "
-        "\"run the skill-refiner on this session\". The refiner writes draft "
-        "patches to `.ncplot/refinements/` for review with `ncplot-refine`.\n"
-    )
-
-    for s in sorted(skills_root.iterdir()):
-        if not s.is_dir():
-            continue
-        md = s / "SKILL.md"
-        if not md.exists():
-            continue
-        text = md.read_text()
-        m = FRONTMATTER_RE.match(text)
-        if not m:
-            continue
-        body = m.group(2)
-        parts.append(f"\n---\n\n# Skill: {s.name}\n\n")
-        parts.append(body)
-
-        # Inline references/
-        refs_dir = s / "references"
-        if refs_dir.exists():
-            for ref in sorted(refs_dir.glob("*.md")):
-                parts.append(f"\n### Reference: `references/{ref.name}`\n\n")
-                parts.append(ref.read_text())
-
-    return "".join(parts)
-
-
-def _install_readme(mcps: list[str]) -> str:
-    mcp_lines = "\n".join(f"  - `{m}`" for m in mcps) or "  (none)"
-    return f"""# ncplot-agent — Claude Desktop integration
-
-## What's in this directory
-
-- `mcp_config_snippet.json` — merge into your Claude Desktop config
-- `mcp-servers/` — Python source for the MCP servers
-- `project_instructions.md` — attach to a Claude Project to get the skills
-- `data/regions.json` — shared region definitions
-
-## Install
-
-1. **Pick an install path.** Copy this directory somewhere stable, e.g.
-   `~/Library/Application Support/Claude/ncplot-agent/` (macOS).
-
-2. **Edit `mcp_config_snippet.json`.** Replace every `INSTALL_PATH` with
-   the absolute path you chose.
-
-3. **Merge into Claude Desktop config:**
-   - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-   - Linux: `~/.config/Claude/claude_desktop_config.json`
-   - Windows: `%APPDATA%/Claude/claude_desktop_config.json`
-
-   Merge the `mcpServers` keys; don't overwrite existing entries.
-
-4. **Install MCP server dependencies:**
-   ```
-   pip install xarray netcdf4 cftime numpy matplotlib cartopy mcp
-   ```
-
-5. **Create a Project in Claude Desktop**, paste the contents of
-   `project_instructions.md` into the project knowledge area.
-
-6. Restart Claude Desktop. The MCP servers should appear as available tools.
-
-## What works / doesn't here
-
-| Feature                  | Supported                  |
-|--------------------------|----------------------------|
-| MCP servers              | yes (native)               |
-| Skills                   | via project instructions   |
-| Slash commands           | no (Desktop has none)      |
-| Hooks (Stop, etc.)       | no                         |
-| Auto-refinement          | no — invoke manually       |
-
-MCP servers used:
-{mcp_lines}
-"""
