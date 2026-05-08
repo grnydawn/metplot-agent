@@ -57,6 +57,10 @@ target-version = "py310"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+addopts = "-ra"
+markers = [
+    "image_diff: run only when --image-diff is passed",
+]
 
 [tool.mypy]
 explicit_package_bases = true

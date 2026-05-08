@@ -38,3 +38,6 @@ venv/
 
 # pinned-real-files integration fixtures (gitignored, populated by download_samples.sh)
 tests/mcp/netcdf_reader/integration/data/
+
+# plot-renderer real-files developer config (local paths only)
+tests/integration/real_files.json

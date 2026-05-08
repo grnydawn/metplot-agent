@@ -1,0 +1,166 @@
+# src/mcp/plot_renderer/safety.py
+"""⤴ format-agnostic — eligible for _core/ lift.
+
+Robustness behaviors for the renderer (spec §7). The safety pass runs
+on already-normalized numpy arrays AFTER style resolution and BEFORE
+the matplotlib drawing call.
+"""
+from __future__ import annotations
+
+from math import ceil
+from typing import Any
+
+import numpy as np
+
+
+DOWNSAMPLE_2D_THRESHOLD = 4_000_000   # cells (e.g. 2048 × 2048)
+DOWNSAMPLE_1D_THRESHOLD = 100_000     # points
+
+
+def _coarsen_factor(n: int, target: int) -> int:
+    """Smallest k >= 1 such that n // k <= target."""
+    if n <= target:
+        return 1
+    return int(ceil(n / target))
+
+
+def auto_downsample_2d(
+    values: np.ndarray, coords: dict[str, np.ndarray], *, enabled: bool,
+) -> tuple[np.ndarray, dict[str, np.ndarray], dict[str, Any] | None]:
+    """Downsample 2D array via per-axis coarsening if total cells exceed
+    threshold and `enabled` is True. Returns (values, coords, action) where
+    action is None when no downsample happened.
+    """
+    if not enabled:
+        return values, coords, None
+    n_lat, n_lon = values.shape
+    if n_lat * n_lon <= DOWNSAMPLE_2D_THRESHOLD:
+        return values, coords, None
+    # Compute per-axis factor proportional to a sqrt-balance toward the cap.
+    target_each = int(DOWNSAMPLE_2D_THRESHOLD ** 0.5)
+    k_lat = _coarsen_factor(n_lat, target_each)
+    k_lon = _coarsen_factor(n_lon, target_each)
+    # Trim to multiples of the factor so reshape is clean.
+    n_lat_trim = (n_lat // k_lat) * k_lat
+    n_lon_trim = (n_lon // k_lon) * k_lon
+    arr = values[:n_lat_trim, :n_lon_trim].reshape(
+        n_lat_trim // k_lat, k_lat, n_lon_trim // k_lon, k_lon,
+    ).mean(axis=(1, 3))
+    new_coords = {
+        "lat": coords["lat"][:n_lat_trim].reshape(-1, k_lat).mean(axis=1),
+        "lon": coords["lon"][:n_lon_trim].reshape(-1, k_lon).mean(axis=1),
+    }
+    return arr, new_coords, {
+        "from_shape": (n_lat, n_lon),
+        "to_shape": arr.shape,
+        "factor": {"lat": k_lat, "lon": k_lon},
+    }
+
+
+def auto_downsample_1d(
+    values: np.ndarray, axis: np.ndarray, *, enabled: bool,
+) -> tuple[np.ndarray, np.ndarray, dict[str, Any] | None]:
+    """Stride-decimate a 1D array if length exceeds threshold."""
+    if not enabled:
+        return values, axis, None
+    n = values.shape[0]
+    if n <= DOWNSAMPLE_1D_THRESHOLD:
+        return values, axis, None
+    k = _coarsen_factor(n, DOWNSAMPLE_1D_THRESHOLD)
+    return (values[::k], axis[::k],
+            {"from_shape": (n,), "to_shape": (values[::k].shape[0],),
+             "factor": {"axis": k}})
+
+
+def nan_assessment(values: np.ndarray) -> dict[str, Any]:
+    """Compute NaN statistics. Threshold for `high_nan_fraction` is > 0.5."""
+    total = values.size
+    if total == 0:
+        return {"nan_fraction": 0.0, "all_nan": False,
+                "high_nan_fraction": False}
+    n_nan = int(np.isnan(values).sum())
+    frac = n_nan / total
+    return {
+        "nan_fraction": frac,
+        "all_nan": (n_nan == total),
+        "high_nan_fraction": (frac > 0.5),
+    }
+
+
+def maybe_lon_shift(
+    values: np.ndarray, lon: np.ndarray, *, target: str | None,
+) -> tuple[np.ndarray, np.ndarray, bool]:
+    """Shift longitude convention if `target` is set and current data
+    doesn't satisfy it. Returns (values, lon, applied).
+
+    target ∈ {None, "-180..180", "0..360"}.
+    """
+    if target is None:
+        return values, lon, False
+    if target == "-180..180":
+        if lon.min() >= -180.0 and lon.max() <= 180.0:
+            return values, lon, False
+        new_lon = ((lon + 180.0) % 360.0) - 180.0
+    elif target == "0..360":
+        if lon.min() >= 0.0 and lon.max() <= 360.0:
+            return values, lon, False
+        new_lon = lon % 360.0
+    else:
+        # Unknown target: pass through; caller may have validated already.
+        return values, lon, False
+    order = np.argsort(new_lon, kind="stable")
+    sorted_lon = new_lon[order]
+    # Re-order along the lon axis (last axis for 2D values shape (lat, lon)).
+    sorted_values = np.take(values, order, axis=-1)
+    return sorted_values, sorted_lon, True
+
+
+def is_constant_field(values: np.ndarray) -> tuple[bool, float | None]:
+    """Return (True, value) if all non-NaN values are identical (or array
+    is all-NaN, with value=None). Otherwise (False, None)."""
+    finite = values[np.isfinite(values)]
+    if finite.size == 0:
+        return True, None
+    if finite.min() == finite.max():
+        return True, float(finite.min())
+    return False, None
+
+
+def percentile_clip_if_extreme(
+    values: np.ndarray, *,
+    vmin: float | None = None,
+    vmax: float | None = None,
+    clip_pct: tuple[float, float] | None = None,
+    extreme_orders_of_magnitude: float = 6.0,
+) -> tuple[float, float, bool]:
+    """Decide vmin/vmax for the colormap.
+
+    - If user/template supplied vmin and vmax, return them unchanged.
+    - If clip_pct is supplied, apply it (always).
+    - Otherwise, if data spans more than `extreme_orders_of_magnitude`,
+      apply a [2, 98] percentile clip to suppress outliers.
+    - Otherwise return (data_min, data_max).
+
+    Returns (vmin, vmax, applied) where applied=True only when a
+    percentile clip was actually applied.
+    """
+    if vmin is not None and vmax is not None:
+        return float(vmin), float(vmax), False
+    finite = values[np.isfinite(values)]
+    if finite.size == 0:
+        return float("nan"), float("nan"), False
+    if clip_pct is not None:
+        lo, hi = clip_pct
+        v_lo = float(np.percentile(finite, lo))
+        v_hi = float(np.percentile(finite, hi))
+        return v_lo, v_hi, True
+    data_min = float(finite.min())
+    data_max = float(finite.max())
+    abs_max = max(abs(data_min), abs(data_max))
+    median_abs = float(np.median(np.abs(finite)))
+    median_abs = max(median_abs, 1e-300)
+    if abs_max / median_abs > 10 ** extreme_orders_of_magnitude:
+        v_lo = float(np.percentile(finite, 2.0))
+        v_hi = float(np.percentile(finite, 98.0))
+        return v_lo, v_hi, True
+    return data_min, data_max, False
