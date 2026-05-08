@@ -60,3 +60,52 @@ def test_mapping_table_has_all_template_keys():
     }
     for k in expected:
         assert k in _MAPPING
+
+
+def test_projection_family_robinson():
+    resolved, _ = apply({}, {"projection_family": "robinson"})
+    assert resolved["projection"] == "Robinson"
+
+
+def test_projection_family_polar_north():
+    resolved, _ = apply({}, {"projection_family": "polar_stereo_north"})
+    assert resolved["projection"] == "NorthPolarStereo"
+
+
+def test_projection_family_unknown_ignored():
+    resolved, trace = apply({}, {"projection_family": "weird"})
+    assert "projection" not in resolved
+    assert any(f["field"] == "projection_family" for f in trace["fields_ignored"])
+
+
+def test_layout_fields():
+    resolved, _ = apply({}, {
+        "colorbar_position": "bottom",
+        "legend_placement": "outside_right",
+        "gridlines": "heavy",
+        "aspect": 1.5,
+    })
+    assert resolved["colorbar_position"] == "bottom"
+    assert resolved["legend_placement"] == "outside_right"
+    assert resolved["gridlines"] == "heavy"
+    assert resolved["aspect"] == 1.5
+
+
+def test_font_scale_clamped():
+    # Below range
+    resolved, _ = apply({}, {"font_scale": 0.3})
+    assert resolved["font_scale"] == 0.7
+    # Above range
+    resolved, _ = apply({}, {"font_scale": 2.0})
+    assert resolved["font_scale"] == 1.5
+
+
+def test_advisory_fields_passthrough():
+    resolved, _ = apply({}, {
+        "extent_hint": "global",
+        "title_placement": "top",
+        "label_density": "verbose",
+    })
+    assert resolved.get("_advisory_extent_hint") == "global"
+    assert resolved.get("_advisory_title_placement") == "top"
+    assert resolved.get("_advisory_label_density") == "verbose"

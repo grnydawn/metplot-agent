@@ -54,12 +54,78 @@ def _map_clip_pct(value: Any) -> MapResult:
     return ("clip_pct", [float(value[0]), float(value[1])], True, "")
 
 
+def _map_projection_family(value: Any) -> MapResult:
+    table = {
+        "plate_carree":        "PlateCarree",
+        "robinson":            "Robinson",
+        "polar_stereo_north":  "NorthPolarStereo",
+        "polar_stereo_south":  "SouthPolarStereo",
+        "lambert_conformal":   "LambertConformal",
+        "mercator":            "Mercator",
+    }
+    if value not in table:
+        return ("projection", None, False, "unknown_projection_family")
+    return ("projection", table[value], True, "")
+
+
+def _map_colorbar_position(value: Any) -> MapResult:
+    if value not in {"right", "left", "top", "bottom", "none"}:
+        return ("colorbar_position", None, False, "unknown_colorbar_position")
+    return ("colorbar_position", value, True, "")
+
+
+def _map_legend_placement(value: Any) -> MapResult:
+    if value not in {"best", "outside_right", "outside_bottom", "none"}:
+        return ("legend_placement", None, False, "unknown_legend_placement")
+    return ("legend_placement", value, True, "")
+
+
+def _map_gridlines(value: Any) -> MapResult:
+    if value not in {"none", "light", "heavy"}:
+        return ("gridlines", None, False, "unknown_gridlines")
+    return ("gridlines", value, True, "")
+
+
+def _map_aspect(value: Any) -> MapResult:
+    if value == "auto":
+        return ("aspect", "auto", True, "")
+    if isinstance(value, (int, float)):
+        return ("aspect", float(value), True, "")
+    return ("aspect", None, False, "aspect_not_number_or_auto")
+
+
+def _map_font_scale(value: Any) -> MapResult:
+    if not isinstance(value, (int, float)):
+        return ("font_scale", None, False, "font_scale_not_number")
+    clamped = max(0.7, min(1.5, float(value)))
+    return ("font_scale", clamped, True, "")
+
+
+def _map_advisory(field_name: str) -> Mapper:
+    """Generator for advisory fields that flow through with a `_advisory_` prefix."""
+    def _inner(value: Any) -> MapResult:
+        return (f"_advisory_{field_name}", value, True, "")
+    return _inner
+
+
 _MAPPING: dict[str, Mapper] = {
     "colormap_name": _map_colormap_name,
     "colormap_kind": _map_colormap_kind,
     "vcenter":       _map_vcenter,
     "clip_pct":      _map_clip_pct,
 }
+
+_MAPPING.update({
+    "projection_family":  _map_projection_family,
+    "colorbar_position":  _map_colorbar_position,
+    "legend_placement":   _map_legend_placement,
+    "gridlines":          _map_gridlines,
+    "aspect":             _map_aspect,
+    "font_scale":         _map_font_scale,
+    "extent_hint":        _map_advisory("extent_hint"),
+    "title_placement":    _map_advisory("title_placement"),
+    "label_density":      _map_advisory("label_density"),
+})
 
 
 def apply(
