@@ -9,6 +9,18 @@ the same physical quantity.
 > during sessions get proposed here as draft refinements; accepted ones
 > merge in.
 
+## How skills use this file
+
+Plot skills (`netcdf-plot-map`, `netcdf-plot-timeseries`, `netcdf-plot-profile`)
+look up user-supplied informal names against this table to find the
+canonical variable name in the current file. The lookup is case-insensitive
+and does substring matching against the "User says" column.
+
+If a lookup is ambiguous (multiple matches) or empty, the skill calls
+`netcdf-reader.find_variables(path, hint)` for a scored search against
+the file's actual `long_name`/`standard_name`/`description` attributes.
+If still ambiguous, the skill asks the user.
+
 ## Sea surface temperature
 
 | User says        | Possible variable names                  | Notes                  |
@@ -56,6 +68,7 @@ plotting comparisons.
 | zonal wind, U    | `ua`, `u`, `U`, `eastward_wind`      | may be on staggered grid in WRF |
 | meridional wind, V | `va`, `v`, `V`, `northward_wind`   | staggered separately from U |
 | wind speed       | (compute from U, V)                  | usually not stored directly |
+| 10m wind, U10/V10 | `u10`, `v10`, `U10`, `V10`, `eastward_wind_10m`, `northward_wind_10m` | surface wind components in WRF; ERA5 uses `u10`/`v10` |
 
 ## Specific humidity / water vapor
 

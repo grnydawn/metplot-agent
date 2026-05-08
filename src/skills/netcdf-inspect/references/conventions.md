@@ -3,6 +3,19 @@
 A condensed reference for the parts of CF (Climate and Forecast) metadata
 conventions that matter for plotting. Full spec: cfconventions.org.
 
+## How skills use this file
+
+`netcdf-inspect` consults this file when surfacing oddities to the user
+(non-standard calendars, missing units, staggered grids). Plot skills
+also rely on it for cell-methods interpretation (a "monthly precipitation"
+file with `cell_methods="time: mean"` is a rate; with `time: sum` is an
+accumulation — different conversion factors).
+
+The `netcdf-reader.inspect()` MCP tool detects most of these conditions
+automatically and reports them in `result.convention` and
+`result.warnings`. This file is a human reference for context the MCP
+cannot fully convey.
+
 ## Coordinate variables
 
 A coordinate variable is a 1D variable with the same name as a dimension. It

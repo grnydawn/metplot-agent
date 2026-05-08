@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "by_field_character": {
+    "anomaly":              {"cmap": "RdBu_r",  "kind": "diverging",  "vcenter": 0.0},
+    "departure":            {"cmap": "RdBu_r",  "kind": "diverging",  "vcenter": 0.0},
+    "change":               {"cmap": "RdBu_r",  "kind": "diverging",  "vcenter": 0.0},
+    "difference":           {"cmap": "RdBu_r",  "kind": "diverging",  "vcenter": 0.0},
+    "temperature_absolute": {"cmap": "RdYlBu_r","kind": "sequential"},
+    "temperature_anomaly":  {"cmap": "RdBu_r",  "kind": "diverging",  "vcenter": 0.0},
+    "precipitation":        {"cmap": "Blues",   "kind": "sequential"},
+    "precipitation_anomaly":{"cmap": "BrBG",    "kind": "diverging",  "vcenter": 0.0},
+    "wind_speed":           {"cmap": "viridis", "kind": "sequential"},
+    "pressure":             {"cmap": "viridis", "kind": "sequential"},
+    "pressure_anomaly":     {"cmap": "RdBu_r",  "kind": "diverging",  "vcenter": 0.0},
+    "humidity":             {"cmap": "BrBG",    "kind": "diverging"},
+    "specific_humidity":    {"cmap": "Blues",   "kind": "sequential"},
+    "geopotential_height":  {"cmap": "viridis", "kind": "sequential"},
+    "geopotential":         {"cmap": "viridis", "kind": "sequential"},
+    "sea_ice":              {"cmap": "Blues",   "kind": "sequential"},
+    "vorticity":            {"cmap": "RdBu_r",  "kind": "diverging",  "vcenter": 0.0},
+    "divergence":           {"cmap": "RdBu_r",  "kind": "diverging",  "vcenter": 0.0}
+  },
+  "default":           {"cmap": "viridis", "kind": "sequential"},
+  "diverging_default": {"cmap": "RdBu_r",  "kind": "diverging", "vcenter": 0.0}
+}

@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "categories": ["ocean_basin", "continental", "climate_index", "tc_basin", "polar"],
+  "regions": {
+    "North Atlantic":      {"lon_min": -80, "lon_max":   0, "lat_min":  20, "lat_max":  70, "category": "ocean_basin"},
+    "Tropical Atlantic":   {"lon_min": -60, "lon_max":  20, "lat_min": -20, "lat_max":  20, "category": "ocean_basin"},
+    "South Atlantic":      {"lon_min": -70, "lon_max":  20, "lat_min": -60, "lat_max":   0, "category": "ocean_basin"},
+    "North Pacific":       {"lon_min": 120, "lon_max":-100, "lat_min":  20, "lat_max":  65, "category": "ocean_basin", "notes": "crosses dateline"},
+    "Tropical Pacific":    {"lon_min": 120, "lon_max": -70, "lat_min": -20, "lat_max":  20, "category": "ocean_basin", "notes": "crosses dateline"},
+    "South Pacific":       {"lon_min": 150, "lon_max": -70, "lat_min": -60, "lat_max":   0, "category": "ocean_basin", "notes": "crosses dateline"},
+    "Indian Ocean":        {"lon_min":  30, "lon_max": 120, "lat_min": -40, "lat_max":  30, "category": "ocean_basin"},
+    "Southern Ocean":      {"lon_min":-180, "lon_max": 180, "lat_min": -75, "lat_max": -40, "category": "polar"},
+    "Arctic":              {"lon_min":-180, "lon_max": 180, "lat_min":  60, "lat_max":  90, "category": "polar"},
+
+    "Niño 3.4":            {"lon_min":-170, "lon_max":-120, "lat_min":  -5, "lat_max":   5, "category": "climate_index", "notes": "ENSO index region"},
+
+    "CONUS":               {"lon_min":-125, "lon_max": -65, "lat_min":  24, "lat_max":  50, "category": "continental"},
+    "Western US":          {"lon_min":-125, "lon_max":-100, "lat_min":  30, "lat_max":  50, "category": "continental"},
+    "Eastern US":          {"lon_min":-100, "lon_max": -65, "lat_min":  24, "lat_max":  48, "category": "continental"},
+    "Europe":              {"lon_min": -15, "lon_max":  45, "lat_min":  35, "lat_max":  72, "category": "continental"},
+    "Mediterranean":       {"lon_min": -10, "lon_max":  40, "lat_min":  30, "lat_max":  48, "category": "continental"},
+    "West Africa":         {"lon_min": -20, "lon_max":  30, "lat_min":  -5, "lat_max":  25, "category": "continental"},
+    "East Africa":         {"lon_min":  30, "lon_max":  55, "lat_min": -10, "lat_max":  20, "category": "continental"},
+    "South Asia":          {"lon_min":  65, "lon_max": 100, "lat_min":   5, "lat_max":  40, "category": "continental"},
+    "East Asia":           {"lon_min": 100, "lon_max": 150, "lat_min":  20, "lat_max":  55, "category": "continental"},
+    "Australia":           {"lon_min": 110, "lon_max": 155, "lat_min": -45, "lat_max": -10, "category": "continental"},
+    "Amazon basin":        {"lon_min": -80, "lon_max": -45, "lat_min": -20, "lat_max":   5, "category": "continental"},
+
+    "Tropics":             {"lon_min":-180, "lon_max": 180, "lat_min": -30, "lat_max":  30, "category": "climate_index", "notes": "30S-30N by default"},
+    "Inner Tropics":       {"lon_min":-180, "lon_max": 180, "lat_min": -23, "lat_max":  23, "category": "climate_index", "notes": "strict 23.5° tropics"},
+    "NH extratropics":     {"lon_min":-180, "lon_max": 180, "lat_min":  30, "lat_max":  90, "category": "climate_index"},
+    "SH extratropics":     {"lon_min":-180, "lon_max": 180, "lat_min": -90, "lat_max": -30, "category": "climate_index"},
+    "NH polar":            {"lon_min":-180, "lon_max": 180, "lat_min":  60, "lat_max":  90, "category": "polar"},
+    "SH polar":            {"lon_min":-180, "lon_max": 180, "lat_min": -90, "lat_max": -60, "category": "polar"},
+
+    "North Atlantic TC":   {"lon_min":-100, "lon_max":   0, "lat_min":   0, "lat_max":  45, "category": "tc_basin"},
+    "Eastern Pacific TC":  {"lon_min":-180, "lon_max": -75, "lat_min":   0, "lat_max":  35, "category": "tc_basin"},
+    "Western Pacific TC":  {"lon_min": 100, "lon_max": 180, "lat_min":   0, "lat_max":  45, "category": "tc_basin"},
+    "North Indian TC":     {"lon_min":  40, "lon_max": 100, "lat_min":   0, "lat_max":  30, "category": "tc_basin"},
+    "South Indian TC":     {"lon_min":  30, "lon_max": 120, "lat_min": -35, "lat_max":   0, "category": "tc_basin"},
+    "South Pacific TC":    {"lon_min": 135, "lon_max":-120, "lat_min": -35, "lat_max":   0, "category": "tc_basin", "notes": "crosses dateline"}
+  }
+}
