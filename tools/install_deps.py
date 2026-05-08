@@ -223,6 +223,7 @@ def main(argv: list[str] | None = None) -> int:
             n_ok += 1
             continue
 
+        result: subprocess.CompletedProcess[bytes] | _RunResult
         try:
             result = subprocess.run(cmd, check=False)
         except FileNotFoundError as e:
