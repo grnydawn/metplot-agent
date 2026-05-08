@@ -159,3 +159,100 @@ def render_install_command(step: Step,
     else:
         raise ValueError(f"step {step.title!r} has neither pkg_path nor pkg_spec")
     return cmd
+
+
+import subprocess
+
+
+EXIT_OK = 0
+EXIT_REQUIRED_FAILED = 1
+EXIT_BAD_ENV = 2
+EXIT_BAD_ARGS = 3
+
+
+@dataclass
+class _RunResult:
+    """Stand-in for subprocess.run result when the call itself errored."""
+    returncode: int
+    stderr: str = ""
+
+
+def _print(args: Args, *parts) -> None:
+    if not args.quiet:
+        print(*parts)
+
+
+def main(argv: list[str] | None = None) -> int:
+    try:
+        args = parse_args(argv)
+    except SystemExit as e:
+        return EXIT_BAD_ARGS if e.code != 0 else EXIT_OK
+
+    try:
+        python_bin = detect_python()
+    except EnvironmentError_ as e:
+        print(f"ERROR: {e}", flush=True)
+        return EXIT_BAD_ENV
+
+    installer_cmd, installer_args = detect_installer(python_bin)
+
+    if not args.quiet and not in_venv():
+        print(
+            "WARNING: Installing into system Python (no venv active). "
+            "Consider activating a venv first to avoid polluting your "
+            "system Python.\n",
+            flush=True,
+        )
+
+    plan = build_plan(args)
+
+    _print(args, "ncplot setup")
+    _print(args, f"  Python:    {python_bin}")
+    _print(args, f"  Installer: {installer_cmd}")
+    _print(args, "")
+
+    n_total = len(plan)
+    n_ok = 0
+    n_warn = 0
+    for i, step in enumerate(plan, 1):
+        cmd = render_install_command(
+            step, installer_cmd, installer_args, force=args.force,
+        )
+        kind = "required" if step.required else "optional"
+        _print(args, f"[{i}/{n_total}] Installing {step.title} ({kind})")
+        _print(args, f"      {' '.join(cmd)}")
+
+        if args.dry_run:
+            _print(args, "      (dry-run; not executing)")
+            n_ok += 1
+            continue
+
+        try:
+            result = subprocess.run(cmd, check=False)
+        except FileNotFoundError as e:
+            result = _RunResult(returncode=127, stderr=str(e))
+
+        if result.returncode == 0:
+            _print(args, "      done")
+            n_ok += 1
+        elif step.required:
+            print(f"      FAILED -- exit {result.returncode}", flush=True)
+            print("      Required step. Aborting.", flush=True)
+            return EXIT_REQUIRED_FAILED
+        else:
+            print(f"      FAILED -- exit {result.returncode}", flush=True)
+            if step.recovery_hint:
+                print(f"        hint: {step.recovery_hint}", flush=True)
+            n_warn += 1
+
+    if n_warn == 0:
+        _print(args, f"\nSetup complete. {n_ok}/{n_total} steps succeeded.")
+    else:
+        _print(args,
+               f"\nSetup complete with warnings. "
+               f"{n_ok}/{n_total} steps succeeded; {n_warn} optional failed.")
+    return EXIT_OK
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
