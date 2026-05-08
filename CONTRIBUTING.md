@@ -6,7 +6,7 @@
 - `targets/` are build adapters. Edit only when adding a new agent host or
   fixing a target-specific quirk.
 - `build/` is generated. Don't commit it (gitignored).
-- `.ncplot/` is per-user runtime state (task logs, refinement drafts).
+- `.metplot/` is per-user runtime state (task logs, refinement drafts).
   Don't commit.
 
 ## Adding a skill
@@ -28,10 +28,10 @@ See `docs/adding-targets.md`.
 
 1. Use the agent for real plotting work.
 2. When the agent encounters a correction, log it via
-   `.ncplot/task-log.jsonl`.
+   `.metplot/task-log.jsonl`.
 3. At session end, invoke the `skill-refiner` skill (or rely on the Stop
    hook on Claude Code).
-4. Run `ncplot-refine` to review drafts under `.ncplot/refinements/`.
+4. Run `metplot-refine` to review drafts under `.metplot/refinements/`.
 5. Accept the keepers; commit the changes to `src/skills/`.
 
 ## Pre-commit checks

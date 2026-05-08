@@ -45,7 +45,7 @@ Same as cycle-1's `netcdf-reader`:
 
 ## Output management
 
-Figures default to `.ncplot/figures/{tool}_{var}_{when}_{hash6}.{format}`
+Figures default to `.metplot/figures/{tool}_{var}_{when}_{hash6}.{format}`
 unless `output_path` is supplied. Figures are persistent; the directory
 is never auto-cleaned.
 

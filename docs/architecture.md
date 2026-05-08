@@ -81,8 +81,8 @@ See `self-improvement.md` for the full design. The short version:
 - The `skill-refiner` skill examines a completed plotting task and proposes
   patches to the relevant SKILL.md files (new aliases discovered, pitfalls hit,
   preferences expressed).
-- Patches are written as drafts to `.ncplot/refinements/` (gitignored, local).
-- A review CLI (`ncplot-refine`) shows diffs and applies accepted patches to
+- Patches are written as drafts to `.metplot/refinements/` (gitignored, local).
+- A review CLI (`metplot-refine`) shows diffs and applies accepted patches to
   the canonical `src/skills/`.
 - The next build picks them up.
 
@@ -92,16 +92,16 @@ liability because subtly wrong refinements compound silently.
 
 ## Cycle-5 changes: plugin rename + setup tooling
 
-**Plugin manifest rename (`ncplot-agent` → `ncplot`)**
+**Plugin manifest rename (`ncplot-agent` → `ncplot` → `metplot`)**
 The plugin manifest `name` field was renamed from `ncplot-agent` to `ncplot`
-starting in cycle 5. This enables the `/ncplot:` slash-command namespace on
-hosts that auto-prefix slash commands by manifest name (Claude Code, GitHub
-Copilot, Gemini CLI subdirectory pattern). Repo identity — package name,
-GitHub URLs, PyPI name, author — is unchanged; only the L2 plugin payload
-manifest is affected.
+in cycle 5, then to `metplot` in the rename-to-metplot commit. This enables
+the `/metplot:` slash-command namespace on hosts that auto-prefix slash commands
+by manifest name (Claude Code, GitHub Copilot, Gemini CLI subdirectory pattern).
+Repo identity — package name, GitHub URLs, PyPI name, author — was also updated
+in the rename-to-metplot commit.
 
 **Cycle-5 setup tooling**
-Each target build now ships three additional files inside the `ncplot/` plugin
+Each target build now ships three additional files inside the `metplot/` plugin
 directory:
 
 - `tools/install_deps.py` — canonical Python dependency installer (uv-first,
@@ -116,9 +116,9 @@ directory:
 
 | Host | Setup command | Source |
 |------|--------------|--------|
-| Claude Code | `/ncplot:setup` | auto-prefixed from manifest name |
-| GitHub Copilot | `/ncplot:setup` | auto-prefixed from manifest name |
-| Gemini CLI | `/ncplot:setup` | subdirectory pattern |
+| Claude Code | `/metplot:setup` | auto-prefixed from manifest name |
+| GitHub Copilot | `/metplot:setup` | auto-prefixed from manifest name |
+| Gemini CLI | `/metplot:setup` | subdirectory pattern |
 | Codex | `/setup` | bare (no manifest auto-prefix) |
 | Cursor | `/setup` | bare (no manifest auto-prefix) |
 | Antigravity | `/setup` | `.agent/workflows/setup.md` workflow |

@@ -3,13 +3,13 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ncplot-agent"
+name = "metplot-agent"
 version = "0.1.0"
 description = "Multi-target AI agent plugin for NetCDF plotting with self-improving skills"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "ncplot-agent contributors" }]
+authors = [{ name = "metplot-agent contributors" }]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "License :: OSI Approved :: MIT License",
@@ -38,9 +38,9 @@ dev = [
 ]
 
 [project.scripts]
-ncplot-build = "tools.build:cli"
-ncplot-lint = "tools.lint_skills:cli"
-ncplot-refine = "tools.apply_refinements:cli"
+metplot-build = "tools.build:cli"
+metplot-lint = "tools.lint_skills:cli"
+metplot-refine = "tools.apply_refinements:cli"
 
 [tool.setuptools.packages.find]
 where = ["."]

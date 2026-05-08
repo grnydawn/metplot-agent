@@ -1,4 +1,4 @@
-# ncplot-agent
+# metplot-agent
 
 A multi-target AI agent plugin for natural-language plotting from NetCDF data files,
 with a closed-loop skill-refinement layer that brings Hermes-style self-improvement
@@ -81,7 +81,7 @@ Build artifacts land in `build/<target>/` and are gitignored.
 The `skill-refiner` skill is the closed-loop learning component. It runs after a
 plotting task (manually invoked, or via a hook on supported targets) and proposes
 patches to the canonical skills based on what was learned. Patches go to
-`.ncplot/refinements/` as draft markdown; a `tools/apply_refinements.py` review
+`.metplot/refinements/` as draft markdown; a `tools/apply_refinements.py` review
 step lets you accept/reject before they merge.
 
 This is intentionally human-in-the-loop. For scientific work, an unattended

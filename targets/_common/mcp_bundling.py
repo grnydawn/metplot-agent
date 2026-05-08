@@ -18,12 +18,12 @@ MCP_SERVERS = [
     {
         "package_dir": "netcdf_reader",
         "external_name": "netcdf-reader",
-        "entry_point": "ncplot-netcdf-reader",
+        "entry_point": "metplot-netcdf-reader",
     },
     {
         "package_dir": "plot_renderer",
         "external_name": "plot-renderer",
-        "entry_point": "ncplot-plot-renderer",
+        "entry_point": "metplot-plot-renderer",
     },
 ]
 

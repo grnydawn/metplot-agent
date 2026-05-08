@@ -13,6 +13,6 @@ def test_required_fields(built_plugin: Path):
         assert f in m
 
 
-def test_ncplot_block_cycle_7(built_plugin: Path):
+def test_metplot_block_cycle_7(built_plugin: Path):
     m = json.loads((built_plugin / ".codex-plugin" / "plugin.json").read_text())
-    assert m["ncplot"]["build_cycle"] == 7
+    assert m["metplot"]["build_cycle"] == 7

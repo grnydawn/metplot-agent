@@ -26,8 +26,8 @@ def test_has_mcp_servers_section(built_plugin: Path):
 
 @pytest.mark.parametrize(
     "external_name,entry_point",
-    [("netcdf-reader", "ncplot-netcdf-reader"),
-     ("plot-renderer", "ncplot-plot-renderer")],
+    [("netcdf-reader", "metplot-netcdf-reader"),
+     ("plot-renderer", "metplot-plot-renderer")],
 )
 def test_each_server_uses_entry_point(
     built_plugin: Path, external_name: str, entry_point: str,

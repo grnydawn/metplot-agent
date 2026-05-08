@@ -5,7 +5,7 @@ is the same format as the canonical sources. This builder is essentially a
 copy + a Hermes-specific manifest fragment for the MCP servers.
 
 Hermes has its own learning loop, so the skill-refiner here is wired to write
-to .ncplot/refinements/ rather than calling Hermes' skill_manage tool directly
+to .metplot/refinements/ rather than calling Hermes' skill_manage tool directly
 — that way human review still happens.
 """
 
@@ -15,7 +15,7 @@ import json
 import shutil
 from pathlib import Path
 
-OUT_NAME = "ncplot-hermes"
+OUT_NAME = "metplot-hermes"
 
 
 def build(src_root: Path, out_root: Path) -> None:
@@ -58,7 +58,7 @@ def build(src_root: Path, out_root: Path) -> None:
 
 
 def _install_readme() -> str:
-    return """# ncplot — Hermes Agent bundle
+    return """# metplot — Hermes Agent bundle
 
 Hermes uses `~/.hermes/skills/` directly; the SKILL.md format is identical to
 the canonical sources, so install is just a copy.
@@ -70,7 +70,7 @@ the canonical sources, so install is just a copy.
 cp -r skills/* ~/.hermes/skills/
 
 # 2. Pick a stable install path for the MCP servers, e.g.
-INSTALL_PATH=~/.hermes/extras/ncplot
+INSTALL_PATH=~/.hermes/extras/metplot
 mkdir -p $INSTALL_PATH
 cp -r mcp-servers data $INSTALL_PATH/
 
@@ -90,8 +90,8 @@ different layers:
 - Hermes' loop creates *new* skills from session experience (general
   procedural memory).
 - Our `skill-refiner` proposes *patches* to the existing canonical skills
-  in this bundle, written as drafts to `.ncplot/refinements/` for human
-  review via `ncplot-refine`.
+  in this bundle, written as drafts to `.metplot/refinements/` for human
+  review via `metplot-refine`.
 
 Both can run side by side. Hermes' autonomous skills capture user-level
 patterns; the canonical-skill refinements travel with the bundle and are

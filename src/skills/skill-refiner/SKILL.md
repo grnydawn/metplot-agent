@@ -1,6 +1,6 @@
 ---
 name: skill-refiner
-description: Review a completed plotting session and propose patches to the canonical skills based on what was learned — new variable aliases, pitfalls hit, user preferences, regions defined. Use this at the end of a session that involved corrections, surprises, or new patterns the user wants captured. Also invoke when the user explicitly says "remember this", "update the skill", or "add this to the regions list". Writes draft refinements to .ncplot/refinements/ for human review; does NOT modify canonical skills directly.
+description: Review a completed plotting session and propose patches to the canonical skills based on what was learned — new variable aliases, pitfalls hit, user preferences, regions defined. Use this at the end of a session that involved corrections, surprises, or new patterns the user wants captured. Also invoke when the user explicitly says "remember this", "update the skill", or "add this to the regions list". Writes draft refinements to .metplot/refinements/ for human review; does NOT modify canonical skills directly.
 ---
 
 # skill-refiner
@@ -24,7 +24,7 @@ session that wasn't already captured by the existing skills?
 
 ### 1. Read the task log
 
-Open `.ncplot/task-log.jsonl` (or read the conversation history if no
+Open `.metplot/task-log.jsonl` (or read the conversation history if no
 task log exists). Filter to entries from the current session.
 
 ### 2. Categorize observations
@@ -54,7 +54,7 @@ Each observation maps to a target file:
 
 ### 4. Draft the patch
 
-Write a markdown file under `.ncplot/refinements/` named
+Write a markdown file under `.metplot/refinements/` named
 `<YYYYMMDD-HHMMSS>-<target-skill>-<short-tag>.md`. Format:
 
 ```markdown
@@ -107,17 +107,17 @@ expression of an ongoing preference, not just a single instance.
 
 After drafting refinements, summarize:
 
-> Wrote 2 refinements to .ncplot/refinements/:
+> Wrote 2 refinements to .metplot/refinements/:
 > - `20260506-143012-netcdf-plot-map-pitfalls.md` (high confidence) —
 >   WRF longitude convention pitfall
 > - `20260506-143012-netcdf-inspect-aliases.md` (high confidence) —
 >   "SST" → `tos` for CMIP6 files
 >
-> Run `ncplot-refine` to review and apply.
+> Run `metplot-refine` to review and apply.
 
 ## Pitfalls
 
-- **Don't write to canonical skills.** Only `.ncplot/refinements/`.
+- **Don't write to canonical skills.** Only `.metplot/refinements/`.
   The canonical files are git-tracked; modifications go through review.
 - **Don't propose duplicates.** Read existing refinements in the queue
   and merge rather than creating a new file for the same observation.
@@ -139,12 +139,12 @@ After drafting refinements, summarize:
 Out of band, the user runs `python -m tools.apply_refinements`. That
 script:
 
-1. Lists all drafts in `.ncplot/refinements/`.
+1. Lists all drafts in `.metplot/refinements/`.
 2. For each, shows the proposed diff against the target file.
 3. User accepts, edits, or rejects.
 4. Accepted drafts are merged into the canonical file via the operation
    semantics (append / replace_section / add_alias / etc.).
-5. Applied drafts move to `.ncplot/refinements/applied/` for audit history.
+5. Applied drafts move to `.metplot/refinements/applied/` for audit history.
 
 The refiner skill itself never runs the apply step — that's a deliberate
 separation. Drafts are cheap; commits to canonical skills are deliberate.

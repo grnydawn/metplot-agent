@@ -15,7 +15,7 @@ from typing import Any
 
 _SUPPORTED_FORMATS = {"png", "pdf", "svg"}
 _SLUG_RE = re.compile(r"[^a-zA-Z0-9]+")
-_AUTO_DIR = ".ncplot/figures"
+_AUTO_DIR = ".metplot/figures"
 
 
 class OutputPathInvalid(ValueError):
@@ -97,7 +97,7 @@ def resolve_output_path(
 
 
 def auto_name(*, tool: str, spec: dict[str, Any], fmt: str) -> str:
-    """Build an auto-name path under .ncplot/figures/."""
+    """Build an auto-name path under .metplot/figures/."""
     if fmt not in _SUPPORTED_FORMATS:
         raise UnsupportedFormat(
             f"unsupported format {fmt!r}; supported: {sorted(_SUPPORTED_FORMATS)}")

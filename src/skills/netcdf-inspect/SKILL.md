@@ -26,7 +26,7 @@ description: Inspect a NetCDF file before doing anything else with it. Lists var
 5. Cross-reference variable names against `references/aliases.md` if the
    user's later prompt names a quantity informally.
 6. If an alias resolution differs from what the user said, log a
-   `alias_correction` event to `.ncplot/task-log.jsonl` (see "Recording
+   `alias_correction` event to `.metplot/task-log.jsonl` (see "Recording
    lessons").
 
 ## What to surface to the user
@@ -97,7 +97,7 @@ templates. (The plot skills handle the style-by-reference flow; see
 ## Recording lessons
 
 If the user corrects you about variable name resolution, append to
-`.ncplot/task-log.jsonl`:
+`.metplot/task-log.jsonl`:
 
 ```json
 {

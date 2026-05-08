@@ -23,7 +23,7 @@ def test_inspect_uses_cache_on_second_call(cf_3d_file, tmp_path, monkeypatch):
     env1 = inspect(str(cf_3d_file), adapter=NetCDFAdapter())
     # Second call should return same payload — and we can detect cache by
     # checking that the cache file exists.
-    cache_dir = tmp_path / ".ncplot" / "inspections"
+    cache_dir = tmp_path / ".metplot" / "inspections"
     assert cache_dir.exists()
     files = list(cache_dir.glob("*.json"))
     assert len(files) == 1
@@ -36,7 +36,7 @@ def test_inspect_invalidates_cache_on_mtime_change(cf_3d_file, tmp_path, monkeyp
     import time
     monkeypatch.chdir(tmp_path)
     inspect(str(cf_3d_file), adapter=NetCDFAdapter())
-    cache_dir = tmp_path / ".ncplot" / "inspections"
+    cache_dir = tmp_path / ".metplot" / "inspections"
     time.sleep(0.01)
     os.utime(cf_3d_file, None)
     inspect(str(cf_3d_file), adapter=NetCDFAdapter())

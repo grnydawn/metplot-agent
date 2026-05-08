@@ -6,7 +6,7 @@ Build with:
 python -m tools.build claude-desktop
 ```
 
-Output: `build/claude-desktop/ncplot/`.
+Output: `build/claude-desktop/metplot/`.
 
 Claude Desktop has no native skill loader, so this builder packages skill
 content as a project-attachable `project_instructions.md` and emits MCP

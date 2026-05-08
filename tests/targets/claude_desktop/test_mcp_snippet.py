@@ -13,8 +13,8 @@ def test_uses_mcpServers_key(built_plugin: Path):
 
 
 @pytest.mark.parametrize("name,entry", [
-    ("netcdf-reader", "ncplot-netcdf-reader"),
-    ("plot-renderer", "ncplot-plot-renderer"),
+    ("netcdf-reader", "metplot-netcdf-reader"),
+    ("plot-renderer", "metplot-plot-renderer"),
 ])
 def test_each_uses_entry_point(built_plugin: Path, name: str, entry: str):
     d = json.loads((built_plugin / "claude_desktop_config_snippet.json").read_text())

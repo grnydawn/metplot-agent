@@ -64,15 +64,15 @@ pip install -e 'src/mcp/netcdf-reader[roms]'    # xroms for ROMS transforms
 ## Run
 
 ```bash
-ncplot-netcdf-reader   # via stdio MCP transport
+metplot-netcdf-reader   # via stdio MCP transport
 ```
 
 Or wire from a Claude Code plugin manifest (cycle 4).
 
 ## Cache locations
 
-- `.ncplot/inspections/<hash>.json` — persistent inspection cache (mtime-keyed)
-- `.ncplot/slices/<session>/...` — session-scoped slice temp files (cleared at startup)
+- `.metplot/inspections/<hash>.json` — persistent inspection cache (mtime-keyed)
+- `.metplot/slices/<session>/...` — session-scoped slice temp files (cleared at startup)
 
 ## Testing
 

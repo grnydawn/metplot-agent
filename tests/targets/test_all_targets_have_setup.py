@@ -42,7 +42,7 @@ def test_target_ships_setup_sh(tmp_path, target: str):
     if not hasattr(mod, "build"):
         pytest.skip(f"target {target} has no build()")
     mod.build(SRC_ROOT, out)
-    plugin_root = out / "ncplot"
+    plugin_root = out / "metplot"
     assert (plugin_root / "setup.sh").is_file(), f"{target}: missing setup.sh"
     assert (plugin_root / "setup.ps1").is_file(), f"{target}: missing setup.ps1"
     assert (plugin_root / "tools" / "install_deps.py").is_file(), (

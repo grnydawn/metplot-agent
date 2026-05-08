@@ -3,7 +3,7 @@
 Inspection cache. Hash key includes path + mtime + size for local files
 (the mtime is the invalidation signal); URL-only for remote (with
 documented stale-data caveat). Cache lives in the per-project
-.ncplot/inspections/ directory.
+.metplot/inspections/ directory.
 """
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from typing import Any
 
 
 def _cache_dir() -> Path:
-    return Path.cwd() / ".ncplot" / "inspections"
+    return Path.cwd() / ".metplot" / "inspections"
 
 
 def inspection_key(paths: list[str], *, remote: bool = False) -> str:

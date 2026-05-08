@@ -12,7 +12,7 @@ from typing import Any
 
 
 def cleanup_old_slice_dirs(*, keep: str) -> None:
-    base = Path.cwd() / ".ncplot" / "slices"
+    base = Path.cwd() / ".metplot" / "slices"
     if not base.exists():
         return
     for child in base.iterdir():

@@ -47,7 +47,7 @@ informs the user. This skill handles only vertical profile.
     `invert_pressure`.
 11. **Call** `plot-renderer.render_profile(spec=...)`.
 12. **Verify and report.**
-13. **If user corrected anything**, log to `.ncplot/task-log.jsonl`.
+13. **If user corrected anything**, log to `.metplot/task-log.jsonl`.
 
 ## Multi-profile
 
@@ -105,7 +105,7 @@ mostly irrelevant for profiles.
 
 ## Recording lessons
 
-Log corrections to `.ncplot/task-log.jsonl`:
+Log corrections to `.metplot/task-log.jsonl`:
 
 ```json
 {

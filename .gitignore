@@ -21,7 +21,7 @@ venv/
 .DS_Store
 
 # project-local refinement drafts (private to each user's environment)
-.ncplot/
+.metplot/
 
 # secrets
 .env

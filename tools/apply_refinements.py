@@ -1,6 +1,6 @@
 """Review and apply skill refinements drafted by skill-refiner.
 
-Reads drafts from .ncplot/refinements/, shows each as a diff against its
+Reads drafts from .metplot/refinements/, shows each as a diff against its
 target file, and lets the user accept / edit / reject. Accepted patches
 merge into the canonical skill files in src/.
 
@@ -16,16 +16,15 @@ Status: scaffold. The frontmatter parsing and the simpler operations
 are TODO.
 
 Usage:
-    ncplot-refine             # interactive review
-    ncplot-refine --list      # list pending refinements
-    ncplot-refine --apply <file>   # non-interactive apply (with confirm)
+    metplot-refine             # interactive review
+    metplot-refine --list      # list pending refinements
+    metplot-refine --apply <file>   # non-interactive apply (with confirm)
 """
 
 from __future__ import annotations
 
 import re
 import shutil
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -33,7 +32,7 @@ import click
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-REFINEMENTS_DIR = Path.cwd() / ".ncplot" / "refinements"
+REFINEMENTS_DIR = Path.cwd() / ".metplot" / "refinements"
 APPLIED_DIR = REFINEMENTS_DIR / "applied"
 
 FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n(.*)$", re.DOTALL)

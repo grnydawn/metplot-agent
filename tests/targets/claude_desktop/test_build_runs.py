@@ -15,5 +15,5 @@ def test_no_top_level_manifest(built_plugin: Path):
 def test_required_files(built_plugin: Path):
     for f in ("project_instructions.md",
                "claude_desktop_config_snippet.json", "README.md",
-               ".ncplot.json"):
+               ".metplot.json"):
         assert (built_plugin / f).is_file()

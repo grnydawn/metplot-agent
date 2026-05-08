@@ -2,7 +2,7 @@
 """⤴ format-agnostic — eligible for _core/ lift.
 
 inspect() — full metadata summary of a file or multi-file dataset.
-Cached at .ncplot/inspections/<hash>.json with mtime-based invalidation.
+Cached at .metplot/inspections/<hash>.json with mtime-based invalidation.
 """
 from __future__ import annotations
 

@@ -15,8 +15,8 @@ def test_uses_mcpServers_key(built_plugin: Path):
 
 
 @pytest.mark.parametrize("external_name,entry_point",
-    [("netcdf-reader", "ncplot-netcdf-reader"),
-     ("plot-renderer", "ncplot-plot-renderer")])
+    [("netcdf-reader", "metplot-netcdf-reader"),
+     ("plot-renderer", "metplot-plot-renderer")])
 def test_entry_point(built_plugin: Path, external_name: str, entry_point: str):
     d = json.loads((built_plugin / ".cursor" / "mcp.json").read_text())
     assert d["mcpServers"][external_name]["command"] == entry_point

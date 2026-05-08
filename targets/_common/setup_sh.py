@@ -2,7 +2,7 @@
 
 SETUP_SH = '''\
 #!/usr/bin/env bash
-# ncplot setup wrapper. Runs tools/install_deps.py against the bundled
+# metplot setup wrapper. Runs tools/install_deps.py against the bundled
 # mcp-servers/. See README.md for usage and flags.
 set -euo pipefail
 
@@ -37,7 +37,7 @@ exec "$PYTHON_BIN" "$INSTALL_DEPS" \\
 '''
 
 SETUP_PS1 = '''\
-# ncplot setup wrapper (PowerShell). Runs tools/install_deps.py against the bundled
+# metplot setup wrapper (PowerShell). Runs tools/install_deps.py against the bundled
 # mcp-servers/. See README.md for usage.
 $ErrorActionPreference = "Stop"
 
