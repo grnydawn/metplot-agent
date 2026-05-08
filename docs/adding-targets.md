@@ -1,50 +1,84 @@
 # Adding a new target
 
-A target is a build adapter that turns the canonical `src/` content into a
-plugin format consumable by a specific agent host.
+A target is a build adapter that turns the canonical `src/` content into
+a plugin format consumable by a specific agent host.
 
-## Minimum requirements
+## Standard target template
 
-Create `targets/<name>/build.py` exposing:
+After cycle 7, every target uses shared helpers from
+`targets/_common/`. The skeleton:
 
 ```python
+# targets/<host>/build.py
+from __future__ import annotations
+
+import json
+import shutil
+from pathlib import Path
+
+from targets._common.manifest import (
+    PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_DESCRIPTION,
+    PLUGIN_HOMEPAGE, PLUGIN_LICENSE, PLUGIN_AUTHOR,
+    common_ncplot_block,
+)
+from targets._common.mcp_bundling import bundle_mcp_servers, MCP_SERVERS
+from targets._common.skills import copy_skills
+
+
 def build(src_root: Path, out_root: Path) -> None:
-    """Build the plugin into out_root/<name>/."""
+    plugin_dir = out_root / PLUGIN_NAME
+    if plugin_dir.exists():
+        shutil.rmtree(plugin_dir)
+    plugin_dir.mkdir(parents=True)
+
+    # 1. Manifest (host-specific path + shape)
+    # 2. copy_skills(src_root, plugin_dir / "skills")
+    # 3. bundle_mcp_servers(src_root, plugin_dir / "mcp-servers")
+    # 4. Host-specific MCP launch config (path + key name varies)
+    # 5. Slash command (md / TOML / native)
+    # 6. README
 ```
 
-Then register it in `tools/build.py`'s `TARGETS` dict.
+## Host-specific config files
 
-## What `build()` must do
+| Host | MCP config path | MCP config key | Manifest path |
+|------|-----------------|----------------|---------------|
+| Claude Code | `.mcp.json` | `mcpServers` | `.claude-plugin/plugin.json` |
+| Codex | `config.toml` (TOML) | `[mcp_servers.X]` | `.codex-plugin/plugin.json` |
+| Gemini CLI | `settings.json` | `mcpServers` | `gemini-extension.json` (root) |
+| Cursor | `.cursor/mcp.json` | `mcpServers` | `.cursor-plugin/plugin.json` |
+| GitHub Copilot | `.vscode/mcp.json` | `servers` ⚠ | `plugin.json` (root) |
+| Antigravity | `mcp_config.json` (snippet) | `mcpServers` | n/a (no manifest) |
+| Claude Desktop | `claude_desktop_config_snippet.json` | `mcpServers` | n/a (project doc) |
 
-1. Read every skill from `src_root / "skills"`.
-2. Translate them into the target's skill format (often a no-op — SKILL.md
-   is already widely supported).
-3. Emit the target's manifest / config file describing skills, MCP servers,
-   slash commands, and hooks as appropriate.
-4. Copy MCP server source from `src_root / "mcp"` and emit launch-command
-   stanzas pointing at it.
-5. Optionally emit a README with install instructions.
+## Host-specific gotchas
 
-## Reference implementations
+- **Copilot uses `servers`, not `mcpServers`.** The only host with
+  this naming. A regression test (`tests/targets/copilot/test_servers_key.py`)
+  guards against accidental cross-target contamination.
+- **Antigravity has no formal hook system.** Cycle-6 self-improvement
+  degrades to a manual `/refine` workflow.
+- **Claude Desktop has no skill loader.** Skills are concatenated into
+  a project-instructions document. YAML frontmatter is stripped.
+- **Codex slash-command authoring is undocumented.** We omit a
+  `/refine` command on Codex pending a confirmed format.
 
-- `targets/claude-code/build.py` — full plugin with hooks (the reference)
-- `targets/claude-desktop/build.py` — MCP-only, since Desktop has no
-  native skill loader; skill content is concatenated into a project doc
-- `targets/hermes/build.py` — near-identity copy; format is already
-  compatible
-- `targets/codex/build.py` — emits AGENTS.md and a setup script
+## Test suite template
 
-## Skill-format compatibility matrix
+Each target gets `tests/targets/<host_underscore>/`:
+- `conftest.py` — module-scoped `built_plugin` fixture
+- `test_build_runs.py` — top-level structure
+- `test_manifest.py` (or analog) — manifest shape
+- `test_skills_copied.py` — allowlist + skill-refiner exclusion
+- `test_mcp_servers_bundled.py` — re-rooted source + patched pyproject
+- `test_<host>_mcp.py` — host-specific MCP config validation
+- `test_commands.py` — slash command / workflow file
+- `test_no_hooks.py` — cycle-6 deferral
 
-| Field/feature           | Claude Code | Hermes | Cursor | Codex (AGENTS.md) |
-|-------------------------|-------------|--------|--------|-------------------|
-| YAML frontmatter        | yes         | yes    | yes    | concatenated      |
-| `references/`           | yes         | yes    | yes    | inlined           |
-| `scripts/`              | yes         | yes    | yes    | bundled separately|
-| Slash commands          | yes         | yes    | no     | no                |
-| Hooks                   | yes         | yes    | limited| no                |
-| MCP                     | yes         | yes    | yes    | via SDK           |
+## See also
 
-When a feature isn't supported by a target, `build.py` is responsible for
-either degrading gracefully (e.g. concatenating skill bodies into a single
-context document) or omitting the feature with a warning.
+- `docs/architecture.md` — overall L1/L2/L3 layering
+- `docs/research/2026-05-08-multi-host-survey.md` — host plugin model
+  research
+- `targets/claude-code/build.py` — reference implementation
+- `targets/_common/` — shared helpers
