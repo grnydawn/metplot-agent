@@ -12,6 +12,45 @@ from src.mcp.plot_renderer import (
 from src.mcp.plot_renderer.envelope import WarningCode
 
 
+class _LowessUnavailable(RuntimeError):
+    pass
+
+
+def _apply_trendline(ax: Any, x_axis: Any, values: np.ndarray, kind: str) -> None:
+    """Add a trendline to `ax`. `kind` ∈ {"linear", "lowess"}."""
+    if kind == "linear":
+        # Convert datetime64 to ordinal seconds for fitting
+        if np.issubdtype(np.asarray(x_axis).dtype, np.datetime64):
+            x_num = np.asarray(x_axis, dtype="datetime64[s]").astype("float64")
+        else:
+            x_num = np.asarray(x_axis, dtype="float64")
+        finite = np.isfinite(values) & np.isfinite(x_num)
+        if finite.sum() < 2:
+            return
+        coeffs = np.polyfit(x_num[finite], values[finite], 1)
+        ax.plot(x_axis, np.polyval(coeffs, x_num),
+                color="black", linestyle="--", linewidth=1.0)
+    elif kind == "lowess":
+        try:
+            from scipy.signal import savgol_filter  # noqa: F401
+        except (ImportError, ModuleNotFoundError) as e:
+            raise _LowessUnavailable(
+                "scipy is required for lowess trendline; install with `uv pip install scipy`"
+            ) from e
+        # Use savgol as a smooth lowess-like estimate
+        from scipy.signal import savgol_filter
+        n = values.shape[0]
+        window = max(5, n // 10)
+        if window % 2 == 0:
+            window += 1
+        if window > n:
+            return
+        smoothed = savgol_filter(values, window_length=window, polyorder=2,
+                                  mode="nearest")
+        ax.plot(x_axis, smoothed,
+                color="black", linestyle="--", linewidth=1.0)
+
+
 def _resolve_presentation(resolved: dict[str, Any]) -> dict[str, Any]:
     """Fill in remaining presentation fields with library defaults."""
     out = dict(resolved)
@@ -92,6 +131,19 @@ def render_timeseries(spec: dict[str, Any]) -> dict[str, Any]:
         if len(series) > 1 or resolved.get("legend_placement") not in (None, "none"):
             ax.legend()
         ax.grid(resolved.get("gridlines") != "none", alpha=0.3)
+
+        # Trendline (per spec §2.2)
+        kind = spec.get("trendline")
+        if kind in ("linear", "lowess"):
+            try:
+                # Apply on the first series only when single-series, on each
+                # series otherwise (only render once for clarity in MVP: first).
+                first = series[0]
+                _apply_trendline(ax, first["axis"], first["values"], kind)
+            except _LowessUnavailable as e:
+                plt.close(fig)
+                return envelope.error("trendline_dependency_missing", str(e))
+
         fig.tight_layout()
 
         # 5. Output
