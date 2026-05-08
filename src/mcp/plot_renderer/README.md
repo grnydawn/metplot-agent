@@ -3,46 +3,70 @@
 Renders matplotlib/cartopy figures from structured plot specs.
 Doesn't know about NetCDF — pure rendering.
 
-## Tools exposed
+## Tools
 
-### `render_map(spec: dict) -> dict`
-Render a 2D lat/lon map. Spec fields:
-- `values` (2D array or path to npz/temp file)
-- `lon`, `lat` (1D arrays)
-- `projection` (`PlateCarree`, `Robinson`, `NorthPolarStereo`, ...)
-- `extent` (lon_min, lon_max, lat_min, lat_max) — optional
-- `lon_convention` (`-180..180` or `0..360`) — for shift handling
-- `colormap` (`viridis`, `RdBu_r`, ...)
-- `vmin`, `vmax`, `clip_pct` (e.g. [2, 98] for percentile clipping)
-- `title`, `colorbar_label`
-- `output_path`, `dpi`, `format` (png/pdf/svg)
+### `render_map(spec)`
 
-Returns: `{output_path, file_size_bytes, plotted_min, plotted_max}`.
+Render a 2D lat/lon map. See spec §2.1 for full field list.
 
-### `render_timeseries(spec: dict) -> dict`
-- `values` (1D array), `time` (datetime array)
-- `aggregation` (raw / monthly / annual / seasonal)
-- `trendline` (None / linear / lowess)
-- `title`, `ylabel`, `output_path`, `dpi`, `format`
+Key spec fields: `values + lat + lon` (inline) OR `slice_ref` (file
+form), `projection`, `colormap`, `vmin/vmax/clip_pct`, `vcenter`,
+`title`, `colorbar_label`, `lon_convention`, `style_template`,
+`output_path`, `dpi`, `format`, `downsample`.
 
-### `render_profile(spec: dict) -> dict`
-Vertical profile: variable on one axis, vertical coord on the other.
-- `values`, `vertical_values`, `vertical_units` (Pa, hPa, m, km)
-- `vertical_axis` (x or y), `log_scale` (bool, default true for atmosphere)
-- `invert_pressure` (default true)
-- `title`, `output_path`, `dpi`, `format`
+Returns: `{output_path, file_size_bytes, plotted_min, plotted_max,
+plotted_shape, applied_downsample, applied_lon_shift, nan_fraction,
+oracle}`.
 
-### `render_cross_section(spec: dict) -> dict`
-2D field with one spatial and one vertical axis.
+Ambiguity envelopes: `cartopy_missing`, `unknown_colormap`,
+`unknown_projection`, `empty_slice`, `all_nan`.
 
-### `render_hovmoller(spec: dict) -> dict`
-2D field with time on one axis, lat or lon on the other.
+### `render_timeseries(spec)`
 
-## Dependencies
+1D time series, single or multi (`series=[{values, time, label, color?}, ...]`).
+Sugar `values+time` accepted for single-series. Optional `aggregation`,
+`trendline` (`null|linear|lowess`), `style_template`. See spec §2.2.
 
-- `matplotlib`, `cartopy`, `numpy`
-- `mcp`
+### `render_profile(spec)`
+
+Vertical profile. `series=[{values, vertical, label, color?}, ...]` plus
+`vertical_units` (Pa/hPa/m/km), `vertical_axis` (x/y), `invert_pressure`,
+`log_scale`. See spec §2.3.
+
+## Envelope shape
+
+Same as cycle-1's `netcdf-reader`:
+
+```
+{ok: true,  result: {...}, warnings: [...]}
+{ok: false, error: {code, message, context}}
+{ok: false, error: {code: "ambiguous", subcode, candidates, retry_with_param}}
+```
+
+## Output management
+
+Figures default to `.ncplot/figures/{tool}_{var}_{when}_{hash6}.{format}`
+unless `output_path` is supplied. Figures are persistent; the directory
+is never auto-cleaned.
+
+## Style by reference
+
+Pass `style_template` (a JSON dict per spec §8) to apply look-and-feel
+from a reference plot. Cycle-3 skills supply the dict by asking the
+host LLM to extract it from a user-supplied image; cycle-2 stays
+deterministic. See `docs/style_template_extraction_prompt.md`.
+
+## Install
+
+```bash
+uv pip install -e src/mcp/plot_renderer
+# Optional:
+uv pip install cartopy   # for render_map
+uv pip install scipy     # for trendline=lowess
+```
 
 ## Implementation status
 
-Stub. `server.py` defines tool signatures.
+Implemented per `docs/plans/2026-05-07-cycle-2-plot-renderer.md`. Full
+test suite under `tests/mcp/plot_renderer/`. Image-diff suite is
+opt-in (`pytest --image-diff`).
