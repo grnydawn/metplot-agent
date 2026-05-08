@@ -106,3 +106,47 @@ def normalize_1d_series(
             "color":  s.get("color"),
         })
     return out
+
+
+def normalize_2d_any_form(
+    spec: dict[str, Any],
+) -> tuple[np.ndarray, dict[str, np.ndarray], dict[str, Any]]:
+    """Dispatch on inline vs slice_ref form for render_map specs."""
+    has_inline = "values" in spec
+    has_slice_ref = spec.get("slice_ref") is not None
+    if has_inline and has_slice_ref:
+        raise InvalidSpecError(
+            "supply either inline values or slice_ref, not both")
+    if not has_inline and not has_slice_ref:
+        raise InvalidSpecError("missing data: provide values+lat+lon or slice_ref")
+    if has_inline:
+        return normalize_2d(spec)
+    # slice_ref path
+    from src.mcp.plot_renderer.slice_loader import (
+        NetCDFSliceLoader, SliceFileUnreadable,
+    )
+    try:
+        da = NetCDFSliceLoader().load(spec["slice_ref"])
+    except SliceFileUnreadable as e:
+        raise InvalidSpecError(f"slice_ref unreadable: {e}") from e
+    # Squeeze leading singleton dims (e.g., time=1)
+    da = da.squeeze(drop=True)
+    if da.ndim != 2:
+        raise InvalidSpecError(
+            f"slice_ref variable must reduce to 2D for render_map; got {da.ndim}D")
+    # Try to find lat/lon coord names; fall back to dim names.
+    dim_lat, dim_lon = da.dims
+    coords = {
+        "lat": np.asarray(da[dim_lat].values, dtype="float64"),
+        "lon": np.asarray(da[dim_lon].values, dtype="float64"),
+    }
+    values = np.asarray(da.values, dtype="float64")
+    meta: dict[str, Any] = {
+        k: da.attrs[k] for k in ("units", "long_name", "standard_name")
+        if k in da.attrs
+    }
+    if "variable" in spec.get("slice_ref", {}):
+        meta["variable"] = spec["slice_ref"]["variable"]
+    if spec.get("lon_convention") is not None:
+        meta["lon_convention"] = spec["lon_convention"]
+    return values, coords, meta
