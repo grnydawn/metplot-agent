@@ -1,5 +1,4 @@
 # tests/mcp/plot_renderer/unit/test_lifecycle_output_path.py
-import json
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -7,7 +6,7 @@ import pytest
 
 from src.mcp.plot_renderer.lifecycle import (
     resolve_output_path, auto_name,
-    OutputPathInvalid, FormatExtensionMismatch,
+    FormatExtensionMismatch,
     atomic_save, validate_dpi, InvalidDPI,
 )
 
