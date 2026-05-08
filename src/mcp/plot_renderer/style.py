@@ -27,7 +27,7 @@ def _map_colormap_name(value: Any) -> MapResult:
 
 
 def _map_colormap_kind(value: Any) -> MapResult:
-    table = {
+    table: dict[str, tuple[str | dict[str, Any], Any]] = {
         "sequential":  ("colormap", "viridis"),
         "diverging":   ({"colormap": "RdBu_r", "vcenter": 0.0}, None),
         "categorical": ("colormap", "tab10"),
