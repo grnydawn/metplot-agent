@@ -5,7 +5,7 @@ import pytest
 from src.mcp.plot_renderer.oracle import (
     ORACLE_SCHEMA_VERSION, REQUIRED_TOP_LEVEL_FIELDS,
     OracleIncomplete, capture_common,
-    drawn_for_timeseries, drawn_for_profile, drawn_for_map,
+    drawn_for_timeseries, drawn_for_profile,
     style_template_applied_block, finalize,
 )
 
