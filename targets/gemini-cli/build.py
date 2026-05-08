@@ -17,6 +17,7 @@ from targets._common.manifest import (
     common_ncplot_block,
 )
 from targets._common.mcp_bundling import bundle_mcp_servers, MCP_SERVERS
+from targets._common.setup_descriptions import SETUP_COMMAND_DESCRIPTION
 from targets._common.skills import copy_skills
 
 
@@ -69,7 +70,7 @@ def build(src_root: Path, out_root: Path) -> None:
     ncplot_cmd_dir.mkdir()
     (ncplot_cmd_dir / "refine.toml").write_text(_refine_toml())
     (ncplot_cmd_dir / "setup.toml").write_text(
-        'description = "Install or repair ncplot dependencies. Idempotent."\n'
+        'description = "' + SETUP_COMMAND_DESCRIPTION + '"\n'
         'prompt = "Run the bundled setup.sh to install ncplot\'s Python dependencies."\n'
     )
 
@@ -114,6 +115,11 @@ def _plugin_readme() -> str:
         "(global) or `.gemini/settings.json` (project). Use a JSON merge "
         "tool or copy the `mcpServers` block into your existing settings.\n\n"
         "### 4. Restart Gemini CLI\n\n"
+        "## Setup\n\n"
+        "Run the bundled installer to install Python dependencies:\n\n"
+        "```bash\n./setup.sh\n```\n\n"
+        "On Windows: `./setup.ps1`. Pass `--no-cartopy` or `--no-scipy` to "
+        "opt out of optional packages. The script is idempotent.\n\n"
         "## What's inside\n\nSkills:\n" + skill_lines + "\n\n"
         "Slash commands:\n  - `/refine` — placeholder (cycle 6)\n\n"
         "## Known limitations (cycle 7)\n\n"

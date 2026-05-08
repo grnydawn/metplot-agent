@@ -23,6 +23,7 @@ from targets._common.manifest import (
     common_ncplot_block,
 )
 from targets._common.mcp_bundling import bundle_mcp_servers, MCP_SERVERS
+from targets._common.setup_descriptions import SETUP_COMMAND_DESCRIPTION
 from targets._common.skills import copy_skills
 
 
@@ -74,9 +75,11 @@ def build(src_root: Path, out_root: Path) -> None:
     # /setup slash command (Codex uses bare names; no namespace prefix)
     commands_dir = plugin_dir / "commands"
     commands_dir.mkdir(exist_ok=True)
+    # user-invocable: true frontmatter mirrors the skill convention; effect on
+    # commands/*.md not empirically verified for this host (cycle-6 follow-up).
     (commands_dir / "setup.md").write_text(
         "---\n"
-        "description: Install or repair ncplot's Python dependencies. Idempotent.\n"
+        "description: " + SETUP_COMMAND_DESCRIPTION + "\n"
         "user-invocable: true\n"
         "---\n\n"
         "Run the bundled `setup.sh` to install or refresh the dependency stack.\n"
@@ -113,6 +116,11 @@ def _plugin_readme() -> str:
         "Append the contents of `config.toml` to `~/.codex/config.toml` "
         "(or your project-scoped `.codex/config.toml`).\n\n"
         "### 4. Restart Codex CLI / Desktop\n\n"
+        "## Setup\n\n"
+        "Run the bundled installer to install Python dependencies:\n\n"
+        "```bash\n./setup.sh\n```\n\n"
+        "On Windows: `./setup.ps1`. Pass `--no-cartopy` or `--no-scipy` to "
+        "opt out of optional packages. The script is idempotent.\n\n"
         "## What's inside\n\nSkills:\n" + skill_lines + "\n\n"
         "MCP servers:\n" + mcp_lines + "\n\n"
         "## Known limitations (cycle 7)\n\n"

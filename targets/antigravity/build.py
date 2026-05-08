@@ -18,6 +18,7 @@ from pathlib import Path
 from targets._common.install_tooling import copy_install_tooling
 from targets._common.manifest import PLUGIN_NAME, common_ncplot_block
 from targets._common.mcp_bundling import bundle_mcp_servers, MCP_SERVERS
+from targets._common.setup_descriptions import SETUP_COMMAND_DESCRIPTION
 from targets._common.skills import copy_skills
 
 
@@ -47,7 +48,7 @@ def build(src_root: Path, out_root: Path) -> None:
     # /setup workflow
     (workflows_dir / "setup.md").write_text(
         "---\n"
-        "description: Install or repair ncplot's Python dependencies. Idempotent.\n"
+        "description: " + SETUP_COMMAND_DESCRIPTION + "\n"
         "---\n\n"
         "# /setup workflow\n\n"
         "Run the bundled `setup.sh` from the plugin root. Idempotent — safe to "
@@ -112,6 +113,14 @@ def _plugin_readme() -> str:
         "Open Agent Panel → MCP Servers → \"View raw config\". Merge the "
         "contents of `mcp_config.json` into the displayed JSON.\n\n"
         "### 4. Restart Antigravity\n\n"
+        "## Setup\n\n"
+        "Run the bundled installer to install Python dependencies:\n\n"
+        "```bash\n./setup.sh\n```\n\n"
+        "On Windows: `./setup.ps1`. Pass `--no-cartopy` or `--no-scipy` to "
+        "opt out of optional packages. The script is idempotent.\n\n"
+        "Note: the manual `pip install ./mcp-servers/...` steps above can be "
+        "replaced by `./setup.sh`, which automates them along with the rest "
+        "of the dependency stack.\n\n"
         "## Known limitations (cycle 7)\n\n"
         "- **No formal hook system on Antigravity.** Cycle-6 self-improvement "
         "Stop hook → manual `/refine` workflow invocation.\n"

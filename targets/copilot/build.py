@@ -19,6 +19,7 @@ from targets._common.manifest import (
     common_ncplot_block,
 )
 from targets._common.mcp_bundling import bundle_mcp_servers, MCP_SERVERS
+from targets._common.setup_descriptions import SETUP_COMMAND_DESCRIPTION
 from targets._common.skills import copy_skills
 
 
@@ -69,9 +70,11 @@ def build(src_root: Path, out_root: Path) -> None:
         "---\n\n"
         "Placeholder for cycle-6 skill-refiner.\n"
     )
+    # user-invocable: true frontmatter mirrors the skill convention; effect on
+    # commands/*.md not empirically verified for this host (cycle-6 follow-up).
     (commands_dir / "setup.md").write_text(
         "---\n"
-        "description: Install or repair ncplot's Python dependencies. Idempotent.\n"
+        "description: " + SETUP_COMMAND_DESCRIPTION + "\n"
         "user-invocable: true\n"
         "---\n\n"
         "Run the bundled `setup.sh` from the plugin root.\n"
@@ -94,6 +97,11 @@ def _plugin_readme() -> str:
         "From VS Code: Chat → Install Plugin From Source → select this directory.\n\n"
         "Or copy to `~/.copilot/plugins/ncplot/`.\n\n"
         "### 3. Restart VS Code\n\n"
+        "## Setup\n\n"
+        "Run the bundled installer to install Python dependencies:\n\n"
+        "```bash\n./setup.sh\n```\n\n"
+        "On Windows: `./setup.ps1`. Pass `--no-cartopy` or `--no-scipy` to "
+        "opt out of optional packages. The script is idempotent.\n\n"
         "## Known limitations (cycle 7)\n\n"
         "- **Hooks deferred to cycle 6.** Copilot's `Stop` hook (PascalCase) "
         "will trigger skill-refiner once it ships.\n"

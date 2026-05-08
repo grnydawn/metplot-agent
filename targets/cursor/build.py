@@ -19,6 +19,7 @@ from targets._common.manifest import (
     common_ncplot_block,
 )
 from targets._common.mcp_bundling import bundle_mcp_servers, MCP_SERVERS
+from targets._common.setup_descriptions import SETUP_COMMAND_DESCRIPTION
 from targets._common.skills import copy_skills
 
 
@@ -65,7 +66,7 @@ def build(src_root: Path, out_root: Path) -> None:
     (commands_dir / "refine.md").write_text(_refine_md())
     (commands_dir / "setup.md").write_text(
         "---\n"
-        "description: Install or repair ncplot's Python dependencies. Idempotent.\n"
+        "description: " + SETUP_COMMAND_DESCRIPTION + "\n"
         "---\n\n"
         "Run the bundled `setup.sh` from the plugin root.\n"
     )
@@ -99,6 +100,11 @@ def _plugin_readme() -> str:
         "Copy this directory to `~/.cursor/plugins/ncplot/`, "
         "or use the Cursor Marketplace install flow.\n\n"
         "### 3. Restart Cursor\n\n"
+        "## Setup\n\n"
+        "Run the bundled installer to install Python dependencies:\n\n"
+        "```bash\n./setup.sh\n```\n\n"
+        "On Windows: `./setup.ps1`. Pass `--no-cartopy` or `--no-scipy` to "
+        "opt out of optional packages. The script is idempotent.\n\n"
         "## Known limitations (cycle 7)\n\n"
         "- **Hooks deferred to cycle 6.** Cursor's `stop` hook (camelCase) "
         "will trigger skill-refiner once it ships.\n"
