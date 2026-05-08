@@ -78,6 +78,7 @@ def _style_resolution_sources(spec: dict[str, Any], trace: dict[str, Any]) -> di
 def render_timeseries(spec: dict[str, Any]) -> dict[str, Any]:
     """Render a 1D time series (single or multi). See spec §2.2."""
     warnings: list[dict[str, Any]] = []
+    fig = None
     try:
         # 1. Spec validation + data normalization
         try:
@@ -218,3 +219,6 @@ def render_timeseries(spec: dict[str, Any]) -> dict[str, Any]:
         # Catch-all: never let a raw exception escape
         return envelope.error("internal_render_error",
                               f"{type(e).__name__}: {e}")
+    finally:
+        if fig is not None:
+            plt.close(fig)

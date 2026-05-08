@@ -89,6 +89,7 @@ def render_map(spec: dict[str, Any]) -> dict[str, Any]:
         return _cartopy_ambiguity()
 
     warnings: list[dict[str, Any]] = []
+    fig = None
     try:
         # 1. Normalize spec → values, coords, meta
         try:
@@ -290,3 +291,6 @@ def render_map(spec: dict[str, Any]) -> dict[str, Any]:
     except Exception as e:
         return envelope.error("internal_render_error",
                               f"{type(e).__name__}: {e}")
+    finally:
+        if fig is not None:
+            plt.close(fig)

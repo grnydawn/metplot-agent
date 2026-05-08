@@ -47,6 +47,7 @@ def _sources(spec: dict[str, Any], trace: dict[str, Any]) -> dict[str, str]:
 
 def render_profile(spec: dict[str, Any]) -> dict[str, Any]:
     """Render a vertical profile (single or multi). See spec §2.3."""
+    fig = None
     try:
         try:
             series = adapter.normalize_1d_series(spec, axis_name="vertical")
@@ -167,3 +168,6 @@ def render_profile(spec: dict[str, Any]) -> dict[str, Any]:
     except Exception as e:
         return envelope.error("internal_render_error",
                               f"{type(e).__name__}: {e}")
+    finally:
+        if fig is not None:
+            plt.close(fig)
