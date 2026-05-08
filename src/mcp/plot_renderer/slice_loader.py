@@ -45,5 +45,5 @@ class NetCDFSliceLoader:
         if var not in ds.data_vars:
             raise SliceFileUnreadable(
                 f"variable {var!r} not found in {path}; "
-                f"available: {sorted(ds.data_vars)}")
+                f"available: {sorted(str(k) for k in ds.data_vars)}")
         return ds[var]
