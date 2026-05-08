@@ -15,8 +15,9 @@ over the Atlantic", "X at 500 hPa", "snapshot of X", "make a map of X".
 
 1. **Confirm inspection.** If `netcdf-inspect` has not run on this file,
    run it now.
-2. **Resolve variable name.** Use `references/../netcdf-inspect/references/aliases.md`
-   for informal names. If still ambiguous, call
+2. **Resolve variable name.** Consult the aliases table in the
+   `netcdf-inspect` skill (aliases.md in its references folder) for informal
+   names. If still ambiguous, call
    `netcdf-reader.find_variables(path, hint)`.
 3. **Resolve time selection** via `netcdf-reader.find_time(path, hint)` if
    the user named a date informally. Default: last time step if not specified.
