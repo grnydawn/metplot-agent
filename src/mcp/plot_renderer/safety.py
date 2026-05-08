@@ -85,3 +85,31 @@ def nan_assessment(values: np.ndarray) -> dict[str, Any]:
         "all_nan": (n_nan == total),
         "high_nan_fraction": (frac > 0.5),
     }
+
+
+def maybe_lon_shift(
+    values: np.ndarray, lon: np.ndarray, *, target: str | None,
+) -> tuple[np.ndarray, np.ndarray, bool]:
+    """Shift longitude convention if `target` is set and current data
+    doesn't satisfy it. Returns (values, lon, applied).
+
+    target ∈ {None, "-180..180", "0..360"}.
+    """
+    if target is None:
+        return values, lon, False
+    if target == "-180..180":
+        if lon.min() >= -180.0 and lon.max() <= 180.0:
+            return values, lon, False
+        new_lon = ((lon + 180.0) % 360.0) - 180.0
+    elif target == "0..360":
+        if lon.min() >= 0.0 and lon.max() <= 360.0:
+            return values, lon, False
+        new_lon = lon % 360.0
+    else:
+        # Unknown target: pass through; caller may have validated already.
+        return values, lon, False
+    order = np.argsort(new_lon, kind="stable")
+    sorted_lon = new_lon[order]
+    # Re-order along the lon axis (last axis for 2D values shape (lat, lon)).
+    sorted_values = np.take(values, order, axis=-1)
+    return sorted_values, sorted_lon, True
