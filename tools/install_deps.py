@@ -107,3 +107,55 @@ def detect_installer(python_bin: Path) -> tuple[str, list[str]]:
     if uv:
         return ("uv", ["pip", "install"])
     return (str(python_bin), ["-m", "pip", "install"])
+
+
+@dataclass
+class Step:
+    title: str
+    required: bool
+    pkg_path: Path | None = None       # for local package installs
+    pkg_spec: str | None = None        # for PyPI specs like "cartopy>=0.22"
+    recovery_hint: str = ""
+
+
+def build_plan(args: Args) -> list[Step]:
+    """Construct the ordered install plan from CLI args."""
+    mcp_dir = args.mcp_servers_dir or Path("mcp-servers")  # default for dev runs
+    plan: list[Step] = [
+        Step(title="netcdf-reader", required=True,
+             pkg_path=mcp_dir / "netcdf_reader"),
+        Step(title="plot-renderer", required=True,
+             pkg_path=mcp_dir / "plot_renderer"),
+    ]
+    if not args.no_cartopy:
+        plan.append(Step(
+            title="cartopy", required=False,
+            pkg_spec="cartopy>=0.22",
+            recovery_hint=(
+                "On Debian/Ubuntu: sudo apt-get install libproj-dev libgeos-dev. "
+                "Or use conda: conda install -c conda-forge cartopy"),
+        ))
+    if not args.no_scipy:
+        plan.append(Step(
+            title="scipy", required=False,
+            pkg_spec="scipy>=1.11",
+            recovery_hint=(
+                "See https://docs.scipy.org/doc/scipy/getting_started.html"),
+        ))
+    return plan
+
+
+def render_install_command(step: Step,
+                            installer_cmd: str, installer_args: list[str],
+                            force: bool) -> list[str]:
+    """Build the argv for one step's subprocess.run call."""
+    cmd = [installer_cmd, *installer_args]
+    if force:
+        cmd.append("--upgrade")
+    if step.pkg_path is not None:
+        cmd.append(str(step.pkg_path))
+    elif step.pkg_spec is not None:
+        cmd.append(step.pkg_spec)
+    else:
+        raise ValueError(f"step {step.title!r} has neither pkg_path nor pkg_spec")
+    return cmd
