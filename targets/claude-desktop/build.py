@@ -16,12 +16,9 @@ import json
 import shutil
 from pathlib import Path
 
-from targets._common.manifest import common_ncplot_block
+from targets._common.manifest import PLUGIN_NAME, common_ncplot_block
 from targets._common.mcp_bundling import bundle_mcp_servers, MCP_SERVERS
 from targets._common.skills import INCLUDED_SKILLS
-
-
-PLUGIN_NAME = "ncplot"   # was "ncplot-agent" (cycle-5 rename)
 
 
 def build(src_root: Path, out_root: Path) -> None:
