@@ -113,3 +113,57 @@ def maybe_lon_shift(
     # Re-order along the lon axis (last axis for 2D values shape (lat, lon)).
     sorted_values = np.take(values, order, axis=-1)
     return sorted_values, sorted_lon, True
+
+
+def is_constant_field(values: np.ndarray) -> tuple[bool, float | None]:
+    """Return (True, value) if all non-NaN values are identical (or array
+    is all-NaN, with value=None). Otherwise (False, None)."""
+    finite = values[np.isfinite(values)]
+    if finite.size == 0:
+        return True, None
+    if finite.min() == finite.max():
+        return True, float(finite.min())
+    return False, None
+
+
+def percentile_clip_if_extreme(
+    values: np.ndarray, *,
+    vmin: float | None = None,
+    vmax: float | None = None,
+    clip_pct: tuple[float, float] | None = None,
+    extreme_orders_of_magnitude: float = 6.0,
+) -> tuple[float, float, bool]:
+    """Decide vmin/vmax for the colormap.
+
+    - If user/template supplied vmin and vmax, return them unchanged.
+    - If clip_pct is supplied, apply it (always).
+    - Otherwise, if data spans more than `extreme_orders_of_magnitude`,
+      apply a [2, 98] percentile clip to suppress outliers.
+    - Otherwise return (data_min, data_max).
+
+    Returns (vmin, vmax, applied) where applied=True only when a
+    percentile clip was actually applied.
+    """
+    if vmin is not None and vmax is not None:
+        return float(vmin), float(vmax), False
+    finite = values[np.isfinite(values)]
+    if finite.size == 0:
+        return float("nan"), float("nan"), False
+    if clip_pct is not None:
+        lo, hi = clip_pct
+        v_lo = float(np.percentile(finite, lo))
+        v_hi = float(np.percentile(finite, hi))
+        return v_lo, v_hi, True
+    data_min = float(finite.min())
+    data_max = float(finite.max())
+    abs_max = max(abs(data_min), abs(data_max))
+    abs_min_nonzero = max(abs(data_min), abs(data_max), 1e-300)
+    median_abs = float(np.median(np.abs(finite)))
+    median_abs = max(median_abs, 1e-300)
+    if abs_max / median_abs > 10 ** extreme_orders_of_magnitude:
+        v_lo = float(np.percentile(finite, 2.0))
+        v_hi = float(np.percentile(finite, 98.0))
+        return v_lo, v_hi, True
+    # Fallback: no clip, no smarts beyond user override
+    _ = abs_min_nonzero  # keeps the linter quiet without affecting logic
+    return data_min, data_max, False
