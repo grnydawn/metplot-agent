@@ -10,6 +10,10 @@ See docs/specs/2026-05-08-cycle-5-auto-setup.md for the full design.
 from __future__ import annotations
 
 import argparse
+import os
+import shutil
+import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -54,11 +58,6 @@ def parse_args(argv: list[str] | None = None) -> Args:
         force=ns.force,
         mcp_servers_dir=ns.mcp_servers_dir,
     )
-
-
-import os
-import shutil
-import sys
 
 
 class EnvironmentError_(RuntimeError):
@@ -159,9 +158,6 @@ def render_install_command(step: Step,
     else:
         raise ValueError(f"step {step.title!r} has neither pkg_path nor pkg_spec")
     return cmd
-
-
-import subprocess
 
 
 EXIT_OK = 0

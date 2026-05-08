@@ -1,8 +1,7 @@
 from pathlib import Path
 
-import pytest
 
-from tools.install_deps import Args, Step, build_plan
+from tools.install_deps import Args, build_plan
 
 
 def _args(**kw) -> Args:

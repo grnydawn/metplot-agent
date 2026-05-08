@@ -1,4 +1,3 @@
-import pytest
 
 from tools.install_deps import parse_args, Args
 
