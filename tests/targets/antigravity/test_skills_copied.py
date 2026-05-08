@@ -1,0 +1,23 @@
+# tests/targets/antigravity/test_skills_copied.py
+from pathlib import Path
+import pytest
+
+_EXPECTED = {
+    "netcdf-inspect", "netcdf-plot-router",
+    "netcdf-plot-map", "netcdf-plot-timeseries", "netcdf-plot-profile",
+}
+
+def test_skills_under_agent_dir(built_plugin: Path):
+    skills = built_plugin / ".agent" / "skills"
+    assert skills.is_dir()
+
+def test_all_expected_skills(built_plugin: Path):
+    actual = {p.name for p in (built_plugin / ".agent" / "skills").iterdir() if p.is_dir()}
+    assert actual == _EXPECTED
+
+def test_no_skill_refiner(built_plugin: Path):
+    assert not (built_plugin / ".agent" / "skills" / "skill-refiner").exists()
+
+@pytest.mark.parametrize("skill", sorted(_EXPECTED))
+def test_skill_md_present(built_plugin: Path, skill: str):
+    assert (built_plugin / ".agent" / "skills" / skill / "SKILL.md").is_file()
