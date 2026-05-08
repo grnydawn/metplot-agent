@@ -21,7 +21,7 @@ from targets._common.mcp_bundling import bundle_mcp_servers, MCP_SERVERS
 from targets._common.skills import INCLUDED_SKILLS
 
 
-PLUGIN_NAME = "ncplot-agent"
+PLUGIN_NAME = "ncplot"   # was "ncplot-agent" (cycle-5 rename)
 
 
 def build(src_root: Path, out_root: Path) -> None:
@@ -31,7 +31,7 @@ def build(src_root: Path, out_root: Path) -> None:
     plugin_dir.mkdir(parents=True)
 
     # Concatenate skill bodies into project_instructions.md
-    pi = ["# ncplot-agent — Claude Desktop project instructions\n",
+    pi = ["# ncplot — Claude Desktop project instructions\n",
           "Paste this content into your Claude Project's Custom Instructions "
           "or Project Knowledge.\n",
           "\n---\n"]
@@ -76,7 +76,7 @@ def build(src_root: Path, out_root: Path) -> None:
 
 def _readme() -> str:
     return (
-        "# ncplot-agent — Claude Desktop bundle\n\n"
+        "# ncplot — Claude Desktop bundle\n\n"
         "NetCDF plotting via natural language.\n\n"
         "Claude Desktop has no native skill loader, so this bundle gives you:\n"
         "1. A pre-concatenated `project_instructions.md` to paste into your "

@@ -70,7 +70,7 @@ def build(src_root: Path, out_root: Path) -> None:
 
 def _plugin_readme() -> str:
     return (
-        "# ncplot-agent — GitHub Copilot agent plugin\n\n"
+        "# ncplot — GitHub Copilot agent plugin\n\n"
         "NetCDF plotting via natural language.\n\n"
         "## Install\n\n"
         "### 1. Install the MCP servers\n\n"
@@ -80,7 +80,7 @@ def _plugin_readme() -> str:
         "```\n\n"
         "### 2. Install the plugin\n\n"
         "From VS Code: Chat → Install Plugin From Source → select this directory.\n\n"
-        "Or copy to `~/.copilot/plugins/ncplot-agent/`.\n\n"
+        "Or copy to `~/.copilot/plugins/ncplot/`.\n\n"
         "### 3. Restart VS Code\n\n"
         "## Known limitations (cycle 7)\n\n"
         "- **Hooks deferred to cycle 6.** Copilot's `Stop` hook (PascalCase) "

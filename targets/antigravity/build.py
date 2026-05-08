@@ -20,7 +20,7 @@ from targets._common.mcp_bundling import bundle_mcp_servers, MCP_SERVERS
 from targets._common.skills import copy_skills
 
 
-PLUGIN_NAME = "ncplot-agent"
+PLUGIN_NAME = "ncplot"   # was "ncplot-agent" (cycle-5 rename)
 
 
 def build(src_root: Path, out_root: Path) -> None:
@@ -81,7 +81,7 @@ def _refine_workflow() -> str:
 
 def _plugin_readme() -> str:
     return (
-        "# ncplot-agent — Antigravity plugin\n\n"
+        "# ncplot — Antigravity plugin\n\n"
         "NetCDF plotting via natural language.\n\n"
         "## Install\n\n"
         "### 1. Install the MCP servers\n\n"

@@ -42,8 +42,8 @@ def test_target_builds_to_unique_dir(tmp_path, target: str):
     if not hasattr(mod, "build"):
         pytest.skip(f"target {target} has no build()")
     mod.build(SRC_ROOT, out)
-    plugin_root = out / "ncplot-agent"
-    assert plugin_root.is_dir(), f"{target}: missing ncplot-agent dir"
+    plugin_root = out / "ncplot"
+    assert plugin_root.is_dir(), f"{target}: missing ncplot dir"
     # Each target produces *something* — at least skills or a manifest
     has_content = any((plugin_root / sub).exists() for sub in
                        ("skills", "mcp-servers", ".agent",

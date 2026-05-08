@@ -19,4 +19,4 @@ def _load():
 def built_plugin(tmp_path_factory):
     out = tmp_path_factory.mktemp("build-copilot")
     _load().build(SRC_ROOT, out)
-    return out / "ncplot-agent"
+    return out / "ncplot"

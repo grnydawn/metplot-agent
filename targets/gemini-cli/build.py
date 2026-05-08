@@ -84,7 +84,7 @@ def _plugin_readme() -> str:
     ])
     skill_lines = "\n".join(f"  - `{s}`" for s in skills)
     return (
-        "# ncplot-agent — Gemini CLI extension\n\n"
+        "# ncplot — Gemini CLI extension\n\n"
         "NetCDF plotting via natural language.\n\n"
         "## Install\n\n"
         "### 1. Install the MCP servers\n\n"
@@ -97,7 +97,7 @@ def _plugin_readme() -> str:
         "```bash\n"
         "gemini extensions install <git-url-or-path>\n"
         "```\n\n"
-        "Or copy this directory to `~/.gemini/extensions/ncplot-agent/`.\n\n"
+        "Or copy this directory to `~/.gemini/extensions/ncplot/`.\n\n"
         "### 3. Merge settings.json into your Gemini settings\n\n"
         "The MCP launch stanzas need to land in `~/.gemini/settings.json` "
         "(global) or `.gemini/settings.json` (project). Use a JSON merge "

@@ -1,6 +1,6 @@
 """Build the Claude Code plugin from src/.
 
-Cycle 4 baseline: produces a payload at `build/claude-code/ncplot-agent/`
+Cycle 4 baseline: produces a payload at `build/claude-code/ncplot/`
 with skills, bundled MCP servers, .mcp.json, and a placeholder /refine
 command.
 
@@ -118,14 +118,14 @@ def _plugin_readme_full(skills: list[str], mcps: list[str]) -> str:
         for s in MCP_SERVERS
     )
     return (
-        "# ncplot-agent — Claude Code plugin\n\n"
+        "# ncplot — Claude Code plugin\n\n"
         "NetCDF plotting via natural language. Maps, time series, and "
         "vertical profiles. WRF/ROMS/CMIP/reanalysis aware.\n\n"
         "## Install\n\n"
         "### 1. Install the MCP servers\n\n"
         "```bash\n" + mcp_install + "\n```\n\n"
         "### 2. Install the plugin\n\n"
-        "```bash\ncp -r . ~/.claude/plugins/ncplot-agent\n```\n\n"
+        "```bash\ncp -r . ~/.claude/plugins/ncplot\n```\n\n"
         "### 3. Restart Claude Code\n\n"
         "## What's inside\n\nSkills:\n" + skill_lines + "\n\n"
         "MCP servers:\n" + mcp_lines + "\n\n"

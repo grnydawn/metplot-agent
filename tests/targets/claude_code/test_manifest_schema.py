@@ -19,7 +19,7 @@ def test_required_fields(built_plugin: Path) -> None:
 
 def test_name_pinned(built_plugin: Path) -> None:
     m = json.loads((built_plugin / ".claude-plugin" / "plugin.json").read_text())
-    assert m["name"] == "ncplot-agent"
+    assert m["name"] == "ncplot"
 
 
 def test_ncplot_block_present(built_plugin: Path) -> None:

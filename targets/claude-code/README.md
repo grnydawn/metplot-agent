@@ -9,7 +9,7 @@ servers + reference data) into an installable Claude Code plugin payload.
 python -m tools.build claude-code
 ```
 
-Output lands in `build/claude-code/ncplot-agent/`. See the README inside
+Output lands in `build/claude-code/ncplot/`. See the README inside
 that directory for end-user install instructions.
 
 ## Validate the build output
@@ -27,7 +27,7 @@ it.
 A complete Claude Code plugin:
 
 ```
-build/claude-code/ncplot-agent/
+build/claude-code/ncplot/
 ├── .claude-plugin/plugin.json   # manifest with cycle metadata
 ├── README.md                    # end-user install + setup instructions
 ├── skills/                      # 5 SKILL.md packages from cycle 3

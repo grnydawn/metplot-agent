@@ -76,7 +76,7 @@ def _refine_md() -> str:
 
 def _plugin_readme() -> str:
     return (
-        "# ncplot-agent — Cursor plugin\n\n"
+        "# ncplot — Cursor plugin\n\n"
         "NetCDF plotting via natural language.\n\n"
         "## Install\n\n"
         "### 1. Install the MCP servers\n\n"
@@ -85,7 +85,7 @@ def _plugin_readme() -> str:
         "pip install ./mcp-servers/plot_renderer\n"
         "```\n\n"
         "### 2. Install the plugin\n\n"
-        "Copy this directory to `~/.cursor/plugins/ncplot-agent/`, "
+        "Copy this directory to `~/.cursor/plugins/ncplot/`, "
         "or use the Cursor Marketplace install flow.\n\n"
         "### 3. Restart Cursor\n\n"
         "## Known limitations (cycle 7)\n\n"

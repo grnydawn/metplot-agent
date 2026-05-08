@@ -79,7 +79,7 @@ def _plugin_readme() -> str:
     skill_lines = "\n".join(f"  - `{s}`" for s in skills)
     mcp_lines = "\n".join(f"  - `{m}`" for m in mcps)
     return (
-        "# ncplot-agent — Codex plugin\n\n"
+        "# ncplot — Codex plugin\n\n"
         "NetCDF plotting via natural language. Maps, time series, and "
         "vertical profiles.\n\n"
         "Works in Codex CLI and Codex Desktop (shared plugin format).\n\n"
@@ -91,7 +91,7 @@ def _plugin_readme() -> str:
         "```\n\n"
         "### 2. Install the plugin\n\n"
         "Copy this directory under your Codex plugin search path "
-        "(typically `~/.codex/plugins/ncplot-agent/`), or follow the "
+        "(typically `~/.codex/plugins/ncplot/`), or follow the "
         "Codex marketplace install flow if available.\n\n"
         "### 3. Merge config.toml into your Codex config\n\n"
         "Append the contents of `config.toml` to `~/.codex/config.toml` "
