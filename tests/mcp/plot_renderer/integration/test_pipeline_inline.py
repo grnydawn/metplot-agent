@@ -1,6 +1,5 @@
 # tests/mcp/plot_renderer/integration/test_pipeline_inline.py
 """End-to-end inline-form pipeline: spec → render → PNG + oracle."""
-import json
 from pathlib import Path
 
 import numpy as np

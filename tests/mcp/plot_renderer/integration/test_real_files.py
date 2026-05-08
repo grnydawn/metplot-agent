@@ -13,8 +13,6 @@ from pathlib import Path
 import pytest
 
 from src.mcp.plot_renderer.tools import render_map as rm
-from src.mcp.plot_renderer.tools.render_profile import render_profile
-from src.mcp.plot_renderer.tools.render_timeseries import render_timeseries
 
 CONFIG = Path(__file__).resolve().parents[3] / "integration" / "real_files.json"
 

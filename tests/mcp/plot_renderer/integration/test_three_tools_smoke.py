@@ -1,6 +1,5 @@
 # tests/mcp/plot_renderer/integration/test_three_tools_smoke.py
 """Smoke: each callable tool produces a non-empty figure."""
-import os
 from pathlib import Path
 
 import pytest
