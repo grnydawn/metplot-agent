@@ -70,3 +70,18 @@ def auto_downsample_1d(
     return (values[::k], axis[::k],
             {"from_shape": (n,), "to_shape": (values[::k].shape[0],),
              "factor": {"axis": k}})
+
+
+def nan_assessment(values: np.ndarray) -> dict[str, Any]:
+    """Compute NaN statistics. Threshold for `high_nan_fraction` is > 0.5."""
+    total = values.size
+    if total == 0:
+        return {"nan_fraction": 0.0, "all_nan": False,
+                "high_nan_fraction": False}
+    n_nan = int(np.isnan(values).sum())
+    frac = n_nan / total
+    return {
+        "nan_fraction": frac,
+        "all_nan": (n_nan == total),
+        "high_nan_fraction": (frac > 0.5),
+    }
