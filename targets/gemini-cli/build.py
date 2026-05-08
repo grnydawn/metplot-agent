@@ -11,6 +11,7 @@ import json
 import shutil
 from pathlib import Path
 
+from targets._common.install_tooling import copy_install_tooling
 from targets._common.manifest import (
     PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_DESCRIPTION, PLUGIN_HOMEPAGE,
     common_ncplot_block,
@@ -57,10 +58,20 @@ def build(src_root: Path, out_root: Path) -> None:
     (plugin_dir / "settings.json").write_text(
         json.dumps(settings, indent=2) + "\n")
 
-    # commands/refine.toml
+    # Cycle-5 setup tooling
+    repo_root = Path(__file__).resolve().parents[2]
+    copy_install_tooling(repo_root, plugin_dir)
+
+    # commands/ncplot/ subdir — subdir name → colon namespace (/ncplot:setup, /ncplot:refine)
     commands_dir = plugin_dir / "commands"
     commands_dir.mkdir()
-    (commands_dir / "refine.toml").write_text(_refine_toml())
+    ncplot_cmd_dir = commands_dir / "ncplot"
+    ncplot_cmd_dir.mkdir()
+    (ncplot_cmd_dir / "refine.toml").write_text(_refine_toml())
+    (ncplot_cmd_dir / "setup.toml").write_text(
+        'description = "Install or repair ncplot dependencies. Idempotent."\n'
+        'prompt = "Run the bundled setup.sh to install ncplot\'s Python dependencies."\n'
+    )
 
     # Plugin README
     (plugin_dir / "README.md").write_text(_plugin_readme())
