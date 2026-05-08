@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import importlib.util
 import subprocess
-import sys
 from pathlib import Path
 
 import click
@@ -28,7 +27,7 @@ TESTS_ROOT = REPO_ROOT / "tests" / "targets"
 
 def discover_targets() -> dict[str, Path]:
     """Find all target directories that contain a build.py."""
-    targets = {}
+    targets: dict[str, Path] = {}
     if not TARGETS_ROOT.exists():
         return targets
     for path in TARGETS_ROOT.iterdir():
@@ -76,9 +75,8 @@ def validate_target(name: str) -> None:
                    err=True)
         return
     click.echo(f"validating {name}...")
-    pytest_bin = REPO_ROOT / ".venv" / "bin" / "pytest"
-    if not pytest_bin.exists():
-        pytest_bin = "pytest"
+    pytest_bin_path = REPO_ROOT / ".venv" / "bin" / "pytest"
+    pytest_bin: str | Path = pytest_bin_path if pytest_bin_path.exists() else "pytest"
     result = subprocess.run(
         [str(pytest_bin), str(test_dir), "-v"],
         cwd=str(REPO_ROOT),
@@ -87,7 +85,7 @@ def validate_target(name: str) -> None:
     if result.returncode != 0:
         raise click.ClickException(
             f"validation failed for target {name!r}; see pytest output above")
-    click.echo(f"  validation passed.")
+    click.echo("  validation passed.")
 
 
 @click.command()
