@@ -15,6 +15,7 @@ import json
 import shutil
 from pathlib import Path
 
+from targets._common.install_tooling import copy_install_tooling
 from targets._common.manifest import PLUGIN_NAME, common_ncplot_block
 from targets._common.mcp_bundling import bundle_mcp_servers, MCP_SERVERS
 from targets._common.skills import copy_skills
@@ -38,6 +39,20 @@ def build(src_root: Path, out_root: Path) -> None:
 
     # MCP servers — bundled at top level so users can pip install
     bundle_mcp_servers(src_root, plugin_dir / "mcp-servers")
+
+    # Cycle-5 setup tooling
+    repo_root = Path(__file__).resolve().parents[2]
+    copy_install_tooling(repo_root, plugin_dir)
+
+    # /setup workflow
+    (workflows_dir / "setup.md").write_text(
+        "---\n"
+        "description: Install or repair ncplot's Python dependencies. Idempotent.\n"
+        "---\n\n"
+        "# /setup workflow\n\n"
+        "Run the bundled `setup.sh` from the plugin root. Idempotent — safe to "
+        "re-run after dependency changes.\n"
+    )
 
     # MCP config snippet for paste into Antigravity's mcp_config.json
     mcp_snippet = {
