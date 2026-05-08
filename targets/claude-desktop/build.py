@@ -16,6 +16,7 @@ import json
 import shutil
 from pathlib import Path
 
+from targets._common.install_tooling import copy_install_tooling
 from targets._common.manifest import PLUGIN_NAME, common_ncplot_block
 from targets._common.mcp_bundling import bundle_mcp_servers, MCP_SERVERS
 from targets._common.skills import INCLUDED_SKILLS
@@ -50,6 +51,10 @@ def build(src_root: Path, out_root: Path) -> None:
 
     # Bundle MCP servers
     bundle_mcp_servers(src_root, plugin_dir / "mcp-servers")
+
+    # Cycle-5 setup tooling (no slash command — Claude Desktop has no slash system)
+    repo_root = Path(__file__).resolve().parents[2]
+    copy_install_tooling(repo_root, plugin_dir)
 
     # MCP config snippet (paste into ~/Library/Application Support/Claude/claude_desktop_config.json)
     snippet = {
@@ -98,6 +103,11 @@ def _readme() -> str:
         "Open the project, click the project title to access settings, paste "
         "the contents of `project_instructions.md` into the Custom "
         "Instructions area.\n\n"
+        "## Setup\n\n"
+        "Run the bundled installer to install Python dependencies:\n\n"
+        "```bash\n./setup.sh\n```\n\n"
+        "On Windows: `./setup.ps1`. Pass `--no-cartopy` or `--no-scipy` to "
+        "opt out of optional packages. The script is idempotent.\n\n"
         "## Known limitations\n\n"
         "- **No skill loader** → instructions are a single context dump rather "
         "than dynamic skill activation.\n"
