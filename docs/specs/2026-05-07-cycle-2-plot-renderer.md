@@ -454,7 +454,7 @@ data:
   plotted_min:           float | null    # null if all-NaN
   plotted_max:           float | null
   nan_fraction:          float
-  applied_downsample:    {factor: int, original_shape: [...]} | null
+  applied_downsample:    {from_shape: [...], to_shape: [...], factor: {<axis>: int, ...}} | null
   applied_lon_shift:     bool | null     # render_map only; null otherwise
   applied_clip_pct:      [float, float] | null
   vmin_used:             float
