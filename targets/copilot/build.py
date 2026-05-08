@@ -16,7 +16,7 @@ from targets._common.install_tooling import copy_install_tooling
 from targets._common.manifest import (
     PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_DESCRIPTION, PLUGIN_HOMEPAGE,
     PLUGIN_LICENSE, PLUGIN_AUTHOR,
-    common_ncplot_block,
+    common_metplot_block,
 )
 from targets._common.mcp_bundling import bundle_mcp_servers, MCP_SERVERS
 from targets._common.setup_descriptions import SETUP_COMMAND_DESCRIPTION
@@ -37,7 +37,7 @@ def build(src_root: Path, out_root: Path) -> None:
         "author": PLUGIN_AUTHOR,
         "homepage": PLUGIN_HOMEPAGE,
         "license": PLUGIN_LICENSE,
-        "ncplot": common_ncplot_block(build_cycle=7),
+        "metplot": common_metplot_block(build_cycle=7),
     }
     (plugin_dir / "plugin.json").write_text(
         json.dumps(manifest, indent=2) + "\n")
@@ -60,7 +60,7 @@ def build(src_root: Path, out_root: Path) -> None:
     repo_root = Path(__file__).resolve().parents[2]
     copy_install_tooling(repo_root, plugin_dir)
 
-    # commands/ — refine + /ncplot:setup (Copilot auto-prefixes from manifest name)
+    # commands/ — refine + /metplot:setup (Copilot auto-prefixes from manifest name)
     commands_dir = plugin_dir / "commands"
     commands_dir.mkdir()
     (commands_dir / "refine.md").write_text(
@@ -85,7 +85,7 @@ def build(src_root: Path, out_root: Path) -> None:
 
 def _plugin_readme() -> str:
     return (
-        "# ncplot — GitHub Copilot agent plugin\n\n"
+        "# metplot — GitHub Copilot agent plugin\n\n"
         "NetCDF plotting via natural language.\n\n"
         "## Install\n\n"
         "### 1. Install the MCP servers\n\n"
@@ -95,7 +95,7 @@ def _plugin_readme() -> str:
         "```\n\n"
         "### 2. Install the plugin\n\n"
         "From VS Code: Chat → Install Plugin From Source → select this directory.\n\n"
-        "Or copy to `~/.copilot/plugins/ncplot/`.\n\n"
+        "Or copy to `~/.copilot/plugins/metplot/`.\n\n"
         "### 3. Restart VS Code\n\n"
         "## Setup\n\n"
         "Run the bundled installer to install Python dependencies:\n\n"

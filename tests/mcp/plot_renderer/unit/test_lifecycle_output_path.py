@@ -46,7 +46,7 @@ def test_auto_name_basic(tmp_path, monkeypatch):
                                      "values": [[1.0]],
                                      "lat": [0.0], "lon": [0.0]},
                   fmt="png")
-    assert ".ncplot/figures/" in p
+    assert ".metplot/figures/" in p
     assert p.endswith(".png")
     assert "map_tos_" in p
 

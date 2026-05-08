@@ -22,4 +22,4 @@ trend = ["scipy>=1.11"]
 dev   = ["pytest>=8", "ruff>=0.5", "mypy>=1.10", "scikit-image>=0.22"]
 
 [project.scripts]
-ncplot-plot-renderer = "src.mcp.plot_renderer.server:main"
+metplot-plot-renderer = "src.mcp.plot_renderer.server:main"

@@ -37,7 +37,7 @@ def test_build_via_dispatcher(tmp_path, monkeypatch):
     mod = _load_dispatcher()
     monkeypatch.setattr(mod, "BUILD_ROOT", tmp_path)
     mod.build_target("claude-code", validate=False)
-    plugin_root = tmp_path / "claude-code" / "ncplot"
+    plugin_root = tmp_path / "claude-code" / "metplot"
     assert plugin_root.is_dir()
     assert (plugin_root / ".claude-plugin" / "plugin.json").is_file()
 

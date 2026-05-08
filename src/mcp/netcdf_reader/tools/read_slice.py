@@ -33,7 +33,7 @@ def _session_id() -> str:
 
 
 def _slice_dir() -> Path:
-    d = Path.cwd() / ".ncplot" / "slices" / _session_id()
+    d = Path.cwd() / ".metplot" / "slices" / _session_id()
     d.mkdir(parents=True, exist_ok=True)
     return d
 

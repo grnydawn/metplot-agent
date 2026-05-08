@@ -1,6 +1,6 @@
 """Helper utilities for the skill-refiner skill.
 
-Parses .ncplot/task-log.jsonl and groups entries by skill / category to make
+Parses .metplot/task-log.jsonl and groups entries by skill / category to make
 the refiner's job easier. The skill itself does the LLM-driven work of
 deciding what's worth refining; this script just does the structured I/O.
 """
@@ -17,7 +17,7 @@ from typing import Iterator
 def task_log_path(workspace: Path | None = None) -> Path:
     """Return the path to the task log for the current workspace."""
     root = workspace or Path.cwd()
-    return root / ".ncplot" / "task-log.jsonl"
+    return root / ".metplot" / "task-log.jsonl"
 
 
 def read_entries(log_path: Path) -> Iterator[dict]:

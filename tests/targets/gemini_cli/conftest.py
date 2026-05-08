@@ -21,4 +21,4 @@ def built_plugin(tmp_path_factory) -> Path:
     out = tmp_path_factory.mktemp("build-gemini-cli")
     mod = _load_build_module()
     mod.build(SRC_ROOT, out)
-    return out / "ncplot"
+    return out / "metplot"

@@ -10,7 +10,7 @@ from src.mcp.netcdf_reader.lifecycle import (
 
 def test_cleanup_removes_old_session_dirs(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    base = tmp_path / ".ncplot" / "slices"
+    base = tmp_path / ".metplot" / "slices"
     (base / "pid-old-1").mkdir(parents=True)
     (base / "pid-old-1" / "x.nc").write_bytes(b"x")
     (base / "pid-old-2").mkdir()
@@ -21,7 +21,7 @@ def test_cleanup_removes_old_session_dirs(tmp_path, monkeypatch):
 
 def test_cleanup_keeps_current(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    base = tmp_path / ".ncplot" / "slices"
+    base = tmp_path / ".metplot" / "slices"
     (base / "pid-current").mkdir(parents=True)
     (base / "pid-current" / "x.nc").write_bytes(b"x")
     cleanup_old_slice_dirs(keep="pid-current")

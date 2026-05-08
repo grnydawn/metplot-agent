@@ -17,7 +17,7 @@ import shutil
 from pathlib import Path
 
 from targets._common.install_tooling import copy_install_tooling
-from targets._common.manifest import PLUGIN_NAME, common_ncplot_block
+from targets._common.manifest import PLUGIN_NAME, common_metplot_block
 from targets._common.mcp_bundling import bundle_mcp_servers, MCP_SERVERS
 from targets._common.skills import INCLUDED_SKILLS
 
@@ -29,7 +29,7 @@ def build(src_root: Path, out_root: Path) -> None:
     plugin_dir.mkdir(parents=True)
 
     # Concatenate skill bodies into project_instructions.md
-    pi = ["# ncplot — Claude Desktop project instructions\n",
+    pi = ["# metplot — Claude Desktop project instructions\n",
           "Paste this content into your Claude Project's Custom Instructions "
           "or Project Knowledge.\n",
           "\n---\n"]
@@ -70,15 +70,15 @@ def build(src_root: Path, out_root: Path) -> None:
         json.dumps(snippet, indent=2) + "\n")
 
     # Audit metadata
-    (plugin_dir / ".ncplot.json").write_text(
-        json.dumps(common_ncplot_block(build_cycle=7), indent=2) + "\n")
+    (plugin_dir / ".metplot.json").write_text(
+        json.dumps(common_metplot_block(build_cycle=7), indent=2) + "\n")
 
     (plugin_dir / "README.md").write_text(_readme())
 
 
 def _readme() -> str:
     return (
-        "# ncplot — Claude Desktop bundle\n\n"
+        "# metplot — Claude Desktop bundle\n\n"
         "NetCDF plotting via natural language.\n\n"
         "Claude Desktop has no native skill loader, so this bundle gives you:\n"
         "1. A pre-concatenated `project_instructions.md` to paste into your "

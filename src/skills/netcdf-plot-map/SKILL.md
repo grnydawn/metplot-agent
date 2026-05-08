@@ -46,7 +46,7 @@ over the Atlantic", "X at 500 hPa", "snapshot of X", "make a map of X".
 12. **Call** `plot-renderer.render_map(spec=...)`.
 13. **Verify** (see "Verification" below).
 14. **Report** to the user with output path, units, range, warnings.
-15. **If user corrected anything**, log to `.ncplot/task-log.jsonl`.
+15. **If user corrected anything**, log to `.metplot/task-log.jsonl`.
 
 ## Projection selection
 
@@ -182,7 +182,7 @@ Example reply:
 ## Recording lessons
 
 If the user corrects any choice (colormap, region bounds, projection,
-units, level), log a `<step>_correction` event to `.ncplot/task-log.jsonl`:
+units, level), log a `<step>_correction` event to `.metplot/task-log.jsonl`:
 
 ```json
 {

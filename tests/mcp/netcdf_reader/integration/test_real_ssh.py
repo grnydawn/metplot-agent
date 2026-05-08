@@ -102,7 +102,7 @@ def test_no_password_in_slice_temp_files(tmp_path, monkeypatch):
                ssh_config=_ssh_config_explicit(),
                max_inline_bytes=1)  # force file form
     pw = os.environ["NCPLOT_REAL_SSH_PASSWORD"]
-    for f in (tmp_path / ".ncplot").rglob("*"):
+    for f in (tmp_path / ".metplot").rglob("*"):
         if f.is_file():
             try:
                 content = f.read_bytes()

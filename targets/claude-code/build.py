@@ -1,6 +1,6 @@
 """Build the Claude Code plugin from src/.
 
-Cycle 4 baseline: produces a payload at `build/claude-code/ncplot/`
+Cycle 4 baseline: produces a payload at `build/claude-code/metplot/`
 with skills, bundled MCP servers, .mcp.json, and a placeholder /refine
 command.
 
@@ -17,7 +17,7 @@ from targets._common.install_tooling import copy_install_tooling
 from targets._common.manifest import (
     PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_DESCRIPTION, PLUGIN_HOMEPAGE,
     PLUGIN_LICENSE, PLUGIN_KEYWORDS, PLUGIN_AUTHOR,
-    common_ncplot_block,
+    common_metplot_block,
 )
 from targets._common.mcp_bundling import bundle_mcp_servers, MCP_SERVERS
 from targets._common.skills import copy_skills
@@ -42,7 +42,7 @@ def build(src_root: Path, out_root: Path) -> None:
         "homepage": PLUGIN_HOMEPAGE,
         "license": PLUGIN_LICENSE,
         "keywords": PLUGIN_KEYWORDS,
-        "ncplot": common_ncplot_block(build_cycle=4),
+        "metplot": common_metplot_block(build_cycle=4),
     }
     (manifest_dir / "plugin.json").write_text(
         json.dumps(manifest, indent=2) + "\n")
@@ -83,14 +83,14 @@ def build(src_root: Path, out_root: Path) -> None:
     commands_dir.mkdir()
     (commands_dir / "refine.md").write_text(_refine_command_md())
 
-    # /ncplot:setup slash command
+    # /metplot:setup slash command
     (commands_dir / "setup.md").write_text(
         "---\n"
-        "description: Install or repair ncplot's Python dependencies "
+        "description: Install or repair metplot's Python dependencies "
         "(MCP servers, cartopy, scipy). Idempotent.\n"
         "---\n\n"
         "Run `${CLAUDE_PLUGIN_ROOT}/setup.sh` to install or refresh the "
-        "ncplot dependency stack. Pass --no-cartopy or --no-scipy to "
+        "metplot dependency stack. Pass --no-cartopy or --no-scipy to "
         "opt out of optional packages.\n"
     )
 
@@ -123,14 +123,14 @@ def _refine_command_md() -> str:
         "\n"
         "Until cycle 6 ships:\n"
         "\n"
-        "- The task-log at `.ncplot/task-log.jsonl` is being written by skills "
+        "- The task-log at `.metplot/task-log.jsonl` is being written by skills "
         "on user corrections.\n"
         "- No automatic refinement happens.\n"
         "- No drafts are produced.\n"
         "\n"
         "After cycle 6: this command will invoke skill-refiner against the "
         "session log and produce draft refinements under "
-        "`.ncplot/refinements/` for human review.\n"
+        "`.metplot/refinements/` for human review.\n"
     )
 
 
@@ -147,14 +147,14 @@ def _plugin_readme_full(skills: list[str], mcps: list[str]) -> str:
         for s in MCP_SERVERS
     )
     return (
-        "# ncplot — Claude Code plugin\n\n"
+        "# metplot — Claude Code plugin\n\n"
         "NetCDF plotting via natural language. Maps, time series, and "
         "vertical profiles. WRF/ROMS/CMIP/reanalysis aware.\n\n"
         "## Install\n\n"
         "### 1. Install the MCP servers\n\n"
         "```bash\n" + mcp_install + "\n```\n\n"
         "### 2. Install the plugin\n\n"
-        "```bash\ncp -r . ~/.claude/plugins/ncplot\n```\n\n"
+        "```bash\ncp -r . ~/.claude/plugins/metplot\n```\n\n"
         "### 3. Restart Claude Code\n\n"
         "## Setup\n\n"
         "Run the bundled installer to install Python dependencies:\n\n"

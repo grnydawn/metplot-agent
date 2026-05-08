@@ -1,4 +1,4 @@
-"""Cycle-5 canonical dependency installer for ncplot.
+"""Cycle-5 canonical dependency installer for metplot.
 
 Installs the two MCP server packages plus optional cartopy + scipy.
 Used as: `python -m tools.install_deps [flags]` (from repo root) or
@@ -30,8 +30,8 @@ class Args:
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
-        prog="ncplot-install",
-        description="Install ncplot's Python dependencies (cycle 5).",
+        prog="metplot-install",
+        description="Install metplot's Python dependencies (cycle 5).",
     )
     p.add_argument("--no-cartopy", action="store_true",
                    help="Skip cartopy install.")
@@ -202,7 +202,7 @@ def main(argv: list[str] | None = None) -> int:
 
     plan = build_plan(args)
 
-    _print(args, "ncplot setup")
+    _print(args, "metplot setup")
     _print(args, f"  Python:    {python_bin}")
     _print(args, f"  Installer: {installer_cmd}")
     _print(args, "")

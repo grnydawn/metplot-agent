@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ncplot-netcdf-reader"
+name = "metplot-netcdf-reader"
 version = "0.1.0"
 description = "MCP server for inspecting and reading NetCDF data"
 requires-python = ">=3.10"
@@ -25,4 +25,4 @@ wrf = ["xwrf>=0.0.3"]
 roms = ["xroms>=0.5"]
 
 [project.scripts]
-ncplot-netcdf-reader = "src.mcp.netcdf_reader.server:main"
+metplot-netcdf-reader = "src.mcp.netcdf_reader.server:main"

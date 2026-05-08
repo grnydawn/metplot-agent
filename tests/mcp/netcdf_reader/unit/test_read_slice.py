@@ -70,4 +70,4 @@ def test_read_slice_file_form_dir_under_session(cf_4d_file, tmp_path, monkeypatc
         max_inline_bytes=100,
     )
     r = env["result"]
-    assert ".ncplot/slices/" in r["path"]
+    assert ".metplot/slices/" in r["path"]

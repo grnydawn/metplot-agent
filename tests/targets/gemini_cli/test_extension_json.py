@@ -15,6 +15,6 @@ def test_required_fields(built_plugin: Path):
     assert m["commands"] == "commands"
 
 
-def test_ncplot_block(built_plugin: Path):
+def test_metplot_block(built_plugin: Path):
     m = json.loads((built_plugin / "gemini-extension.json").read_text())
-    assert m["ncplot"]["build_cycle"] == 7
+    assert m["metplot"]["build_cycle"] == 7

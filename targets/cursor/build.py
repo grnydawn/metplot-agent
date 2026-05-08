@@ -16,7 +16,7 @@ from targets._common.install_tooling import copy_install_tooling
 from targets._common.manifest import (
     PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_DESCRIPTION, PLUGIN_HOMEPAGE,
     PLUGIN_LICENSE, PLUGIN_AUTHOR,
-    common_ncplot_block,
+    common_metplot_block,
 )
 from targets._common.mcp_bundling import bundle_mcp_servers, MCP_SERVERS
 from targets._common.setup_descriptions import SETUP_COMMAND_DESCRIPTION
@@ -38,7 +38,7 @@ def build(src_root: Path, out_root: Path) -> None:
         "author": PLUGIN_AUTHOR,
         "homepage": PLUGIN_HOMEPAGE,
         "license": PLUGIN_LICENSE,
-        "ncplot": common_ncplot_block(build_cycle=7),
+        "metplot": common_metplot_block(build_cycle=7),
     }
     (manifest_dir / "plugin.json").write_text(
         json.dumps(manifest, indent=2) + "\n")
@@ -81,14 +81,14 @@ def _refine_md() -> str:
         "(Placeholder — cycle 6.)\n"
         "---\n\n"
         "Placeholder for the cycle-6 skill-refiner trigger. Skills are "
-        "writing `.ncplot/task-log.jsonl` on user corrections; cycle 6 "
+        "writing `.metplot/task-log.jsonl` on user corrections; cycle 6 "
         "will read that and produce refinement drafts.\n"
     )
 
 
 def _plugin_readme() -> str:
     return (
-        "# ncplot — Cursor plugin\n\n"
+        "# metplot — Cursor plugin\n\n"
         "NetCDF plotting via natural language.\n\n"
         "## Install\n\n"
         "### 1. Install the MCP servers\n\n"
@@ -97,7 +97,7 @@ def _plugin_readme() -> str:
         "pip install ./mcp-servers/plot_renderer\n"
         "```\n\n"
         "### 2. Install the plugin\n\n"
-        "Copy this directory to `~/.cursor/plugins/ncplot/`, "
+        "Copy this directory to `~/.cursor/plugins/metplot/`, "
         "or use the Cursor Marketplace install flow.\n\n"
         "### 3. Restart Cursor\n\n"
         "## Setup\n\n"

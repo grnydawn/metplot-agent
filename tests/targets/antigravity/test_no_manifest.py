@@ -7,6 +7,6 @@ def test_no_top_level_manifest(built_plugin: Path):
         assert not (built_plugin / f).exists(), (
             f"unexpected manifest: {f}")
 
-def test_ncplot_metadata_file_present(built_plugin: Path):
+def test_metplot_metadata_file_present(built_plugin: Path):
     """Build still writes a hidden cross-target audit file."""
-    assert (built_plugin / ".ncplot.json").is_file()
+    assert (built_plugin / ".metplot.json").is_file()

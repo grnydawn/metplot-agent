@@ -14,7 +14,7 @@ from pathlib import Path
 from targets._common.install_tooling import copy_install_tooling
 from targets._common.manifest import (
     PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_DESCRIPTION, PLUGIN_HOMEPAGE,
-    common_ncplot_block,
+    common_metplot_block,
 )
 from targets._common.mcp_bundling import bundle_mcp_servers, MCP_SERVERS
 from targets._common.setup_descriptions import SETUP_COMMAND_DESCRIPTION
@@ -35,7 +35,7 @@ def build(src_root: Path, out_root: Path) -> None:
         "homepage": PLUGIN_HOMEPAGE,
         "skills": "skills",
         "commands": "commands",
-        "ncplot": common_ncplot_block(build_cycle=7),
+        "metplot": common_metplot_block(build_cycle=7),
     }
     (plugin_dir / "gemini-extension.json").write_text(
         json.dumps(extension_manifest, indent=2) + "\n")
@@ -63,15 +63,15 @@ def build(src_root: Path, out_root: Path) -> None:
     repo_root = Path(__file__).resolve().parents[2]
     copy_install_tooling(repo_root, plugin_dir)
 
-    # commands/ncplot/ subdir — subdir name → colon namespace (/ncplot:setup, /ncplot:refine)
+    # commands/metplot/ subdir — subdir name → colon namespace (/metplot:setup, /metplot:refine)
     commands_dir = plugin_dir / "commands"
     commands_dir.mkdir()
-    ncplot_cmd_dir = commands_dir / "ncplot"
-    ncplot_cmd_dir.mkdir()
-    (ncplot_cmd_dir / "refine.toml").write_text(_refine_toml())
-    (ncplot_cmd_dir / "setup.toml").write_text(
+    metplot_cmd_dir = commands_dir / "metplot"
+    metplot_cmd_dir.mkdir()
+    (metplot_cmd_dir / "refine.toml").write_text(_refine_toml())
+    (metplot_cmd_dir / "setup.toml").write_text(
         'description = "' + SETUP_COMMAND_DESCRIPTION + '"\n'
-        'prompt = "Run the bundled setup.sh to install ncplot\'s Python dependencies."\n'
+        'prompt = "Run the bundled setup.sh to install metplot\'s Python dependencies."\n'
     )
 
     # Plugin README
@@ -85,7 +85,7 @@ def _refine_toml() -> str:
         'in cycle 6.)"\n'
         'prompt = "The /refine command is a placeholder until cycle 6 ships '
         'the skill-refiner skill. Until then: skills are appending corrections '
-        'to .ncplot/task-log.jsonl, but no automatic refinement happens."\n'
+        'to .metplot/task-log.jsonl, but no automatic refinement happens."\n'
     )
 
 
@@ -96,7 +96,7 @@ def _plugin_readme() -> str:
     ])
     skill_lines = "\n".join(f"  - `{s}`" for s in skills)
     return (
-        "# ncplot — Gemini CLI extension\n\n"
+        "# metplot — Gemini CLI extension\n\n"
         "NetCDF plotting via natural language.\n\n"
         "## Install\n\n"
         "### 1. Install the MCP servers\n\n"
@@ -109,7 +109,7 @@ def _plugin_readme() -> str:
         "```bash\n"
         "gemini extensions install <git-url-or-path>\n"
         "```\n\n"
-        "Or copy this directory to `~/.gemini/extensions/ncplot/`.\n\n"
+        "Or copy this directory to `~/.gemini/extensions/metplot/`.\n\n"
         "### 3. Merge settings.json into your Gemini settings\n\n"
         "The MCP launch stanzas need to land in `~/.gemini/settings.json` "
         "(global) or `.gemini/settings.json` (project). Use a JSON merge "

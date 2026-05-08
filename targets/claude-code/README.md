@@ -9,7 +9,7 @@ servers + reference data) into an installable Claude Code plugin payload.
 python -m tools.build claude-code
 ```
 
-Output lands in `build/claude-code/ncplot/`. See the README inside
+Output lands in `build/claude-code/metplot/`. See the README inside
 that directory for end-user install instructions.
 
 ## Validate the build output
@@ -27,7 +27,7 @@ it.
 A complete Claude Code plugin:
 
 ```
-build/claude-code/ncplot/
+build/claude-code/metplot/
 ├── .claude-plugin/plugin.json   # manifest with cycle metadata
 ├── README.md                    # end-user install + setup instructions
 ├── skills/                      # 5 SKILL.md packages from cycle 3
@@ -56,8 +56,8 @@ under `mcp-servers/<name>/`. The build:
    `namespaces = true`.
 
 The generated README instructs the end-user to `pip install` each
-server, which puts the entry-point scripts (`ncplot-netcdf-reader`,
-`ncplot-plot-renderer`) on PATH. The `.mcp.json` launch commands
+server, which puts the entry-point scripts (`metplot-netcdf-reader`,
+`metplot-plot-renderer`) on PATH. The `.mcp.json` launch commands
 reference these.
 
 For developers who don't want a system-wide pip install, they can

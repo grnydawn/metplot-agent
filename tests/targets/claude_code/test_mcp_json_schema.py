@@ -9,8 +9,8 @@ import pytest
 
 
 _EXPECTED_SERVERS_BY_EXTERNAL_NAME = {
-    "netcdf-reader": "ncplot-netcdf-reader",
-    "plot-renderer": "ncplot-plot-renderer",
+    "netcdf-reader": "metplot-netcdf-reader",
+    "plot-renderer": "metplot-plot-renderer",
 }
 
 

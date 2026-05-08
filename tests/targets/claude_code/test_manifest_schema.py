@@ -19,13 +19,13 @@ def test_required_fields(built_plugin: Path) -> None:
 
 def test_name_pinned(built_plugin: Path) -> None:
     m = json.loads((built_plugin / ".claude-plugin" / "plugin.json").read_text())
-    assert m["name"] == "ncplot"
+    assert m["name"] == "metplot"
 
 
-def test_ncplot_block_present(built_plugin: Path) -> None:
+def test_metplot_block_present(built_plugin: Path) -> None:
     m = json.loads((built_plugin / ".claude-plugin" / "plugin.json").read_text())
-    assert "ncplot" in m
-    nc = m["ncplot"]
+    assert "metplot" in m
+    nc = m["metplot"]
     assert nc["build_cycle"] == 4
     assert "ships_skills" in nc
     assert "ships_mcp_servers" in nc
@@ -37,16 +37,16 @@ def test_ships_skills_matches_allowlist(built_plugin: Path) -> None:
         "netcdf-inspect", "netcdf-plot-router",
         "netcdf-plot-map", "netcdf-plot-timeseries", "netcdf-plot-profile",
     }
-    assert set(m["ncplot"]["ships_skills"]) == expected
+    assert set(m["metplot"]["ships_skills"]) == expected
 
 
 def test_ships_mcp_servers(built_plugin: Path) -> None:
     m = json.loads((built_plugin / ".claude-plugin" / "plugin.json").read_text())
-    assert set(m["ncplot"]["ships_mcp_servers"]) == {
+    assert set(m["metplot"]["ships_mcp_servers"]) == {
         "netcdf-reader", "plot-renderer"}
 
 
 def test_skill_refiner_excluded(built_plugin: Path) -> None:
     """skill-refiner is cycle 6; must NOT be advertised in cycle 4."""
     m = json.loads((built_plugin / ".claude-plugin" / "plugin.json").read_text())
-    assert "skill-refiner" not in m["ncplot"]["ships_skills"]
+    assert "skill-refiner" not in m["metplot"]["ships_skills"]

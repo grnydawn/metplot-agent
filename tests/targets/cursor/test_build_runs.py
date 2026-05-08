@@ -4,7 +4,7 @@ from pathlib import Path
 
 def test_plugin_root_exists(built_plugin: Path):
     assert built_plugin.is_dir()
-    assert built_plugin.name == "ncplot"
+    assert built_plugin.name == "metplot"
 
 
 def test_cursor_plugin_manifest(built_plugin: Path):

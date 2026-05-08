@@ -33,12 +33,12 @@ We want it, but with two adjustments for our use case:
 │      │                                                            │
 │      ├── identifies: new aliases, pitfalls hit, user prefs        │
 │      ├── locates: which canonical skill each lesson belongs in    │
-│      └── writes: .ncplot/refinements/<timestamp>-<skill>.md       │
+│      └── writes: .metplot/refinements/<timestamp>-<skill>.md       │
 └────────────────────────┬─────────────────────────────────────────┘
                          │
                          ▼
 ┌──────────────────────────────────────────────────────────────────┐
-│  Out of band — user runs `ncplot-refine`                          │
+│  Out of band — user runs `metplot-refine`                          │
 │                                                                   │
 │  shows diff of each draft refinement                              │
 │  user accepts/edits/rejects                                       │
@@ -49,7 +49,7 @@ We want it, but with two adjustments for our use case:
 
 ## What gets logged
 
-The skills themselves write structured entries to `.ncplot/task-log.jsonl`
+The skills themselves write structured entries to `.metplot/task-log.jsonl`
 through a small helper exposed by the MCP servers (or written directly via the
 agent's filesystem tool). Each entry:
 
@@ -108,7 +108,7 @@ target file.
 - **Codex** — manual; the AGENTS.md instructs the agent to consider invoking
   the refiner after multi-step plotting tasks.
 - **Hermes** — Hermes' own learning loop will fire its `skill_manage` tool;
-  the `skill-refiner` we ship is wired to write to the same `.ncplot/`
+  the `skill-refiner` we ship is wired to write to the same `.metplot/`
   refinement queue rather than directly modifying skills, so the human
   review step still happens.
 

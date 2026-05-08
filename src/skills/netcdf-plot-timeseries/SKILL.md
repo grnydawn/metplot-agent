@@ -50,7 +50,7 @@ average time series — not a map.
     or sugar `values + time` for single-series.
 12. **Call** `plot-renderer.render_timeseries(spec=...)`.
 13. **Verify and report.**
-14. **If user corrected anything**, log to `.ncplot/task-log.jsonl`.
+14. **If user corrected anything**, log to `.metplot/task-log.jsonl`.
 
 ## Spatial-reduction math
 
@@ -136,7 +136,7 @@ are ignored by `render_timeseries`.
 
 ## Recording lessons
 
-Log to `.ncplot/task-log.jsonl` on user corrections:
+Log to `.metplot/task-log.jsonl` on user corrections:
 
 ```json
 {

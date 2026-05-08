@@ -20,7 +20,7 @@ from targets._common.install_tooling import copy_install_tooling
 from targets._common.manifest import (
     PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_DESCRIPTION, PLUGIN_HOMEPAGE,
     PLUGIN_LICENSE, PLUGIN_KEYWORDS, PLUGIN_AUTHOR,
-    common_ncplot_block,
+    common_metplot_block,
 )
 from targets._common.mcp_bundling import bundle_mcp_servers, MCP_SERVERS
 from targets._common.setup_descriptions import SETUP_COMMAND_DESCRIPTION
@@ -44,7 +44,7 @@ def build(src_root: Path, out_root: Path) -> None:
         "homepage": PLUGIN_HOMEPAGE,
         "license": PLUGIN_LICENSE,
         "keywords": PLUGIN_KEYWORDS,
-        "ncplot": common_ncplot_block(build_cycle=7),
+        "metplot": common_metplot_block(build_cycle=7),
     }
     (manifest_dir / "plugin.json").write_text(
         json.dumps(manifest, indent=2) + "\n")
@@ -98,7 +98,7 @@ def _plugin_readme() -> str:
     skill_lines = "\n".join(f"  - `{s}`" for s in skills)
     mcp_lines = "\n".join(f"  - `{m}`" for m in mcps)
     return (
-        "# ncplot — Codex plugin\n\n"
+        "# metplot — Codex plugin\n\n"
         "NetCDF plotting via natural language. Maps, time series, and "
         "vertical profiles.\n\n"
         "Works in Codex CLI and Codex Desktop (shared plugin format).\n\n"
@@ -110,7 +110,7 @@ def _plugin_readme() -> str:
         "```\n\n"
         "### 2. Install the plugin\n\n"
         "Copy this directory under your Codex plugin search path "
-        "(typically `~/.codex/plugins/ncplot/`), or follow the "
+        "(typically `~/.codex/plugins/metplot/`), or follow the "
         "Codex marketplace install flow if available.\n\n"
         "### 3. Merge config.toml into your Codex config\n\n"
         "Append the contents of `config.toml` to `~/.codex/config.toml` "
