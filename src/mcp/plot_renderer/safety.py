@@ -157,13 +157,10 @@ def percentile_clip_if_extreme(
     data_min = float(finite.min())
     data_max = float(finite.max())
     abs_max = max(abs(data_min), abs(data_max))
-    abs_min_nonzero = max(abs(data_min), abs(data_max), 1e-300)
     median_abs = float(np.median(np.abs(finite)))
     median_abs = max(median_abs, 1e-300)
     if abs_max / median_abs > 10 ** extreme_orders_of_magnitude:
         v_lo = float(np.percentile(finite, 2.0))
         v_hi = float(np.percentile(finite, 98.0))
         return v_lo, v_hi, True
-    # Fallback: no clip, no smarts beyond user override
-    _ = abs_min_nonzero  # keeps the linter quiet without affecting logic
     return data_min, data_max, False
