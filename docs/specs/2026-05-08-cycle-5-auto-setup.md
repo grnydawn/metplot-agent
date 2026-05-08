@@ -1,0 +1,563 @@
+# Cycle 5 — Semi-auto setup (dependency installer)
+
+> Design for cycle 5. Adds a one-shot dependency installer
+> (`tools/install_deps.py`) that handles cartopy / scipy / scientific
+> Python deps; per-target plugin payloads ship `setup.sh` /
+> `setup.ps1` wrappers; Claude Code gets a `SessionStart` hook for
+> auto-fire and a `/ncplot:setup` slash command for explicit
+> invocation; other slash-capable hosts get the slash command too.
+> Plugin manifest renamed from `ncplot-agent` to `ncplot` so the slash
+> namespace is `/ncplot:`.
+
+**Status:** approved by interactive Q&A
+**Date:** 2026-05-08
+**Branch:** `cycle-5-auto-setup`
+**Research:**
+- `docs/research/2026-05-08-plugin-install-hooks.md`
+- `docs/research/2026-05-08-slash-command-namespacing.md`
+
+---
+
+## 1. Overview
+
+After cycles 1–4 + 7, ncplot-agent ships across 7 hosts. Each plugin
+README still asks the user to do a manual multi-step install:
+
+```
+pip install ./mcp-servers/netcdf_reader
+pip install ./mcp-servers/plot_renderer
+pip install matplotlib numpy xarray netcdf4 dask
+pip install cartopy   # optional, often fails on bare systems
+pip install scipy     # optional
+```
+
+Cycle 5 collapses this into one command (`./setup.sh`) on every host,
+plus auto-fire on Claude Code so the typical user never has to think
+about it.
+
+### What ships
+
+- **`tools/install_deps.py`** — canonical Python installer. uv-first,
+  pip fallback. Default-on cartopy + scipy with opt-out flags.
+- **Per-target build emits `setup.sh` + `setup.ps1`** wrappers in each
+  plugin payload. Wrappers locate `tools/install_deps.py` (whether the
+  user has the repo or only the build artifact) and invoke it with the
+  right Python.
+- **Claude Code: `hooks/setup.json`** — `SessionStart` hook with
+  `${CLAUDE_PLUGIN_DATA}` idempotency guard. First run after install
+  or after a version bump fires the installer; subsequent sessions
+  no-op.
+- **`/ncplot:setup` slash command** on all slash-capable hosts:
+  - Claude Code: `commands/setup.md` (markdown)
+  - Codex: `commands/setup.md` with `user-invocable: true` frontmatter (best available; bare slash on Codex)
+  - Gemini CLI: `commands/ncplot/setup.toml` (subdirectory namespacing)
+  - Cursor: `commands/setup.md`
+  - Copilot: `commands/setup.md`
+  - Antigravity: `.agent/workflows/setup.md`
+- **Plugin renamed `ncplot-agent` → `ncplot`** in
+  `targets/_common/manifest.py` so:
+  - Slash commands become `/ncplot:setup` on Claude Code + Copilot
+  - Build dirs become `build/<target>/ncplot/`
+  - Install path becomes `~/.claude/plugins/ncplot/`
+- **Test suite** at `tests/tools/test_install_deps.py`: unit tests
+  (arg parsing, env detection, install plan composition) + `--dry-run`
+  integration + opt-in real-install (`NCPLOT_REAL_INSTALL=1`).
+
+### What does NOT ship
+
+- **Auto-fire on Cursor / Gemini CLI / Copilot.** The
+  `SessionStart`-with-guard pattern is unofficial / preview on those
+  hosts (per cycle-5 prep research). Manual `setup.sh` run only on
+  those.
+- **Skill-refiner skill + Stop hook for cycle-6 self-improvement.**
+  Cycle 6.
+- **Conda environment auto-creation.** Documented as a recovery hint
+  if cartopy fails; not built into the installer.
+- **Windows native shell scripts beyond `setup.ps1`.** Best-effort
+  Windows support; tested on Linux + macOS only.
+- **Python interpreter installation.** Assumed present; ≥3.10 required.
+- **`/ncplot:` namespacing on hosts that don't natively support it.**
+  Cursor's bare-name model means `/setup` (not `/ncplot:setup`) on
+  Cursor and Codex. Gemini CLI gets `/ncplot:setup` via the
+  subdirectory pattern.
+
+### Primary use case
+
+User installs the plugin into Claude Code:
+
+1. Clone or download the cycle-7 build artifact.
+2. Drop into `~/.claude/plugins/ncplot/`.
+3. Restart Claude Code.
+4. **First session:** the `SessionStart` hook detects no install
+   marker, runs `./setup.sh`, logs to
+   `${CLAUDE_PLUGIN_DATA}/setup.log`, writes the marker. User sees a
+   one-line "ncplot-agent: setup complete" notice.
+5. **Next session:** marker present, no-op.
+
+The user never had to read the README. If something breaks, they type
+`/ncplot:setup` to re-run.
+
+### Non-goals
+
+- Not changing cycle-1/2 MCP server dependencies.
+- Not changing cycle-3 SKILL.md content.
+- Not introducing new MCP tools.
+- Not building a plugin update mechanism (cycle 5 detects version
+  bumps via the `${CLAUDE_PLUGIN_DATA}` diff but doesn't manage them).
+
+---
+
+## 2. Architecture
+
+### 2.1 Three layers
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│ L1: tools/install_deps.py     (the canonical Python installer)    │
+│     Source of truth. ~150 LOC. Tested at tests/tools/.            │
+│     Argument parsing, environment detection, package-manager      │
+│     dispatch, install plan composition, summary output.           │
+├──────────────────────────────────────────────────────────────────┤
+│ L2: setup.sh / setup.ps1      (per-target plugin payload)         │
+│     Generated by each targets/<host>/build.py. Locates Python,    │
+│     locates install_deps.py (bundled if user has artifact only,   │
+│     else looks at the repo), forwards args.                       │
+├──────────────────────────────────────────────────────────────────┤
+│ L3: /ncplot:setup + SessionStart hook   (host-specific)            │
+│     Slash command shells out to setup.sh.                         │
+│     SessionStart hook (Claude Code only) shells out to            │
+│     setup.sh --quiet, gated by ${CLAUDE_PLUGIN_DATA}/.installed   │
+│     marker that contains a hash of the bundled requirements.      │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### 2.2 setup.sh contents
+
+`setup.sh` is a thin (~30 LOC) bash wrapper that:
+
+1. Resolves `PYTHON_BIN` — prefers `${VIRTUAL_ENV}/bin/python` if set,
+   falls back to `python3.10` / `python3.11` / `python3.12` in PATH
+   order.
+2. Locates `install_deps.py`:
+   - First: looks for `tools/install_deps.py` relative to the script
+     (i.e., the script is in a built plugin payload that bundled the
+     installer)
+   - Second: looks for it via `$NCPLOT_REPO_ROOT` env var
+   - Third: prints a clear error pointing at the install instructions
+3. `exec "$PYTHON_BIN" "$INSTALL_DEPS" "$@"` — passes all flags through
+
+`setup.ps1` is a PowerShell equivalent for Windows (~40 LOC).
+
+### 2.3 Plugin payload layout (Claude Code, after cycle 5)
+
+```
+~/.claude/plugins/ncplot/
+├── .claude-plugin/plugin.json          # name: "ncplot" (was "ncplot-agent")
+├── skills/
+├── mcp-servers/
+├── .mcp.json
+├── commands/
+│   ├── setup.md                        # /ncplot:setup
+│   └── refine.md                       # /ncplot:refine (cycle 4 placeholder, kept)
+├── hooks/
+│   └── setup.json                      # SessionStart auto-fire
+├── tools/
+│   └── install_deps.py                 # bundled copy of canonical
+├── setup.sh                            # bash wrapper
+├── setup.ps1                           # PowerShell wrapper
+└── README.md
+```
+
+Other targets' payloads have the same `tools/install_deps.py` +
+`setup.{sh,ps1}` + slash command, minus the `hooks/setup.json` (only
+Claude Code auto-fires).
+
+---
+
+## 3. The canonical installer
+
+### 3.1 Command-line interface
+
+```
+usage: install_deps.py [--no-cartopy] [--no-scipy] [--quiet]
+                       [--dry-run] [--force]
+                       [--mcp-servers-dir DIR]
+
+Install ncplot-agent's Python dependencies.
+
+By default: installs the two MCP server packages plus cartopy + scipy.
+
+Options:
+  --no-cartopy        Skip cartopy install (render_map will return
+                       cartopy_missing ambiguity envelope at runtime).
+  --no-scipy          Skip scipy install (trendline=lowess will return
+                       trendline_dependency_missing).
+  --quiet             Suppress progress output. Used by Claude Code's
+                       SessionStart hook. Errors still print.
+  --dry-run           Print the install plan without executing.
+  --force             Pass --upgrade to underlying pip/uv calls.
+  --mcp-servers-dir   Override the search path for mcp-servers/ packages.
+                       Default: same dir as setup.sh.
+```
+
+Exit codes:
+- 0 — required installs succeeded (optional cartopy/scipy may have warned)
+- 1 — required install failed
+- 2 — environment unsuitable (Python <3.10, no installer)
+- 3 — invalid arguments
+
+### 3.2 Install plan
+
+```python
+PLAN = [
+    # required
+    Step("install netcdf-reader",
+         pkg_path="<mcp-servers-dir>/netcdf_reader",
+         required=True),
+    Step("install plot-renderer",
+         pkg_path="<mcp-servers-dir>/plot_renderer",
+         required=True),
+    # optional
+    Step("install cartopy",
+         pkg_spec="cartopy>=0.22",
+         required=False,
+         enabled=not args.no_cartopy,
+         recovery_hint="conda install -c conda-forge cartopy"),
+    Step("install scipy",
+         pkg_spec="scipy>=1.11",
+         required=False,
+         enabled=not args.no_scipy,
+         recovery_hint="see https://docs.scipy.org/doc/scipy/getting_started.html"),
+]
+```
+
+### 3.3 Environment detection
+
+```python
+def detect_python() -> Path:
+    """Return the Python interpreter to install into.
+
+    Order:
+    1. $VIRTUAL_ENV/bin/python (if set)
+    2. The Python running install_deps.py itself (if >= 3.10)
+    3. python3.12 / python3.11 / python3.10 on PATH (in that order)
+
+    Raises if none found, or if the chosen Python is < 3.10.
+    """
+
+def detect_installer(python_bin: Path) -> tuple[str, list[str]]:
+    """Return (cmd, base_args) for the chosen package manager.
+
+    Order:
+    1. uv (if `uv` on PATH and resolved Python compatible)
+    2. pip via `python_bin -m pip`
+    3. Hard-fail
+    """
+
+def warn_if_system_python(python_bin: Path) -> None:
+    """Print a loud warning if installing into system Python (no venv).
+    Suppressed by --quiet."""
+```
+
+### 3.4 Output format
+
+**Default (verbose):**
+```
+ncplot-agent setup
+  Python:    /home/user/.venv/bin/python (3.12.1)
+  Installer: uv 0.4.18
+
+[1/4] Installing netcdf-reader (required)
+  ✓ done in 12.3s
+
+[2/4] Installing plot-renderer (required)
+  ✓ done in 8.1s
+
+[3/4] Installing cartopy (optional)
+  ✓ done in 23.7s
+
+[4/4] Installing scipy (optional)
+  ✓ done in 4.9s
+
+Setup complete. 4/4 steps succeeded.
+```
+
+**Failure case (cartopy fails):**
+```
+[3/4] Installing cartopy (optional)
+  ✗ FAILED — pip ExitCode 1
+    error: cartopy needs PROJ headers; on Debian/Ubuntu run:
+      sudo apt-get install libproj-dev libgeos-dev
+    Or use conda-forge:
+      conda install -c conda-forge cartopy
+  Continuing — render_map will return cartopy_missing at runtime.
+
+[4/4] Installing scipy (optional)
+  ✓ done in 4.9s
+
+Setup complete with warnings. 3/4 steps succeeded; 1 optional failed (cartopy).
+```
+
+**Quiet mode:** suppresses everything except the final one-line
+status (and any errors).
+
+---
+
+## 4. Per-target integration
+
+| Target | setup.sh | /ncplot:setup | SessionStart auto-fire |
+|--------|----------|---------------|------------------------|
+| Claude Code | ✓ | ✓ `commands/setup.md` | ✓ `hooks/setup.json` |
+| Codex | ✓ | partial — bare `/setup` (Codex namespacing limited) | ✗ (bug #16430) |
+| Gemini CLI | ✓ | ✓ `commands/ncplot/setup.toml` (subdir namespacing) | ✗ (deferred — pattern unofficial) |
+| Cursor | ✓ | partial — bare `/setup` (Cursor doesn't namespace) | ✗ (deferred — unofficial) |
+| Copilot | ✓ | ✓ `/ncplot:setup` (auto-namespaced from manifest) | ✗ (preview-quality) |
+| Antigravity | ✓ | ✓ `.agent/workflows/setup.md` (workflow, not slash) | n/a (no hooks) |
+| Claude Desktop | ✓ | n/a (no slash commands) | n/a (no hooks) |
+
+### 4.1 Build-time changes per target
+
+Each `targets/<host>/build.py` gains in its sequence:
+
+```python
+# After existing skills + MCP server bundling:
+copy_install_tooling(plugin_dir)        # tools/install_deps.py + setup.sh + setup.ps1
+write_setup_command(plugin_dir, host)   # commands/setup.md or workflow
+if host == "claude-code":
+    write_session_start_hook(plugin_dir)
+```
+
+`copy_install_tooling` is a new shared helper at
+`targets/_common/install_tooling.py`. ~50 LOC.
+
+### 4.2 SessionStart hook (Claude Code)
+
+`hooks/setup.json`:
+
+```json
+{
+  "SessionStart": [
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "${CLAUDE_PLUGIN_ROOT}/setup.sh --quiet"
+        }
+      ]
+    }
+  ]
+}
+```
+
+The `setup.sh` itself manages the `${CLAUDE_PLUGIN_DATA}/.installed`
+marker:
+- On entry: hash the bundled requirements (`mcp-servers/*/pyproject.toml`
+  + cartopy/scipy version pins). Compare against
+  `${CLAUDE_PLUGIN_DATA}/.installed` if it exists.
+- If matches: exit 0 silently.
+- If differs or missing: run the installer, write the new hash on
+  success.
+
+This is the documented Claude Code "diff-guard" pattern.
+
+---
+
+## 5. Plugin rename: `ncplot-agent` → `ncplot`
+
+### 5.1 What changes
+
+In `targets/_common/manifest.py`:
+```python
+PLUGIN_NAME = "ncplot"   # was "ncplot-agent"
+```
+
+Everything downstream picks this up:
+- `build/<target>/ncplot/` (was `ncplot-agent/`)
+- `plugin.json` `name` field
+- Slash command prefix on Claude Code + Copilot
+- Install path `~/.claude/plugins/ncplot/`
+
+### 5.2 What does NOT change
+
+- The repo name (`ncplot-agent` on GitHub) — unchanged.
+- The MCP server external names (`netcdf-reader`, `plot-renderer`) —
+  unchanged.
+- The pip-installable package names inside `mcp-servers/` — unchanged.
+- Skill names (`netcdf-inspect`, `netcdf-plot-router`, etc.) —
+  unchanged.
+
+The rename is scoped to the plugin manifest only. The cycle-7 test
+suites need `ncplot-agent` → `ncplot` updates in any assertions that
+check the plugin dir name or `name` field.
+
+### 5.3 Migration impact
+
+A user with the cycle-4 or cycle-7 plugin installed at
+`~/.claude/plugins/ncplot-agent/` keeps working — those installs are
+self-contained. Future builds land at `~/.claude/plugins/ncplot/`.
+Users upgrading just remove the old dir and copy the new one.
+
+---
+
+## 6. Testing strategy
+
+### 6.1 Layer 1 — unit tests (fast)
+
+`tests/tools/test_install_deps.py`:
+- Argument parsing (every flag combination)
+- Python version check (mock `sys.version_info`; assert exit 2 on <3.10)
+- Package-manager detection (mock `shutil.which`; verify uv-first
+  then pip)
+- Venv detection (mock `os.environ.get("VIRTUAL_ENV")`)
+- Install plan composition (assert correct flags + cartopy/scipy
+  filtering)
+- Failure-message formatting (each error type)
+- Diff-guard hash computation (stable across runs)
+
+### 6.2 Layer 2 — `--dry-run` integration
+
+`tests/tools/test_install_deps_dry_run.py`:
+- Invoke `python -m tools.install_deps --dry-run` against a fake
+  `mcp-servers-dir` populated with pyproject.toml stubs
+- Assert it prints the expected `uv pip install ...` lines without
+  executing anything
+- Assert exit 0
+
+### 6.3 Layer 3 — opt-in real install (gated)
+
+`tests/tools/test_install_deps_real.py`:
+- Skipped unless `NCPLOT_REAL_INSTALL=1`
+- Creates a fresh venv in `tmp_path`
+- Runs the actual installer
+- Asserts both entry-point scripts (`ncplot-netcdf-reader`,
+  `ncplot-plot-renderer`) become callable via the new venv's bin/
+
+### 6.4 Per-target build tests
+
+Each `tests/targets/<host>/` gets new test cases:
+- `test_setup_sh_present.py` — wrapper script copied
+- `test_install_tooling.py` — `tools/install_deps.py` bundled
+- `test_setup_command.py` — `/ncplot:setup` slash command emitted in
+  the host's expected format
+- `tests/targets/claude_code/test_session_start_hook.py` —
+  `hooks/setup.json` shape
+
+### 6.5 Cross-target
+
+`tests/targets/test_all_targets_have_setup.py` — every cycle-7 target
+ships `setup.sh` + `setup.ps1` + the bundled installer.
+
+### 6.6 What we don't test
+
+- Real cartopy install (slow, fragile across CI envs)
+- Windows native PowerShell execution (Linux + macOS only in CI)
+- Conda-forge fallback path
+- Plugin loading inside the actual host (manual integration test in
+  PR body)
+
+---
+
+## 7. Open risks
+
+### 7.1 uv version mismatch
+
+**Risk:** `uv` versions before ~0.3 had different CLI semantics; old
+`uv` installations might not accept `uv pip install` as we use it.
+
+**Response:** Detect uv version; if <0.3, fall back to pip. Documented
+in the installer's environment-detection routine.
+
+### 7.2 cartopy PyPI wheel availability
+
+**Risk:** Cartopy's PyPI wheels exist on Linux x86_64, macOS x86_64,
+macOS arm64, Windows x86_64. ARM Linux (e.g., Raspberry Pi, ARM64
+servers) lacks prebuilt wheels and falls back to source build.
+
+**Response:** Detect platform; if ARM Linux, surface a more pointed
+recovery hint pointing at conda-forge.
+
+### 7.3 SessionStart hook firing during agent's own commands
+
+**Risk:** A Claude Code session might be spawned mid-task by another
+plugin or by `--dangerously-skip-permissions`; the hook runs
+unexpectedly.
+
+**Response:** The diff-guard makes re-runs no-ops. Worst case is a
+~50ms hash check.
+
+### 7.4 Plugin rename breaking existing test fixtures
+
+**Risk:** Cycle-7 test suites assert on `ncplot-agent` strings
+(plugin.json name, build dir name).
+
+**Response:** Plan task explicitly updates each affected test.
+Confirmed via the cycle-5 plan's explicit task to grep-and-replace
+across tests.
+
+### 7.5 Bash-only setup.sh on Windows
+
+**Risk:** Some Windows users only have PowerShell, not WSL. They run
+the wrong script.
+
+**Response:** Both `setup.sh` and `setup.ps1` ship; the README points
+Windows users at `setup.ps1`. The Claude Code SessionStart hook on
+Windows would need to detect platform and pick the right script —
+deferred (Claude Code on Windows itself is preview).
+
+### 7.6 No-network environments
+
+**Risk:** User runs setup on a machine without internet (offline
+research vessel, secured network, etc.).
+
+**Response:** uv/pip will fail with a clear network error; setup
+exits 2 with the error surfaced. User can supply `--index-url` via
+extra args (forwarded by the wrapper).
+
+---
+
+## 8. Cross-cutting principles
+
+### 8.1 Inherited from cycles 1–4 + 7
+
+1. **TDD per task.** Failing test first.
+2. **Atomic commits.** Each plan step ends with a commit.
+3. **Envelope discipline.** N/A here (no MCP changes).
+4. **No silent fallback.** Required installs that fail exit non-zero;
+   optional installs that fail print a warning.
+5. **Build is idempotent.** Re-running `python -m tools.build <target>`
+   wipes and re-emits.
+
+### 8.2 New for cycle 5
+
+6. **Single source of installer truth.** `tools/install_deps.py` is
+   THE installer. `setup.sh` / `setup.ps1` are wrappers. Don't
+   duplicate logic in shell.
+7. **Default-on optional deps.** Cartopy + scipy install by default.
+   Opt-out via `--no-cartopy` / `--no-scipy`. The user installing the
+   plugin clearly wants plotting to work.
+8. **uv-first, pip fallback.** Modern Python tooling; gracefully
+   downgrade on systems without uv.
+9. **Active environment respected.** No silent venv creation. Warn
+   loudly if installing into system Python.
+10. **Auto-fire only where it's safe.** Claude Code's
+    `SessionStart` + `${CLAUDE_PLUGIN_DATA}` is the only host pattern
+    we trust enough to enable by default.
+11. **Slash command everywhere it's possible.** `/ncplot:setup`
+    where the host namespaces, bare `/setup` where it doesn't.
+
+### 8.3 What cycle 5 does NOT establish
+
+- A plugin auto-update mechanism (cycle 5 detects version-bumps via
+  the diff-guard but doesn't manage them).
+- A binary distribution format (cycle 5 still relies on
+  pip-installable Python packages).
+- A conda environment auto-creation (documented hint only).
+- Cycle 6's skill-refiner closed loop.
+
+---
+
+## End of spec
+
+Implementation plan in
+`docs/plans/2026-05-08-cycle-5-auto-setup.md`.
