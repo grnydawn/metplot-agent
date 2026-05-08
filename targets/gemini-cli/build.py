@@ -11,11 +11,13 @@ import json
 import shutil
 from pathlib import Path
 
+from targets._common.install_tooling import copy_install_tooling
 from targets._common.manifest import (
     PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_DESCRIPTION, PLUGIN_HOMEPAGE,
     common_ncplot_block,
 )
 from targets._common.mcp_bundling import bundle_mcp_servers, MCP_SERVERS
+from targets._common.setup_descriptions import SETUP_COMMAND_DESCRIPTION
 from targets._common.skills import copy_skills
 
 
@@ -57,10 +59,20 @@ def build(src_root: Path, out_root: Path) -> None:
     (plugin_dir / "settings.json").write_text(
         json.dumps(settings, indent=2) + "\n")
 
-    # commands/refine.toml
+    # Cycle-5 setup tooling
+    repo_root = Path(__file__).resolve().parents[2]
+    copy_install_tooling(repo_root, plugin_dir)
+
+    # commands/ncplot/ subdir — subdir name → colon namespace (/ncplot:setup, /ncplot:refine)
     commands_dir = plugin_dir / "commands"
     commands_dir.mkdir()
-    (commands_dir / "refine.toml").write_text(_refine_toml())
+    ncplot_cmd_dir = commands_dir / "ncplot"
+    ncplot_cmd_dir.mkdir()
+    (ncplot_cmd_dir / "refine.toml").write_text(_refine_toml())
+    (ncplot_cmd_dir / "setup.toml").write_text(
+        'description = "' + SETUP_COMMAND_DESCRIPTION + '"\n'
+        'prompt = "Run the bundled setup.sh to install ncplot\'s Python dependencies."\n'
+    )
 
     # Plugin README
     (plugin_dir / "README.md").write_text(_plugin_readme())
@@ -84,7 +96,7 @@ def _plugin_readme() -> str:
     ])
     skill_lines = "\n".join(f"  - `{s}`" for s in skills)
     return (
-        "# ncplot-agent — Gemini CLI extension\n\n"
+        "# ncplot — Gemini CLI extension\n\n"
         "NetCDF plotting via natural language.\n\n"
         "## Install\n\n"
         "### 1. Install the MCP servers\n\n"
@@ -97,12 +109,17 @@ def _plugin_readme() -> str:
         "```bash\n"
         "gemini extensions install <git-url-or-path>\n"
         "```\n\n"
-        "Or copy this directory to `~/.gemini/extensions/ncplot-agent/`.\n\n"
+        "Or copy this directory to `~/.gemini/extensions/ncplot/`.\n\n"
         "### 3. Merge settings.json into your Gemini settings\n\n"
         "The MCP launch stanzas need to land in `~/.gemini/settings.json` "
         "(global) or `.gemini/settings.json` (project). Use a JSON merge "
         "tool or copy the `mcpServers` block into your existing settings.\n\n"
         "### 4. Restart Gemini CLI\n\n"
+        "## Setup\n\n"
+        "Run the bundled installer to install Python dependencies:\n\n"
+        "```bash\n./setup.sh\n```\n\n"
+        "On Windows: `./setup.ps1`. Pass `--no-cartopy` or `--no-scipy` to "
+        "opt out of optional packages. The script is idempotent.\n\n"
         "## What's inside\n\nSkills:\n" + skill_lines + "\n\n"
         "Slash commands:\n  - `/refine` — placeholder (cycle 6)\n\n"
         "## Known limitations (cycle 7)\n\n"

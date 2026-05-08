@@ -6,7 +6,7 @@ from targets._common.skills import INCLUDED_SKILLS
 from targets._common.mcp_bundling import MCP_SERVERS
 
 
-PLUGIN_NAME = "ncplot-agent"
+PLUGIN_NAME = "ncplot"   # was "ncplot-agent" (cycle-5 rename for /ncplot: slash namespace)
 PLUGIN_VERSION = "0.1.0"
 PLUGIN_DESCRIPTION = (
     "Natural-language plotting from NetCDF files. Maps, time series, "

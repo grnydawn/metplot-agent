@@ -8,7 +8,7 @@ from pathlib import Path
 
 def test_plugin_root_exists(built_plugin: Path) -> None:
     assert built_plugin.is_dir()
-    assert built_plugin.name == "ncplot-agent"
+    assert built_plugin.name == "ncplot"
 
 
 def test_manifest_dir_present(built_plugin: Path) -> None:
@@ -26,9 +26,9 @@ def test_top_level_files_present(built_plugin: Path) -> None:
     assert (built_plugin / "README.md").is_file()
 
 
-def test_no_hooks_dir(built_plugin: Path) -> None:
-    """Stop hook is deferred to cycle 6; hooks/ should not exist in cycle 4."""
-    assert not (built_plugin / "hooks").exists()
+def test_hooks_dir_present(built_plugin: Path) -> None:
+    """Cycle-5 adds hooks/ with the SessionStart setup hook."""
+    assert (built_plugin / "hooks").is_dir()
 
 
 def test_build_is_idempotent(tmp_path_factory, build_module) -> None:

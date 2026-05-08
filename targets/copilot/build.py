@@ -12,12 +12,14 @@ import json
 import shutil
 from pathlib import Path
 
+from targets._common.install_tooling import copy_install_tooling
 from targets._common.manifest import (
     PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_DESCRIPTION, PLUGIN_HOMEPAGE,
     PLUGIN_LICENSE, PLUGIN_AUTHOR,
     common_ncplot_block,
 )
 from targets._common.mcp_bundling import bundle_mcp_servers, MCP_SERVERS
+from targets._common.setup_descriptions import SETUP_COMMAND_DESCRIPTION
 from targets._common.skills import copy_skills
 
 
@@ -54,7 +56,11 @@ def build(src_root: Path, out_root: Path) -> None:
     (vscode_dir / "mcp.json").write_text(
         json.dumps({"servers": servers}, indent=2) + "\n")
 
-    # commands/refine.md (same shape as Claude Code's)
+    # Cycle-5 setup tooling
+    repo_root = Path(__file__).resolve().parents[2]
+    copy_install_tooling(repo_root, plugin_dir)
+
+    # commands/ — refine + /ncplot:setup (Copilot auto-prefixes from manifest name)
     commands_dir = plugin_dir / "commands"
     commands_dir.mkdir()
     (commands_dir / "refine.md").write_text(
@@ -64,13 +70,22 @@ def build(src_root: Path, out_root: Path) -> None:
         "---\n\n"
         "Placeholder for cycle-6 skill-refiner.\n"
     )
+    # user-invocable: true frontmatter mirrors the skill convention; effect on
+    # commands/*.md not empirically verified for this host (cycle-6 follow-up).
+    (commands_dir / "setup.md").write_text(
+        "---\n"
+        "description: " + SETUP_COMMAND_DESCRIPTION + "\n"
+        "user-invocable: true\n"
+        "---\n\n"
+        "Run the bundled `setup.sh` from the plugin root.\n"
+    )
 
     (plugin_dir / "README.md").write_text(_plugin_readme())
 
 
 def _plugin_readme() -> str:
     return (
-        "# ncplot-agent — GitHub Copilot agent plugin\n\n"
+        "# ncplot — GitHub Copilot agent plugin\n\n"
         "NetCDF plotting via natural language.\n\n"
         "## Install\n\n"
         "### 1. Install the MCP servers\n\n"
@@ -80,8 +95,13 @@ def _plugin_readme() -> str:
         "```\n\n"
         "### 2. Install the plugin\n\n"
         "From VS Code: Chat → Install Plugin From Source → select this directory.\n\n"
-        "Or copy to `~/.copilot/plugins/ncplot-agent/`.\n\n"
+        "Or copy to `~/.copilot/plugins/ncplot/`.\n\n"
         "### 3. Restart VS Code\n\n"
+        "## Setup\n\n"
+        "Run the bundled installer to install Python dependencies:\n\n"
+        "```bash\n./setup.sh\n```\n\n"
+        "On Windows: `./setup.ps1`. Pass `--no-cartopy` or `--no-scipy` to "
+        "opt out of optional packages. The script is idempotent.\n\n"
         "## Known limitations (cycle 7)\n\n"
         "- **Hooks deferred to cycle 6.** Copilot's `Stop` hook (PascalCase) "
         "will trigger skill-refiner once it ships.\n"

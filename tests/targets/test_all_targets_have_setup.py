@@ -1,4 +1,6 @@
-"""Smoke test: tools/build.py --all builds every target without conflict."""
+# tests/targets/test_all_targets_have_setup.py
+"""Verify every cycle-7 target ships setup.sh + setup.ps1 +
+tools/install_deps.py."""
 from __future__ import annotations
 
 import importlib.util
@@ -13,7 +15,6 @@ SRC_ROOT = REPO_ROOT / "src"
 
 
 def _list_targets() -> list[str]:
-    """Discover targets the same way tools/build.py does."""
     out = []
     for p in TARGETS_ROOT.iterdir():
         if p.is_dir() and not p.name.startswith("_") and (p / "build.py").exists():
@@ -32,10 +33,9 @@ def _load_build(target: str):
 
 
 @pytest.mark.parametrize("target", _list_targets())
-def test_target_builds_to_unique_dir(tmp_path, target: str):
-    """Each target writes to <tmp>/<target>/ — never overlapping."""
+def test_target_ships_setup_sh(tmp_path, target: str):
     if target == "hermes":
-        pytest.skip("hermes target stub unverified by cycle-7 research")
+        pytest.skip("hermes target stub; cycle-5 doesn't update it")
     out = tmp_path / target
     out.mkdir()
     mod = _load_build(target)
@@ -43,11 +43,7 @@ def test_target_builds_to_unique_dir(tmp_path, target: str):
         pytest.skip(f"target {target} has no build()")
     mod.build(SRC_ROOT, out)
     plugin_root = out / "ncplot"
-    assert plugin_root.is_dir(), f"{target}: missing ncplot dir"
-    # Each target produces *something* — at least skills or a manifest
-    has_content = any((plugin_root / sub).exists() for sub in
-                       ("skills", "mcp-servers", ".agent",
-                        "project_instructions.md", "plugin.json",
-                        ".claude-plugin", ".codex-plugin", ".cursor-plugin",
-                        "gemini-extension.json", ".vscode"))
-    assert has_content, f"{target}: empty build artifact"
+    assert (plugin_root / "setup.sh").is_file(), f"{target}: missing setup.sh"
+    assert (plugin_root / "setup.ps1").is_file(), f"{target}: missing setup.ps1"
+    assert (plugin_root / "tools" / "install_deps.py").is_file(), (
+        f"{target}: missing bundled installer")

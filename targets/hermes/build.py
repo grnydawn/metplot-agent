@@ -15,7 +15,7 @@ import json
 import shutil
 from pathlib import Path
 
-OUT_NAME = "ncplot-agent-hermes"
+OUT_NAME = "ncplot-hermes"
 
 
 def build(src_root: Path, out_root: Path) -> None:
@@ -58,7 +58,7 @@ def build(src_root: Path, out_root: Path) -> None:
 
 
 def _install_readme() -> str:
-    return """# ncplot-agent — Hermes Agent bundle
+    return """# ncplot — Hermes Agent bundle
 
 Hermes uses `~/.hermes/skills/` directly; the SKILL.md format is identical to
 the canonical sources, so install is just a copy.
@@ -70,7 +70,7 @@ the canonical sources, so install is just a copy.
 cp -r skills/* ~/.hermes/skills/
 
 # 2. Pick a stable install path for the MCP servers, e.g.
-INSTALL_PATH=~/.hermes/extras/ncplot-agent
+INSTALL_PATH=~/.hermes/extras/ncplot
 mkdir -p $INSTALL_PATH
 cp -r mcp-servers data $INSTALL_PATH/
 

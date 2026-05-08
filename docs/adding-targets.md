@@ -23,6 +23,7 @@ from targets._common.manifest import (
 )
 from targets._common.mcp_bundling import bundle_mcp_servers, MCP_SERVERS
 from targets._common.skills import copy_skills
+from targets._common.install_tooling import copy_install_tooling
 
 
 def build(src_root: Path, out_root: Path) -> None:
@@ -34,6 +35,8 @@ def build(src_root: Path, out_root: Path) -> None:
     # 1. Manifest (host-specific path + shape)
     # 2. copy_skills(src_root, plugin_dir / "skills")
     # 3. bundle_mcp_servers(src_root, plugin_dir / "mcp-servers")
+    # After bundle_mcp_servers:
+    copy_install_tooling(src_root.parent, plugin_dir)
     # 4. Host-specific MCP launch config (path + key name varies)
     # 5. Slash command (md / TOML / native)
     # 6. README
@@ -41,15 +44,15 @@ def build(src_root: Path, out_root: Path) -> None:
 
 ## Host-specific config files
 
-| Host | MCP config path | MCP config key | Manifest path |
-|------|-----------------|----------------|---------------|
-| Claude Code | `.mcp.json` | `mcpServers` | `.claude-plugin/plugin.json` |
-| Codex | `config.toml` (TOML) | `[mcp_servers.X]` | `.codex-plugin/plugin.json` |
-| Gemini CLI | `settings.json` | `mcpServers` | `gemini-extension.json` (root) |
-| Cursor | `.cursor/mcp.json` | `mcpServers` | `.cursor-plugin/plugin.json` |
-| GitHub Copilot | `.vscode/mcp.json` | `servers` ⚠ | `plugin.json` (root) |
-| Antigravity | `mcp_config.json` (snippet) | `mcpServers` | n/a (no manifest) |
-| Claude Desktop | `claude_desktop_config_snippet.json` | `mcpServers` | n/a (project doc) |
+| Host | MCP config path | MCP config key | Manifest path | Setup script | Setup command |
+|------|-----------------|----------------|---------------|--------------|---------------|
+| Claude Code | `.mcp.json` | `mcpServers` | `.claude-plugin/plugin.json` | `setup.sh` / `setup.ps1` | `/ncplot:setup` |
+| Codex | `config.toml` (TOML) | `[mcp_servers.X]` | `.codex-plugin/plugin.json` | `setup.sh` / `setup.ps1` | `/setup` |
+| Gemini CLI | `settings.json` | `mcpServers` | `gemini-extension.json` (root) | `setup.sh` / `setup.ps1` | `/ncplot:setup` |
+| Cursor | `.cursor/mcp.json` | `mcpServers` | `.cursor-plugin/plugin.json` | `setup.sh` / `setup.ps1` | `/setup` |
+| GitHub Copilot | `.vscode/mcp.json` | `servers` ⚠ | `plugin.json` (root) | `setup.sh` / `setup.ps1` | `/ncplot:setup` |
+| Antigravity | `mcp_config.json` (snippet) | `mcpServers` | n/a (no manifest) | `setup.sh` / `setup.ps1` | `/setup` workflow |
+| Claude Desktop | `claude_desktop_config_snippet.json` | `mcpServers` | n/a (project doc) | `setup.sh` / `setup.ps1` | manual `./setup.sh` |
 
 ## Host-specific gotchas
 

@@ -15,12 +15,11 @@ import json
 import shutil
 from pathlib import Path
 
-from targets._common.manifest import common_ncplot_block
+from targets._common.install_tooling import copy_install_tooling
+from targets._common.manifest import PLUGIN_NAME, common_ncplot_block
 from targets._common.mcp_bundling import bundle_mcp_servers, MCP_SERVERS
+from targets._common.setup_descriptions import SETUP_COMMAND_DESCRIPTION
 from targets._common.skills import copy_skills
-
-
-PLUGIN_NAME = "ncplot-agent"
 
 
 def build(src_root: Path, out_root: Path) -> None:
@@ -41,6 +40,20 @@ def build(src_root: Path, out_root: Path) -> None:
 
     # MCP servers — bundled at top level so users can pip install
     bundle_mcp_servers(src_root, plugin_dir / "mcp-servers")
+
+    # Cycle-5 setup tooling
+    repo_root = Path(__file__).resolve().parents[2]
+    copy_install_tooling(repo_root, plugin_dir)
+
+    # /setup workflow
+    (workflows_dir / "setup.md").write_text(
+        "---\n"
+        "description: " + SETUP_COMMAND_DESCRIPTION + "\n"
+        "---\n\n"
+        "# /setup workflow\n\n"
+        "Run the bundled `setup.sh` from the plugin root. Idempotent — safe to "
+        "re-run after dependency changes.\n"
+    )
 
     # MCP config snippet for paste into Antigravity's mcp_config.json
     mcp_snippet = {
@@ -81,7 +94,7 @@ def _refine_workflow() -> str:
 
 def _plugin_readme() -> str:
     return (
-        "# ncplot-agent — Antigravity plugin\n\n"
+        "# ncplot — Antigravity plugin\n\n"
         "NetCDF plotting via natural language.\n\n"
         "## Install\n\n"
         "### 1. Install the MCP servers\n\n"
@@ -100,6 +113,14 @@ def _plugin_readme() -> str:
         "Open Agent Panel → MCP Servers → \"View raw config\". Merge the "
         "contents of `mcp_config.json` into the displayed JSON.\n\n"
         "### 4. Restart Antigravity\n\n"
+        "## Setup\n\n"
+        "Run the bundled installer to install Python dependencies:\n\n"
+        "```bash\n./setup.sh\n```\n\n"
+        "On Windows: `./setup.ps1`. Pass `--no-cartopy` or `--no-scipy` to "
+        "opt out of optional packages. The script is idempotent.\n\n"
+        "Note: the manual `pip install ./mcp-servers/...` steps above can be "
+        "replaced by `./setup.sh`, which automates them along with the rest "
+        "of the dependency stack.\n\n"
         "## Known limitations (cycle 7)\n\n"
         "- **No formal hook system on Antigravity.** Cycle-6 self-improvement "
         "Stop hook → manual `/refine` workflow invocation.\n"

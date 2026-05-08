@@ -1,6 +1,6 @@
 """Build the Claude Code plugin from src/.
 
-Cycle 4 baseline: produces a payload at `build/claude-code/ncplot-agent/`
+Cycle 4 baseline: produces a payload at `build/claude-code/ncplot/`
 with skills, bundled MCP servers, .mcp.json, and a placeholder /refine
 command.
 
@@ -13,6 +13,7 @@ import json
 import shutil
 from pathlib import Path
 
+from targets._common.install_tooling import copy_install_tooling
 from targets._common.manifest import (
     PLUGIN_NAME, PLUGIN_VERSION, PLUGIN_DESCRIPTION, PLUGIN_HOMEPAGE,
     PLUGIN_LICENSE, PLUGIN_KEYWORDS, PLUGIN_AUTHOR,
@@ -60,10 +61,38 @@ def build(src_root: Path, out_root: Path) -> None:
     (plugin_dir / ".mcp.json").write_text(
         json.dumps({"mcpServers": mcp_servers}, indent=2) + "\n")
 
-    # Slash command
+    # Cycle-5 setup tooling
+    repo_root = Path(__file__).resolve().parents[2]
+    copy_install_tooling(repo_root, plugin_dir)
+
+    # SessionStart hook (auto-fire setup on first run / version bump)
+    hooks_dir = plugin_dir / "hooks"
+    hooks_dir.mkdir(exist_ok=True)
+    (hooks_dir / "setup.json").write_text(json.dumps({
+        "SessionStart": [{
+            "matcher": "*",
+            "hooks": [{
+                "type": "command",
+                "command": "${CLAUDE_PLUGIN_ROOT}/setup.sh --quiet",
+            }],
+        }],
+    }, indent=2) + "\n")
+
+    # Slash commands
     commands_dir = plugin_dir / "commands"
     commands_dir.mkdir()
     (commands_dir / "refine.md").write_text(_refine_command_md())
+
+    # /ncplot:setup slash command
+    (commands_dir / "setup.md").write_text(
+        "---\n"
+        "description: Install or repair ncplot's Python dependencies "
+        "(MCP servers, cartopy, scipy). Idempotent.\n"
+        "---\n\n"
+        "Run `${CLAUDE_PLUGIN_ROOT}/setup.sh` to install or refresh the "
+        "ncplot dependency stack. Pass --no-cartopy or --no-scipy to "
+        "opt out of optional packages.\n"
+    )
 
     # Plugin README
     (plugin_dir / "README.md").write_text(
@@ -118,15 +147,23 @@ def _plugin_readme_full(skills: list[str], mcps: list[str]) -> str:
         for s in MCP_SERVERS
     )
     return (
-        "# ncplot-agent — Claude Code plugin\n\n"
+        "# ncplot — Claude Code plugin\n\n"
         "NetCDF plotting via natural language. Maps, time series, and "
         "vertical profiles. WRF/ROMS/CMIP/reanalysis aware.\n\n"
         "## Install\n\n"
         "### 1. Install the MCP servers\n\n"
         "```bash\n" + mcp_install + "\n```\n\n"
         "### 2. Install the plugin\n\n"
-        "```bash\ncp -r . ~/.claude/plugins/ncplot-agent\n```\n\n"
+        "```bash\ncp -r . ~/.claude/plugins/ncplot\n```\n\n"
         "### 3. Restart Claude Code\n\n"
+        "## Setup\n\n"
+        "Run the bundled installer to install Python dependencies:\n\n"
+        "```bash\n./setup.sh\n```\n\n"
+        "On Windows: `./setup.ps1`. Pass `--no-cartopy` or `--no-scipy` to "
+        "opt out of optional packages. The script is idempotent.\n\n"
+        "The SessionStart hook auto-fires `setup.sh --quiet` on each new "
+        "session (first run or after a version bump), so you typically do not "
+        "need to run it manually.\n\n"
         "## What's inside\n\nSkills:\n" + skill_lines + "\n\n"
         "MCP servers:\n" + mcp_lines + "\n\n"
         "Slash commands:\n  - `/refine` — placeholder (cycle 6)\n\n"

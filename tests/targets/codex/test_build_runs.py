@@ -4,7 +4,7 @@ from pathlib import Path
 
 def test_plugin_root_exists(built_plugin: Path):
     assert built_plugin.is_dir()
-    assert built_plugin.name == "ncplot-agent"
+    assert built_plugin.name == "ncplot"
 
 
 def test_manifest_dir_present(built_plugin: Path):
