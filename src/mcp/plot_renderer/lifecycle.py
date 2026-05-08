@@ -113,3 +113,34 @@ def auto_name(*, tool: str, spec: dict[str, Any], fmt: str) -> str:
     h = _spec_hash(spec)
     name = f"{tool}_{var_or_label}_{when}_{h}.{fmt}"
     return str(Path.cwd() / _AUTO_DIR / name)
+
+
+class InvalidDPI(ValueError):
+    pass
+
+
+def validate_dpi(dpi: int) -> None:
+    if not isinstance(dpi, int):
+        raise InvalidDPI(f"dpi must be int, got {type(dpi).__name__}")
+    if dpi < 72 or dpi > 600:
+        raise InvalidDPI(f"dpi {dpi} out of range [72, 600]")
+
+
+def atomic_save(fig: Any, output_path: str, *, dpi: int) -> int:
+    """Save the figure atomically: write to <path>.tmp then os.replace.
+    On failure, remove the .tmp. Returns final file size in bytes.
+    """
+    out = Path(output_path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    tmp = out.with_name(out.name + ".tmp")
+    fmt = out.suffix.lstrip(".") or "png"
+    try:
+        fig.savefig(tmp, dpi=dpi, format=fmt)
+        os.replace(tmp, out)
+    finally:
+        if tmp.exists():
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+    return out.stat().st_size

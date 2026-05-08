@@ -2,9 +2,13 @@
 import json
 from pathlib import Path
 
+import matplotlib.pyplot as plt
+import pytest
+
 from src.mcp.plot_renderer.lifecycle import (
     resolve_output_path, auto_name,
     OutputPathInvalid, FormatExtensionMismatch,
+    atomic_save, validate_dpi, InvalidDPI,
 )
 
 
@@ -76,3 +80,42 @@ def test_auto_name_hash_disambiguates(tmp_path, monkeypatch):
                          "colormap": "magma"},
                    fmt="png")
     assert p1 != p2  # different specs → different hashes
+
+
+def test_validate_dpi_in_range():
+    validate_dpi(150)
+    validate_dpi(72)
+    validate_dpi(600)
+
+
+def test_validate_dpi_out_of_range():
+    with pytest.raises(InvalidDPI):
+        validate_dpi(50)
+    with pytest.raises(InvalidDPI):
+        validate_dpi(1000)
+
+
+def test_atomic_save_writes_file_and_creates_parent(tmp_path):
+    out = tmp_path / "deep" / "nested" / "out.png"
+    fig = plt.figure()
+    plt.plot([0, 1], [0, 1])
+    size = atomic_save(fig, str(out), dpi=100)
+    plt.close(fig)
+    assert out.exists()
+    assert size == out.stat().st_size
+    assert size > 1000
+
+
+def test_atomic_save_temp_file_cleaned_on_failure(tmp_path, monkeypatch):
+    out = tmp_path / "out.png"
+    fig = plt.figure()
+
+    def boom(*args, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(fig, "savefig", boom)
+    with pytest.raises(OSError):
+        atomic_save(fig, str(out), dpi=100)
+    plt.close(fig)
+    # No .tmp leftover
+    assert not (out.parent / (out.name + ".tmp")).exists()
