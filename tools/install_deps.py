@@ -54,3 +54,56 @@ def parse_args(argv: list[str] | None = None) -> Args:
         force=ns.force,
         mcp_servers_dir=ns.mcp_servers_dir,
     )
+
+
+import os
+import shutil
+import sys
+
+
+class EnvironmentError_(RuntimeError):
+    """Raised when the install environment is unsuitable."""
+    pass
+
+
+def in_venv() -> bool:
+    """Return True if a venv is active (VIRTUAL_ENV env var set)."""
+    return bool(os.environ.get("VIRTUAL_ENV"))
+
+
+def detect_python() -> Path:
+    """Return the Python interpreter to install into.
+
+    Order:
+      1. ${VIRTUAL_ENV}/bin/python (if set)
+      2. The Python running install_deps.py itself (if >= 3.10)
+
+    Raises EnvironmentError_ if none usable.
+    """
+    venv = os.environ.get("VIRTUAL_ENV")
+    if venv:
+        candidate = Path(venv) / "bin" / "python"
+        if candidate.exists():
+            return candidate
+
+    # Use the running interpreter if compatible
+    if sys.version_info >= (3, 10):
+        return Path(sys.executable)
+
+    raise EnvironmentError_(
+        f"No Python >= 3.10 found. Got {sys.version_info[:2]}; "
+        "install Python 3.10+ from https://www.python.org/downloads/"
+    )
+
+
+def detect_installer(python_bin: Path) -> tuple[str, list[str]]:
+    """Return (cmd, base_args) for the chosen package manager.
+
+    Order:
+      1. uv (if `uv` on PATH) -> ("uv", ["pip", "install"])
+      2. pip via <python_bin> -m pip -> (str(python_bin), ["-m", "pip", "install"])
+    """
+    uv = shutil.which("uv")
+    if uv:
+        return ("uv", ["pip", "install"])
+    return (str(python_bin), ["-m", "pip", "install"])
