@@ -33,7 +33,6 @@ def _make_venv(tmp_path: Path) -> Path:
 def test_minimum_install_runs_without_optionals(tmp_path):
     """--no-cartopy --no-scipy: just the two MCP servers."""
     venv = _make_venv(tmp_path)
-    venv_python = venv / "bin" / "python"
     env = os.environ.copy()
     env["VIRTUAL_ENV"] = str(venv)
     result = subprocess.run(
