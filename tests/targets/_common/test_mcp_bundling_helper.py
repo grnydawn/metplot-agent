@@ -34,7 +34,7 @@ def test_bundle_patches_pyproject(tmp_path):
         assert pp.is_file()
         text = pp.read_text()
         assert "[tool.setuptools.packages.find]" in text
-        assert 'where = ["src"]' in text
+        assert 'include = ["src", "src.*"]' in text
 
 
 def test_bundle_returns_descriptor_list(tmp_path):

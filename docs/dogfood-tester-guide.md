@@ -85,44 +85,121 @@ Claude Code stages the plugin into its plugin cache and updates
 ### 4. Restart Claude Code
 
 The bundled `SessionStart` hook fires `setup.sh --quiet` on the next
-session, which installs the MCP servers (`netcdf-reader`,
-`plot-renderer`) and their Python dependencies (xarray, matplotlib,
-cartopy). The script is idempotent — safe across rebuilds. Pass
-`--no-cartopy` or `--no-scipy` to opt out of optional packages by
-running `setup.sh` manually before or after the auto-fire.
+session. This step does two things in one pass:
+
+1. Installs the MCP server packages (`netcdf-reader`, `plot-renderer`)
+   plus their Python dependencies (xarray, matplotlib, cartopy, scipy)
+   into the active Python environment.
+2. Writes per-server launcher shims into `${plugin}/bin/`. The shims
+   exec the chosen Python with `python -m src.mcp.<server>.server` so
+   the plugin's `.mcp.json` (which references bare command names like
+   `metplot-netcdf-reader`) resolves to a working invocation via the
+   plugin's own `bin/` directory — Claude Code auto-adds that directory
+   to PATH for spawned MCP server processes, so you do **not** need to
+   activate the install venv yourself.
+
+The script is idempotent — safe across rebuilds. Re-running it
+regenerates the launcher shims with the current Python path, which
+matters if you switch venvs between sessions.
 
 Manual invocation is only needed if you want to skip optional
-packages, repair a broken environment, or pre-install before the
-first session. Find the script under the plugin cache that
-Claude Code populated, e.g.
+packages (`--no-cartopy`, `--no-scipy`), repair a broken environment,
+or pre-install before the first session. Find the script under the
+plugin cache that Claude Code populated:
 `~/.claude/plugins/cache/metplot-local/metplot/<version>/setup.sh`.
 
 ### 5. Sanity check
 
-Verify the plugin loaded by typing `/` in the prompt and checking that
-`/metplot:setup` and `/metplot:refine` appear in the slash-command
-list. Then in a fresh Claude Code session, run:
+Three checks; each must pass before starting a dogfood session.
+
+**(a) Slash commands appear.** Type `/` in the prompt and confirm
+`/metplot:setup` and `/metplot:refine` are in the list.
+
+**(b) Setup is clean.** Run:
 
 ```text
 > /metplot:setup
 ```
 
-Expected: setup script reports "all dependencies present" or installs
-what's missing.
+Expected last lines:
 
-Then:
+```
+Launchers (2): wrote to .../bin
+  - metplot-netcdf-reader
+  - metplot-plot-renderer
 
-```text
-> List available metplot skills
+Setup complete. 4/4 steps succeeded.
 ```
 
-Expected: agent enumerates `netcdf-inspect`, `netcdf-plot-router`,
-`netcdf-plot-map`, `netcdf-plot-timeseries`, `netcdf-plot-profile`.
-On cycle 6+, also `skill-refiner`.
+If you see "FAILED" or "warnings," log a `failure_mode` finding.
 
-If any of these steps fail, log it as a `failure_mode` finding and
+**(c) MCP servers connect.** This is the check that actually proves
+the plugin is wired up — slash commands and skills can list without
+the MCP servers running, but plotting won't work. Easiest verification:
+
+```text
+> Inspect the file at <path-to-any-NetCDF-file-from-§Test-data>.
+```
+
+The agent should call the `netcdf-inspect` skill, which calls the
+`netcdf-reader` MCP tool, which reads the file and returns variable
+names + dimensions. If you see a structured response with the file's
+contents, MCP is connected.
+
+If instead the agent reports "I'm unable to read NetCDF files" or
+"the netcdf-reader tool isn't available," see §Troubleshooting.
+
+If any of these checks fail, log it as a `failure_mode` finding and
 stop the install attempt — the dogfood session can't begin until the
 sanity check passes.
+
+### Troubleshooting
+
+#### MCP servers fail to connect
+
+Symptom: `/metplot:setup` succeeded, but step 5(c) fails with the
+agent saying it can't read NetCDF files, or any plot/inspect request
+returns "tool unavailable."
+
+Most common causes:
+
+1. **Setup hasn't run yet in this session.** The `SessionStart` hook
+   fires once per session. If you installed the plugin mid-session,
+   restart Claude Code so the hook fires.
+2. **Setup ran but the launcher dir got wiped.** A `python -m
+   tools.build claude-code` rebuild clears the plugin payload,
+   including `bin/`. The next `SessionStart` repopulates it, but
+   between rebuild-and-restart the plugin will look broken. Restart
+   resolves this.
+3. **Setup ran into a different Python than the one currently on
+   PATH.** The launcher hardcodes the absolute path to the Python
+   used at install time. If you've since deleted that venv or moved
+   it, the launcher's `exec` line won't resolve. Re-run `setup.sh`
+   manually to regenerate launchers against the current Python:
+
+   ```bash
+   ~/.claude/plugins/cache/metplot-local/metplot/<version>/setup.sh
+   ```
+
+   Then restart Claude Code.
+
+#### Stale install metadata from prior project versions
+
+The project was renamed from `ncplot-agent` to `metplot-agent`. If
+you've used a venv from before the rename, or did `pip install -e .`
+on the old name, residual metadata can shadow the new install.
+Symptom: imports like `from src.mcp...` resolve to a path that no
+longer exists. Cleanup:
+
+```bash
+# inside any venv where you might have done `pip install -e .`:
+pip uninstall -y ncplot-agent metplot-agent 2>/dev/null
+
+# remove stale top-level egg-info from the repo, if any:
+rm -rf ncplot_agent.egg-info metplot_agent.egg-info
+```
+
+Then re-run setup.
 
 ### Recovering from a manual-copy install
 

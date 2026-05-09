@@ -79,6 +79,11 @@ def build(src_root: Path, out_root: Path) -> None:
     repo_root = Path(__file__).resolve().parents[2]
     copy_install_tooling(repo_root, plugin_dir)
 
+    # Cycle-6 follow-up: pre-create bin/ so Claude Code auto-adds it to
+    # PATH at plugin-load time. setup.sh fills it with launcher shims
+    # during SessionStart so .mcp.json's bare command names resolve.
+    (plugin_dir / "bin").mkdir(exist_ok=True)
+
     # SessionStart hook (auto-fire setup on first run / version bump)
     hooks_dir = plugin_dir / "hooks"
     hooks_dir.mkdir(exist_ok=True)

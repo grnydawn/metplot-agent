@@ -20,33 +20,47 @@ _SERVERS = [
 ]
 
 
+def _evict_src_modules() -> None:
+    """Drop any cached src.* modules so a subsequent import is forced to
+    re-resolve via the current sys.path."""
+    for m in [m for m in sys.modules if m == "src" or m.startswith("src.")]:
+        del sys.modules[m]
+
+
 @pytest.mark.parametrize("server", _SERVERS,
                          ids=lambda s: s["package_dir"])
 def test_bundled_server_imports(built_plugin: Path, server: dict) -> None:
-    """Add the bundled src/ to sys.path and import the server module."""
-    bundle_src = built_plugin / "mcp-servers" / server["package_dir"] / "src"
-    sys.path.insert(0, str(bundle_src))
+    """Verify the bundle's own source answers `from src.mcp.<pkg>...`.
+
+    Why the precaution: the canonical repo's `src/` is already on
+    sys.path during pytest, so a sloppier test would silently resolve
+    via the canonical path even when the bundle is broken (the cycle-6
+    pyproject regression hid behind exactly that). To force the bundle
+    to answer, we put `<bundle>/` (NOT `<bundle>/src/`) at sys.path[0]
+    and evict any cached `src.*` modules, then assert that the resolved
+    server module's file lives inside the bundle.
+    """
+    bundle_root = built_plugin / "mcp-servers" / server["package_dir"]
+    sys.path.insert(0, str(bundle_root))
+    _evict_src_modules()
     try:
-        # Force re-import in case repo's src is also on sys.path.
-        # We're testing that the bundled src works on its own.
         modname = f"src.mcp.{server['package_dir']}.server"
-        if modname in sys.modules:
-            del sys.modules[modname]
-        # Import via the bundled path
-        # NOTE: because both repo root and bundle src have src/mcp/<name>,
-        # Python may resolve to the repo. The smoke test passes if EITHER
-        # works, since the import path string is identical. The packaging
-        # bug we're guarding against is one where the imports CAN'T resolve
-        # at all from the bundle.
         mod = importlib.import_module(modname)
+        # Strongest assertion: the resolved source file came from the
+        # bundle, not the canonical repo or a stale install.
+        mod_file = Path(mod.__file__).resolve()
+        assert bundle_root.resolve() in mod_file.parents, (
+            f"{server['package_dir']}: imported {mod_file}, expected a path "
+            f"under bundle {bundle_root}")
         names = mod.list_tool_names()
         assert isinstance(names, list)
         assert len(names) == server["expected_tool_count"], (
             f"{server['package_dir']}: expected {server['expected_tool_count']} "
             f"tools, got {len(names)}")
     finally:
-        if str(bundle_src) in sys.path:
-            sys.path.remove(str(bundle_src))
+        if str(bundle_root) in sys.path:
+            sys.path.remove(str(bundle_root))
+        _evict_src_modules()
 
 
 def test_pyproject_install_metadata_complete(built_plugin: Path) -> None:
@@ -60,4 +74,4 @@ def test_pyproject_install_metadata_complete(built_plugin: Path) -> None:
         assert "version = " in pp_text
         # Setuptools packaging block we patched in
         assert "[tool.setuptools.packages.find]" in pp_text
-        assert 'where = ["src"]' in pp_text
+        assert 'include = ["src", "src.*"]' in pp_text
