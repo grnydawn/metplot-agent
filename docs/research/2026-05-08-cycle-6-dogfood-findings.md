@@ -43,6 +43,36 @@ Files exercised:
 - **Why this matters for dogfood:** any Phase A scenario asking the agent to plot/inspect/slice will fail with "I don't have access to that tool." The user-facing install flow looks fully successful (`Setup complete. 4/4 succeeded`, `claude mcp list` ✓ Connected, server reachable via JSON-RPC). The agent's view is the one that breaks the use case, and there is no obvious user-side workaround. Phase A on Claude Code is **blocked** until either (a) Claude Code closes the gap between CLI MCP and agent MCP for plugin-bundled servers, or (b) metplot ships an alternative path (e.g. server installed at user-level rather than plugin-level, or skills shell out to the launcher directly instead of going through the MCP-tool surface).
 - **Suggested next step:** verify on a second host or fresh user account to rule out any local Claude Code state corruption. If reproducible there, escalate to Claude Code product as an MCP-plugin-integration bug. In parallel, investigate whether registering the same MCP servers via `claude mcp add` (CLI / user-level) in addition to plugin-level makes them appear on the agent surface — that would confirm the user-vs-plugin scope hypothesis and give a workaround.
 
+#### Workaround confirmed (2026-05-09)
+
+Registering the same servers at user scope unblocks the agent surface:
+
+```bash
+claude mcp add --scope user metplot-netcdf-reader \
+  /home/youngsung/.claude/plugins/cache/metplot-local/metplot/0.1.0/bin/metplot-netcdf-reader
+claude mcp add --scope user metplot-plot-renderer \
+  /home/youngsung/.claude/plugins/cache/metplot-local/metplot/0.1.0/bin/metplot-plot-renderer
+```
+
+Run **before** restarting Claude Code so the new session picks up
+the user-scope config at startup; running after needs a second
+restart for the agent to see them.
+
+After this, `claude mcp list` shows duplicate entries (both
+`plugin:metplot:*` and bare `metplot-*` for each server), all
+✓ Connected. Only the user-scope (bare-name) entries reach the
+agent's deferred-tool surface as `mcp__metplot-netcdf-reader__*`
+and `mcp__metplot-plot-renderer__*`. Confirmed by re-running
+sanity check (c) — agent invoked the tools through the normal
+channel, no JSON-RPC bypass needed.
+
+The workaround is functional but ugly: two registrations per
+server, and a bundled-plugin install path that requires manual
+post-install steps to actually be useful from the agent. The
+underlying gap (plugin-scope MCP servers not reaching the agent
+surface) still belongs upstream with Claude Code; documenting the
+workaround in the dogfood guide is a stopgap for Phase A only.
+
 ## Uncategorized
 
 (no findings yet)
