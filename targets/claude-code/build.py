@@ -23,12 +23,26 @@ from targets._common.mcp_bundling import bundle_mcp_servers, MCP_SERVERS
 from targets._common.skills import copy_skills
 
 
+MARKETPLACE_NAME = "metplot-local"
+
+
 def build(src_root: Path, out_root: Path) -> None:
-    """Build the Claude Code plugin into `out_root/<PLUGIN_NAME>/`."""
+    """Build the Claude Code plugin into `out_root/<PLUGIN_NAME>/`.
+
+    Also emits `out_root/.claude-plugin/marketplace.json` so users can
+    register the build directory as a Claude Code plugin marketplace
+    via `/plugin marketplace add <out_root>` and install with
+    `/plugin install <PLUGIN_NAME>@<MARKETPLACE_NAME>`.
+    """
     plugin_dir = out_root / PLUGIN_NAME
     if plugin_dir.exists():
         shutil.rmtree(plugin_dir)
     plugin_dir.mkdir(parents=True)
+
+    marketplace_dir = out_root / ".claude-plugin"
+    if marketplace_dir.exists():
+        shutil.rmtree(marketplace_dir)
+    marketplace_dir.mkdir(parents=True)
 
     # Manifest
     manifest_dir = plugin_dir / ".claude-plugin"
@@ -108,6 +122,33 @@ def build(src_root: Path, out_root: Path) -> None:
     (plugin_dir / "README.md").write_text(
         _plugin_readme_full(skills_in_build, mcps_in_build))
 
+    # Marketplace manifest (sibling of the plugin dir). Lets users
+    # register `out_root` as a Claude Code plugin marketplace.
+    marketplace = {
+        "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+        "name": MARKETPLACE_NAME,
+        "description": (
+            "Local marketplace for the metplot Claude Code plugin, "
+            "produced by `python -m tools.build claude-code`."
+        ),
+        "owner": PLUGIN_AUTHOR,
+        "plugins": [
+            {
+                "name": PLUGIN_NAME,
+                "description": PLUGIN_DESCRIPTION,
+                "version": PLUGIN_VERSION,
+                "author": PLUGIN_AUTHOR,
+                "homepage": PLUGIN_HOMEPAGE,
+                "license": PLUGIN_LICENSE,
+                "keywords": PLUGIN_KEYWORDS,
+                "category": "data-science",
+                "source": f"./{PLUGIN_NAME}",
+            },
+        ],
+    }
+    (marketplace_dir / "marketplace.json").write_text(
+        json.dumps(marketplace, indent=2) + "\n")
+
 
 def _refine_command_md() -> str:
     return (
@@ -151,23 +192,39 @@ def _plugin_readme_full(skills: list[str], mcps: list[str]) -> str:
         "NetCDF plotting via natural language. Maps, time series, and "
         "vertical profiles. WRF/ROMS/CMIP/reanalysis aware.\n\n"
         "## Install\n\n"
-        "### 1. Install the MCP servers\n\n"
-        "```bash\n" + mcp_install + "\n```\n\n"
+        "This directory's parent (`build/claude-code/`) is a self-contained "
+        "Claude Code plugin marketplace. Register it once, then install with "
+        "the standard `/plugin` flow.\n\n"
+        "### 1. Register the marketplace\n\n"
+        "In Claude Code, run:\n\n"
+        "```text\n"
+        "/plugin marketplace add /absolute/path/to/metplot-agent/build/claude-code\n"
+        "```\n\n"
         "### 2. Install the plugin\n\n"
-        "```bash\ncp -r . ~/.claude/plugins/metplot\n```\n\n"
+        "```text\n"
+        f"/plugin install {PLUGIN_NAME}@{MARKETPLACE_NAME}\n"
+        "```\n\n"
         "### 3. Restart Claude Code\n\n"
-        "## Setup\n\n"
-        "Run the bundled installer to install Python dependencies:\n\n"
+        "The bundled `SessionStart` hook then auto-runs `setup.sh --quiet`, "
+        "which installs the Python dependencies the MCP servers need.\n\n"
+        "Verify the install: type `/` in the prompt and check that "
+        f"`/{PLUGIN_NAME}:setup` and `/{PLUGIN_NAME}:refine` appear.\n\n"
+        "## Setup (manual)\n\n"
+        "The `SessionStart` hook handles dependency install automatically, "
+        "but if you want to install ahead of time or repair a broken "
+        "environment, run the bundled installer directly:\n\n"
         "```bash\n./setup.sh\n```\n\n"
         "On Windows: `./setup.ps1`. Pass `--no-cartopy` or `--no-scipy` to "
         "opt out of optional packages. The script is idempotent.\n\n"
-        "The SessionStart hook auto-fires `setup.sh --quiet` on each new "
-        "session (first run or after a version bump), so you typically do not "
-        "need to run it manually.\n\n"
+        "If you prefer to install the MCP servers without the cartopy/scipy "
+        "stack, do it directly with pip:\n\n"
+        "```bash\n" + mcp_install + "\n```\n\n"
         "## What's inside\n\nSkills:\n" + skill_lines + "\n\n"
         "MCP servers:\n" + mcp_lines + "\n\n"
-        "Slash commands:\n  - `/refine` — placeholder (cycle 6)\n\n"
-        "Hooks: none (cycle 6 will add).\n\n"
+        "Slash commands:\n"
+        f"  - `/{PLUGIN_NAME}:setup` — install or repair Python dependencies\n"
+        f"  - `/{PLUGIN_NAME}:refine` — placeholder (cycle 6)\n\n"
+        "Hooks: SessionStart (auto-fires `setup.sh --quiet`).\n\n"
         "## Build provenance\n\n"
         "Built by `targets/claude-code/build.py` from `src/`. Rebuild with:\n\n"
         "```bash\npython -m tools.build claude-code\n```\n"

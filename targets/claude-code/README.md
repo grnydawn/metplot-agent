@@ -24,17 +24,32 @@ it.
 
 ## What this builder produces
 
-A complete Claude Code plugin:
+A complete Claude Code plugin alongside a sibling marketplace
+manifest, so `build/claude-code/` is itself an installable Claude
+Code plugin marketplace:
 
 ```
-build/claude-code/metplot/
-├── .claude-plugin/plugin.json   # manifest with cycle metadata
-├── README.md                    # end-user install + setup instructions
-├── skills/                      # 5 SKILL.md packages from cycle 3
-├── mcp-servers/                 # netcdf_reader + plot_renderer (installable)
-├── .mcp.json                    # MCP launch stanzas (entry-point scripts)
-└── commands/refine.md           # /refine placeholder (full impl: cycle 6)
+build/claude-code/
+├── .claude-plugin/marketplace.json  # marketplace listing metplot
+└── metplot/
+    ├── .claude-plugin/plugin.json   # manifest with cycle metadata
+    ├── README.md                    # end-user install + setup instructions
+    ├── skills/                      # 5 SKILL.md packages from cycle 3
+    ├── mcp-servers/                 # netcdf_reader + plot_renderer (installable)
+    ├── .mcp.json                    # MCP launch stanzas (entry-point scripts)
+    └── commands/                    # /metplot:setup, /metplot:refine
 ```
+
+End users register the build dir as a marketplace and install via
+`/plugin`:
+
+```text
+/plugin marketplace add /absolute/path/to/metplot-agent/build/claude-code
+/plugin install metplot@metplot-local
+```
+
+The marketplace name (`metplot-local`) is exported as
+`MARKETPLACE_NAME` in `build.py`.
 
 ## Skill-refiner + Stop hook
 

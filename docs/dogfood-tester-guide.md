@@ -40,57 +40,70 @@ From the repo root:
 python -m tools.build claude-code
 ```
 
-This produces `build/claude-code/metplot/`. Inspect the contents to
-confirm the build succeeded:
+This produces a self-contained marketplace at `build/claude-code/`:
 
 ```bash
+ls build/claude-code/
+# expect: .claude-plugin/  metplot/
+
 ls build/claude-code/metplot/
 # expect: .claude-plugin/  .mcp.json  README.md  commands/  hooks/
 #         mcp-servers/  setup.ps1  setup.sh  skills/
 ```
 
-### 2. Install into Claude Code's plugin directory
+The sibling `.claude-plugin/marketplace.json` makes
+`build/claude-code/` an installable Claude Code plugin marketplace.
 
-```bash
-cp -r build/claude-code/metplot ~/.claude/plugins/
+> **Note on earlier guides.** Some older docs and the placeholder
+> install README told testers to `cp -r build/claude-code/metplot
+> ~/.claude/plugins/`. That path no longer registers the plugin with
+> Claude Code's plugin manager — the marketplace flow below is the
+> only working install path. If you tried the copy path first, see
+> §"Recovering from a manual-copy install" at the end of this section.
+
+### 2. Register the marketplace
+
+In Claude Code (any session), run:
+
+```text
+/plugin marketplace add /absolute/path/to/metplot-agent/build/claude-code
 ```
 
-If `~/.claude/plugins/metplot/` already exists from a previous
-install, remove it first or merge intentionally:
+Replace the path with the absolute path to your checkout. Claude Code
+reads `build/claude-code/.claude-plugin/marketplace.json` and adds
+the marketplace under the name `metplot-local`.
 
-```bash
-rm -rf ~/.claude/plugins/metplot
-cp -r build/claude-code/metplot ~/.claude/plugins/
+### 3. Install the plugin
+
+```text
+/plugin install metplot@metplot-local
 ```
 
-### 3. Run the bundled installer
-
-```bash
-~/.claude/plugins/metplot/setup.sh
-```
-
-This installs the MCP servers (`netcdf-reader`, `plot-renderer`) and
-their Python dependencies (xarray, matplotlib, cartopy). The script is
-idempotent — safe to re-run after a rebuild. Pass `--no-cartopy` or
-`--no-scipy` to opt out of optional packages.
-
-The cycle-5 SessionStart hook auto-fires `setup.sh --quiet` on each
-new Claude Code session, so manual invocation is only needed for the
-first install or after a `tools.build` rebuild changes the bundled
-MCP server source.
+Claude Code stages the plugin into its plugin cache and updates
+`~/.claude/plugins/installed_plugins.json`.
 
 ### 4. Restart Claude Code
 
-Restart so it picks up the new plugin manifest, MCP server
-registration, and any hooks. Verify load by typing `/` in the prompt
-and checking that `/metplot:setup` and `/refine` (or `/metplot:refine`
-on cycle 6+) appear in the slash command list.
+The bundled `SessionStart` hook fires `setup.sh --quiet` on the next
+session, which installs the MCP servers (`netcdf-reader`,
+`plot-renderer`) and their Python dependencies (xarray, matplotlib,
+cartopy). The script is idempotent — safe across rebuilds. Pass
+`--no-cartopy` or `--no-scipy` to opt out of optional packages by
+running `setup.sh` manually before or after the auto-fire.
+
+Manual invocation is only needed if you want to skip optional
+packages, repair a broken environment, or pre-install before the
+first session. Find the script under the plugin cache that
+Claude Code populated, e.g.
+`~/.claude/plugins/cache/metplot-local/metplot/<version>/setup.sh`.
 
 ### 5. Sanity check
 
-In a new Claude Code session, run:
+Verify the plugin loaded by typing `/` in the prompt and checking that
+`/metplot:setup` and `/metplot:refine` appear in the slash-command
+list. Then in a fresh Claude Code session, run:
 
-```
+```text
 > /metplot:setup
 ```
 
@@ -99,7 +112,7 @@ what's missing.
 
 Then:
 
-```
+```text
 > List available metplot skills
 ```
 
@@ -110,6 +123,25 @@ On cycle 6+, also `skill-refiner`.
 If any of these steps fail, log it as a `failure_mode` finding and
 stop the install attempt — the dogfood session can't begin until the
 sanity check passes.
+
+### Recovering from a manual-copy install
+
+If you previously followed the older `cp -r build/claude-code/metplot
+~/.claude/plugins/` instructions, those files won't be discovered by
+Claude Code's plugin manager and may collide with the marketplace
+install. Clean up before running step 2:
+
+```bash
+rm -rf ~/.claude/plugins/metplot
+# If you also hand-edited installed_plugins.json, restore from the
+# auto-created backup (the plugin manager writes one when it detects
+# a new entry it didn't author):
+[ -f ~/.claude/plugins/installed_plugins.json.bak-before-metplot ] \
+  && cp ~/.claude/plugins/installed_plugins.json.bak-before-metplot \
+        ~/.claude/plugins/installed_plugins.json
+```
+
+Then proceed with step 2.
 
 ## Test data
 
