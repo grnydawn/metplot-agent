@@ -89,14 +89,28 @@ def detect_python() -> Path:
     """Return the Python interpreter to install into.
 
     Order:
-      1. ${VIRTUAL_ENV}/bin/python (if set)
-      2. The Python running install_deps.py itself (if >= 3.10)
+      1. ${VIRTUAL_ENV}/{bin|Scripts}/python (if set and present)
+      2. A `.venv/` walking up from cwd (mirrors uv's auto-detection
+         so the launcher's hardcoded Python matches where uv routed
+         the install — otherwise dev environments with a project-
+         local `.venv/` get a launcher pointing at system Python
+         while packages live in the venv)
+      3. The Python running install_deps.py itself (if >= 3.10)
 
     Raises EnvironmentError_ if none usable.
     """
+    bin_dir = "Scripts" if os.name == "nt" else "bin"
+    exe = "python.exe" if os.name == "nt" else "python"
+
     venv = os.environ.get("VIRTUAL_ENV")
     if venv:
-        candidate = Path(venv) / "bin" / "python"
+        candidate = Path(venv) / bin_dir / exe
+        if candidate.exists():
+            return candidate
+
+    cwd = Path.cwd()
+    for d in [cwd, *cwd.parents]:
+        candidate = d / ".venv" / bin_dir / exe
         if candidate.exists():
             return candidate
 
