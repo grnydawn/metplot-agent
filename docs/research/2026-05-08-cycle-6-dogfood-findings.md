@@ -3,12 +3,13 @@
 > Phase A of cycle 6 (see `docs/specs/2026-05-08-cycle-6-self-improvement-loop.md`).
 > Format and category definitions: `docs/dogfood-tester-guide.md`.
 
-Sessions: 3   Time invested: 50 min
+Sessions: 3   Time invested: 65 min
 Files exercised:
 - `.scratch/synthetic_tas.nc` (synthetic monthly-mean tas, 2024, 73×144 grid, CF-1.7) — sanity check (c) only
 - `ocn.hist.0001-02-01_00.00.00.nc` (MPAS-Ocean / Omega `IOStreamsTest` fixture; 7153 cells × 60 vertical layers; unstructured Voronoi; TEOS-10 conservative-temperature + absolute-salinity vocabulary; convention CF low-confidence)
 - `cice.nc` (CICE5/6 restart file; 235160 cells, flattened to `ni=235160, nj=1`; 31 variables, all `units=null long_name=null standard_name=null`; convention `unknown` confidence 1.0; no `Conventions` attribute)
 - `eamxx.nc` (E3SM EAMxx / SCREAM v1.0.0 atmospheric **restart**; `product: model-restart`; dual-grid — physics `ncol=39620` and spectral-element `elem × gp × gp = 9905 × 4 × 4`; 72 model levels; declares `Conventions: CF-1.8` but most `standard_name` and `long_name` are the literal string `"MISSING"`)
+- `ocean_mesh.nc` (MPAS-Ocean canonical **mesh file** matching the `ocn.hist.*` history above; 7153 cells × 60 vertical levels; `Conventions: MPAS`; carries the `latCell`/`lonCell`/`latEdge`/`lonEdge`/`latVertex`/`lonVertex` coordinates + cell connectivity that the history file lacks; `Time=1` dim but no time variable; `config_calendar_type: gregorian_noleap`)
 
 ## alias
 
@@ -94,6 +95,15 @@ Files exercised:
 - **Plugin behavior:** `precip_liq_surf_mass` reports units `kg/(m^2)` — a mass-per-area (i.e. instantaneous accumulated mass, not a rate). User-familiar precipitation units are `mm/day` or `mm/hr`. Plotting `precip_liq_surf_mass` as-is on a map labeled "precipitation" would be off by a unit-conversion factor and a time-integration semantics shift.
 - **Confidence:** high. Common pattern across E3SM/CESM atmospheric output (raw flux in SI, user expects derived rate).
 - **Should the loop have remembered:** yes — Pitfall in `netcdf-plot-map`/`netcdf-plot-timeseries`: when a variable's units are mass-per-area (`kg/m²`) but the user asks for "precipitation", offer or default-apply a conversion to `mm/day` (dividing by water density 1000 kg/m³ and the time step) and surface the assumption.
+
+### MPAS files come in pairs — history (or restart) plus a separate mesh
+- **Date:** 2026-05-11
+- **Files:** `ocn.hist.0001-02-01_00.00.00.nc` (history; no coords) + `ocean_mesh.nc` (mesh; has `lat*`/`lon*` and connectivity). Same `nCells=7153, nEdges=22403, nVertLevels=60` dimensions — clearly the matching pair.
+- **Plugin behavior:** The inspect tool treats each file independently. Looking at the history alone, `spatial: null`, no clue that a sibling mesh would unlock coordinates. Looking at the mesh alone, the geometry is there but the actual data fields the user wants to plot (`Temperature`, `Salinity`, time series) live in the history.
+- **Plotting impact:** To plot any MPAS-Ocean (or MPAS-Atmosphere or MPAS-Seaice) field, the renderer needs to join the two files at load time — pull `temperature[t, cell, level]` from the history, look up `lonCell[cell]` and `latCell[cell]` from the mesh, and either render at cell centers (scatter / hex) or as Voronoi polygons via `verticesOnCell` + `lonVertex/latVertex`. Cycle-3 has no concept of multi-file loads for plotting.
+- **Naming convention to lean on:** MPAS conventions typically name the mesh `*_mesh.nc` / `ocean.mesh.*.nc` / `init.nc` and the history `*.hist.<date>.nc` / `output.<date>.nc`. The pair shares dimensions exactly.
+- **Confidence:** high. This is the canonical MPAS workflow across MPAS-Ocean, MPAS-A, MPAS-Seaice, and E3SM (which embeds them).
+- **Should the loop have remembered:** yes — Pitfall in `netcdf-inspect/SKILL.md` and a corresponding workflow note in `netcdf-plot-map/SKILL.md`. When inspecting an MPAS history with no coords, look for a sibling mesh file (same basename pattern, exact-matching dimensions) and surface it as "to plot this you also need: `<path-to-mesh>`". When the user asks to plot, prompt for the mesh path if not already provided. Longer-term this needs a plotting code path that actually understands unstructured meshes (out of scope for cycle 6; the *finding-and-pairing* part is in scope).
 
 ## user_pref
 
@@ -188,6 +198,29 @@ workaround in the dogfood guide is a stopgap for Phase A only.
 - **Impact:** Downstream code that gates on `convention.confidence == "high"` will treat this as a well-described CF file and may skip fallback heuristics. The user-facing summary doesn't distinguish "header claims CF" from "actually CF-compliant".
 - **Confidence:** medium. Single instance so far; need to check whether this pattern recurs in other model output.
 - **Should the loop have remembered:** partial — refinement could update the inspect output's confidence-scoring rules. A quick spot-check (e.g., sample 5–10 variable `standard_name` values against the CF standard-name table) would let the inspect tool downgrade confidence on `Conventions: CF-X.Y`-but-stub-`standard_name` files.
+
+### `netcdf-reader.inspect` raises `internal_error` on MPAS mesh file (time-decode crash, no graceful fallback)
+- **Date:** 2026-05-11
+- **Files:** `ocean_mesh.nc`
+- **Scenario:** First-time inspect of an MPAS-Ocean mesh file (`Conventions: MPAS`, `Time=1` dim but no time variable, calendar attr `gregorian_noleap`, start-time attr `0000-01-01_00:00:00`).
+- **Plugin behavior:** The inspect tool returned:
+  ```
+  {"ok": false, "error": {"code": "internal_error",
+   "message": "bad arguments for inspect: input must have type NumPy datetime",
+   "context": {"args": ["path"]}}, "warnings": []}
+  ```
+  This is the inspect tool's internal time-decode pipeline crashing — likely from `xarray.decode_cf` or a cftime conversion when the file declares a `Time` dim but ships no time *coordinate*, combined with the unusual `gregorian_noleap` calendar attr.
+- **Contract violation:** the inspect tool's response contract has structured subcodes (`ssh_auth_needed`, `file_not_found`, etc.). `internal_error` with a raw Python exception message leaking through is not in that contract — it's a crash, not graceful failure. The agent has no actionable next step.
+- **Confidence:** high. Reproducible. The file is a real, common MPAS-Ocean mesh file shape; not pathological.
+- **Should the loop have remembered:** yes — `failure_mode` Pitfall in `netcdf-inspect/SKILL.md`. The inspect implementation needs (a) to tolerate `Time` dim without a time variable (return `time: null` rather than crashing), (b) to handle `gregorian_noleap` and year-0 timestamps without raising, and (c) to wrap time-decode failures in a structured `time_decode_failed` subcode rather than letting `internal_error` escape.
+
+### `Conventions: MPAS` is not in the convention-detection table
+- **Date:** 2026-05-11
+- **Files:** `ocean_mesh.nc` (`Conventions: MPAS` explicitly), `ocn.hist.0001-02-01_00.00.00.nc` (also MPAS-family by dim signature, no `Conventions` attr present)
+- **Plugin behavior:** The inspect tool's convention detector handles CF/WRF/ROMS but not MPAS. When the file declares `Conventions: MPAS`, the detector falls back to `unknown` (or crashes upstream of detection in the mesh case). The earlier history file with `nCells/nEdges/nVertLayers` dim signature was tagged `CF` with low confidence — the actual answer is "MPAS, high confidence" via either the `Conventions` attr or the dim fingerprint.
+- **Plotting impact:** Without convention identification, downstream skills can't load MPAS-specific knowledge: that mesh files come separately, that `nCells` is an unstructured-cell axis (not a flattened lat/lon), that variables like `temperature`/`salinity` use TEOS-10 semantics, and that the mesh-history file pairing is needed to render.
+- **Confidence:** high. MPAS is a documented, widely-used convention (MPAS-Ocean, MPAS-Atmosphere, MPAS-Seaice — all of E3SM and several CESM components). The detection signals are unambiguous.
+- **Should the loop have remembered:** partial — the *detection rule* belongs in `netcdf-reader` source (Python conventions module), not a refiner-target. Refiner can add the *downstream knowledge* (Pitfalls in `netcdf-inspect/SKILL.md`: "if `Conventions: MPAS` or dims include `nCells`/`nEdges`, expect unstructured Voronoi mesh in a separate file"). A separate ticket should add the MPAS branch to the convention detector.
 
 ## Uncategorized
 
