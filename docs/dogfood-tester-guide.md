@@ -4,6 +4,13 @@ Evergreen guide for running dogfood test sessions against a built
 metplot target. Currently used for cycle 6 (Phase A); reusable for any
 future dogfood pass.
 
+> **Findings don't go in this file.** They go in a dated cycle-scoped
+> findings doc at `docs/research/<date>-cycle-<N>-dogfood-findings.md`
+> (currently `docs/research/2026-05-08-cycle-6-dogfood-findings.md`).
+> This guide is evergreen — it carries the *process*. Findings are a
+> per-cycle artifact that gets frozen when the cycle wraps. See
+> §"Where to log findings" below for the format and the redirect.
+
 ## What dogfooding is for
 
 Dogfooding stress-tests the *built plugin payload* against real NetCDF
@@ -439,10 +446,12 @@ This scenario *is* the validation of the closed-loop layer once it
 ships. Findings here go into the `failure_mode` category for the
 refiner skill itself.
 
-## Findings template
+## Where to log findings (and template)
 
-Drop your findings into the cycle's findings doc — for cycle 6, that's
-`docs/research/2026-05-08-cycle-6-dogfood-findings.md`. Format:
+Drop your findings into the cycle's findings doc — **not into this
+guide**. For cycle 6, that's
+`docs/research/2026-05-08-cycle-6-dogfood-findings.md`. (Future cycles
+will get their own dated file under `docs/research/`.) Format:
 
 ```markdown
 # Cycle 6 dogfood findings
