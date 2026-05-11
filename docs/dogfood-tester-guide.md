@@ -257,6 +257,27 @@ ds.to_netcdf("synthetic_tas.nc")
 This gives you a file that exercises map plots, time series, and
 basic variable resolution.
 
+### How to reference files in prompts
+
+**Use absolute paths.** When you prompt the agent like "inspect the
+file at X" or "plot variable Y from file Z," give X/Z as an absolute
+filesystem path:
+
+> Inspect the file at `/home/me/data/ocn.hist.0001-02-01.nc`.
+
+**The `@`-prefix file-attachment shorthand does not currently work.**
+Typing `@ocn.hist.0001-02-01.nc` in the Claude Code prompt — which
+visually looks like attaching the file — does not pass a usable
+filesystem path to the MCP tools. The agent only sees the literal
+bare filename string, and the `netcdf-reader.inspect` tool then has
+no anchored path to open. This is a Claude Code UI/MCP integration
+gap, not a metplot bug, but it bites every tester on first try.
+
+If you find yourself typing `@…` out of habit, replace it with the
+absolute path in the same prompt. (For local convenience, dropping
+test files into a known directory and referring to them by absolute
+path is the friction-free option.)
+
 ### What to avoid
 
 - Files larger than ~500 MB unless you specifically want to test slow
