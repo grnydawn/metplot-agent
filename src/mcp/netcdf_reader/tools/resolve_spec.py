@@ -34,6 +34,7 @@ def resolve_spec(
     regrid: str | None = None,
     adapter: FormatAdapter,
     ssh_config: dict[str, Any] | None = None,
+    mesh_path: str | None = None,
 ) -> dict[str, Any]:
     try:
         cls = classify(path)
@@ -46,6 +47,40 @@ def resolve_spec(
     except FileNotFoundError as e:
         return envelope.error(envelope.ErrorCode.FILE_NOT_FOUND, str(e),
                               context={"path": path})
+
+    # Cycle 8 task 4: when paired with a mesh file, validate the
+    # dim-match before doing any variable work. Mesh data isn't
+    # needed at the spec-resolution layer (just sanity-check it
+    # pairs cleanly with the history file).
+    if mesh_path is not None:
+        try:
+            cls_mesh = classify(mesh_path)
+        except ClassifyError as e:
+            ds.close()
+            return envelope.error(
+                envelope.ErrorCode.FILE_NOT_FOUND, str(e),
+                context={"mesh_path": mesh_path})
+        try:
+            mesh_ds = adapter.open(cls_mesh.paths or [mesh_path],
+                                    ssh_config=ssh_config)
+        except FileNotFoundError as e:
+            ds.close()
+            return envelope.error(
+                envelope.ErrorCode.FILE_NOT_FOUND, str(e),
+                context={"mesh_path": mesh_path})
+        try:
+            from src.mcp.netcdf_reader.paths.mesh_pair import (
+                validate_mesh_pair,
+            )
+            err = validate_mesh_pair(ds, mesh_ds)
+        finally:
+            mesh_ds.close()
+        if err:
+            ds.close()
+            return envelope.error(
+                envelope.ErrorCode.MULTI_FILE_COMBINE_FAILED,
+                f"history/mesh dim mismatch: {err}",
+                context={"path": path, "mesh_path": mesh_path})
 
     try:
         if variable not in ds.data_vars:
@@ -109,9 +144,13 @@ def resolve_spec(
 
         # --- level ---
         if level is not None:
+            # MPAS-family files use NVertLayers (history) / nVertLevels
+            # (mesh); recognized case-insensitively.
+            v_dim_set_lower = {"plev", "lev", "level", "altitude", "z",
+                                "bottom_top", "s_rho", "s_w",
+                                "nvertlayers", "nvertlevels"}
             v_dim = next((d for d in da.dims
-                          if d in ("plev", "lev", "level", "altitude", "z",
-                                   "bottom_top", "s_rho", "s_w")), None)
+                          if str(d).lower() in v_dim_set_lower), None)
             if v_dim is None:
                 return envelope.error(envelope.ErrorCode.NOT_4D,
                                       f"variable {variable} has no vertical dim",
