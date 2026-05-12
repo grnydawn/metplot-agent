@@ -88,10 +88,29 @@ def render_map(spec: dict[str, Any]) -> dict[str, Any]:
 
     Cycle-8 §3.4 added an `unstructured` branch: when the spec
     includes a `mesh_path`, values are interpreted as a 1-D
-    cell-centered MPAS field and the renderer dispatches to
-    `_render_unstructured_map`. Geometry comes from the mesh file."""
+    cell-centered field and the renderer dispatches to the
+    unstructured branch. Geometry comes from the mesh file.
+
+    Cycle-9 §3.4 extends the unstructured branch with auto-dispatch:
+    MPAS-shaped meshes (uxarray-readable) still flow through the
+    Voronoi polygon path; CICE grids (TLAT/TLON on (nj, ni)) flow
+    through pcolormesh; EAMxx physics grids (lat[ncol]/lon[ncol])
+    flow through scatter. Dycore-axis variables refuse via a
+    grid_kind="dycore_spectral" hint in the spec.
+    """
     if not _CARTOPY_OK:
         return _cartopy_ambiguity()
+
+    # Cycle 9: dycore-axis variables get an early-exit refusal
+    # before we attempt any rendering.
+    if spec.get("grid_kind") == "dycore_spectral":
+        return envelope.error(
+            "unstructured_dycore_unsupported",
+            "EAMxx dycore spectral-element variables (elem×gp×gp) "
+            "are not plottable in cycle 9; deferred to cycle 10+. "
+            "Pick a physics-axis variable (ncol-axis) instead.",
+            context={"requested_grid_kind": "dycore_spectral"},
+        )
 
     if spec.get("mesh_path"):
         return _render_unstructured_map(spec)
@@ -304,23 +323,57 @@ def render_map(spec: dict[str, Any]) -> dict[str, Any]:
             plt.close(fig)
 
 
-def _render_unstructured_map(spec: dict[str, Any]) -> dict[str, Any]:
-    """Cycle 8 §3.4 — Voronoi-cell polygon-fill renderer for MPAS
-    unstructured meshes.
+def _peek_grid_kind(mesh_path: str) -> str:
+    """Inspect a mesh/grid file and decide which unstructured render
+    path to use.
 
-    Spec shape:
-      - `values`: 1-D list/array of cell-centered field values
-        (length must equal mesh's n_face).
-      - `mesh_path`: path to the MPAS mesh file (has latCell /
-        lonCell / verticesOnCell etc.).
-      - Standard style fields (colormap, projection, title,
-        output_path, vmin/vmax/clip_pct).
-
-    Uses uxarray's `uxgrid.to_polycollection()` (Phase A primary
-    library). Reaches around the DataArray-level
-    `.to_polycollection(cache=False)` bug present in uxarray
-    v2026.04.1.
+    Returns one of:
+      - "cice"   — TLAT(nj, ni) / TLON(nj, ni) present → pcolormesh.
+      - "eamxx"  — lat(ncol) / lon(ncol) 1-D present → scatter.
+      - "mpas"   — fallback / uxarray-recognizable Voronoi mesh.
     """
+    import xarray as xr  # type: ignore[import-untyped]
+    try:
+        ds = xr.open_dataset(mesh_path, decode_times=False)
+    except (FileNotFoundError, OSError):
+        # Defer the error to the MPAS path's open_grid call so the
+        # caller gets the cycle-8 `mesh_path_unreadable` envelope.
+        return "mpas"
+    try:
+        if ("TLAT" in ds.variables and "TLON" in ds.variables
+                and "nj" in ds.dims and "ni" in ds.dims):
+            return "cice"
+        if ("lat" in ds.variables and "lon" in ds.variables
+                and ds["lat"].ndim == 1
+                and ds["lon"].ndim == 1
+                and "ncol" in ds.dims):
+            return "eamxx"
+        return "mpas"
+    finally:
+        ds.close()
+
+
+def _render_unstructured_map(spec: dict[str, Any]) -> dict[str, Any]:
+    """Cycle 8 §3.4 + cycle 9 §3.4 — auto-dispatching unstructured
+    map renderer.
+
+    Routes by mesh-file shape:
+      - CICE (TLAT/TLON on (nj, ni)) → pcolormesh after 2-D reshape.
+      - EAMxx physics (lat/lon 1-D on ncol) → scatter.
+      - MPAS Voronoi (anything uxarray can read) → polygon fill.
+    """
+    grid_kind = _peek_grid_kind(spec["mesh_path"])
+    if grid_kind == "cice":
+        return _render_cice_grid(spec)
+    if grid_kind == "eamxx":
+        return _render_eamxx_grid(spec)
+    return _render_mpas_voronoi(spec)
+
+
+def _render_mpas_voronoi(spec: dict[str, Any]) -> dict[str, Any]:
+    """Cycle 8 §3.4 — Voronoi-cell polygon-fill renderer for MPAS
+    unstructured meshes. Uses uxarray's `uxgrid.to_polycollection()`
+    (Phase A primary library)."""
     try:
         import uxarray as ux
     except ImportError as e:
@@ -537,6 +590,333 @@ def _render_unstructured_map(spec: dict[str, Any]) -> dict[str, Any]:
             "oracle": ocl,
         }, warnings=warnings)
 
+    except Exception as e:
+        return envelope.error("internal_render_error",
+                              f"{type(e).__name__}: {e}")
+    finally:
+        if fig is not None:
+            plt.close(fig)
+
+
+def _common_unstructured_safety_and_style(
+    spec: dict[str, Any], values: "np.ndarray",
+) -> tuple[
+    dict[str, Any], Any, str, float, float, bool, list[dict[str, Any]],
+    dict[str, Any], dict[str, Any] | None,
+]:
+    """Shared style + safety pipeline for the cell-centered unstructured
+    branches (CICE + EAMxx). Returns (resolved, proj, cmap_name, vmin,
+    vmax, clip_applied, warnings, trace, error_envelope_or_None)."""
+    warnings: list[dict[str, Any]] = []
+    resolved, trace = style.apply(spec, spec.get("style_template"))
+    resolved = _resolve_presentation(resolved)
+    cmap_name = resolved.get("colormap", "viridis")
+    if not colormap_registry.is_known_cmap(cmap_name):
+        return ({}, None, cmap_name, 0.0, 0.0, False, warnings, trace,
+                envelope.ambiguous(
+                    subcode="unknown_colormap",
+                    message=f"unknown colormap: {cmap_name!r}",
+                    candidates=[{"param": "colormap", "value": "viridis"},
+                                {"param": "colormap", "value": "RdBu_r"}],
+                    retry_with_param="colormap",
+                    context={"requested": cmap_name}))
+    proj_name = resolved.get("projection", "PlateCarree")
+    try:
+        proj = _make_projection(proj_name)
+    except _UnknownProjection:
+        return ({}, None, cmap_name, 0.0, 0.0, False, warnings, trace,
+                envelope.ambiguous(
+                    subcode="unknown_projection",
+                    message=f"unknown projection: {proj_name!r}",
+                    candidates=[{"param": "projection", "value": p}
+                                for p in _PROJECTION_CLASSES],
+                    retry_with_param="projection",
+                    context={"requested": proj_name}))
+    nan = safety.nan_assessment(values)
+    if nan["all_nan"]:
+        return ({}, None, cmap_name, 0.0, 0.0, False, warnings, trace,
+                envelope.ambiguous(
+                    subcode="all_nan",
+                    message="every cell is NaN; nothing to plot",
+                    candidates=[
+                        {"param": "time", "value": "different time index"}],
+                    retry_with_param="time",
+                    context={"nan_fraction": 1.0}))
+    if nan["high_nan_fraction"]:
+        warnings.append(envelope.warn(
+            WarningCode.HIGH_NAN_FRACTION,
+            f"{nan['nan_fraction']:.0%} of cells are NaN",
+            {"nan_fraction": nan["nan_fraction"]}))
+    const, const_value = safety.is_constant_field(values)
+    if const and const_value is not None:
+        warnings.append(envelope.warn(
+            WarningCode.CONSTANT_FIELD,
+            "field has zero variation",
+            {"value": const_value}))
+    clip_pct = spec.get("clip_pct") or resolved.get("clip_pct")
+    clip_pct_tuple = tuple(clip_pct) if clip_pct is not None else None
+    vmin, vmax, clip_applied = safety.percentile_clip_if_extreme(
+        values,
+        vmin=spec.get("vmin"), vmax=spec.get("vmax"),
+        clip_pct=clip_pct_tuple,
+    )
+    if clip_applied:
+        warnings.append(envelope.warn(
+            WarningCode.PERCENTILE_CLIP_APPLIED,
+            f"applied percentile clip [{vmin:.3g}, {vmax:.3g}]",
+            {"vmin": vmin, "vmax": vmax}))
+    return (resolved, proj, cmap_name, float(vmin), float(vmax),
+            clip_applied, warnings, trace, None)
+
+
+def _save_and_oracle_unstructured(
+    fig: Any, ax: Any, values: "np.ndarray", spec: dict[str, Any],
+    resolved: dict[str, Any], trace: dict[str, Any],
+    proj_name: str, cmap_name: str, vmin: float, vmax: float,
+    clip_applied: bool, warnings: list[dict[str, Any]],
+    grid_kind_label: str, n_cells: int, mesh_path: str,
+    coastlines_drawn: bool,
+) -> dict[str, Any]:
+    fmt = resolved.get("format", "png")
+    dpi = int(resolved.get("dpi", 150))
+    lifecycle.validate_dpi(dpi)
+    if spec.get("output_path"):
+        try:
+            output_path = lifecycle.resolve_output_path(
+                spec["output_path"], fmt=spec.get("format"))
+        except lifecycle.FormatExtensionMismatch as e:
+            return envelope.error("format_extension_mismatch", str(e))
+        except lifecycle.UnsupportedFormat as e:
+            return envelope.error("unsupported_format", str(e))
+        except lifecycle.OutputPathInvalid as e:
+            return envelope.error("output_path_invalid", str(e))
+    else:
+        output_path = lifecycle.auto_name(tool="map", spec=spec, fmt=fmt)
+    try:
+        size_bytes = lifecycle.atomic_save(fig, output_path, dpi=dpi)
+    except OSError as e:
+        return envelope.error("output_dir_unwritable", str(e))
+    nan_fraction = float(np.isnan(values).sum()) / max(values.size, 1)
+    clip_pct = spec.get("clip_pct") or resolved.get("clip_pct")
+    sa = {
+        "plotted_min": (float(np.nanmin(values))
+                        if np.isfinite(values).any() else None),
+        "plotted_max": (float(np.nanmax(values))
+                        if np.isfinite(values).any() else None),
+        "nan_fraction": nan_fraction,
+        "applied_downsample": None,
+        "applied_lon_shift": False,
+        "applied_clip_pct":
+            list(clip_pct) if (clip_applied and clip_pct) else
+            ([2.0, 98.0] if clip_applied else None),
+        "vmin_used": float(vmin),
+        "vmax_used": float(vmax),
+    }
+    ocl = oracle.capture_common(
+        fig=fig, tool="render_map",
+        resolved_spec=resolved,
+        style_resolution_sources=_sources(spec, trace),
+        safety_actions=sa, output_path=output_path,
+        output_size_bytes=size_bytes,
+        data_shape=list(values.shape))
+    ocl["drawn"] = oracle.drawn_for_map(
+        fig=fig, ax=ax,
+        projection_class=proj_name,
+        extent=None,
+        coastlines_drawn=coastlines_drawn,
+        colorbar_label=spec.get("colorbar_label"))
+    ocl["drawn"]["grid_kind"] = grid_kind_label
+    ocl["drawn"]["n_cells"] = int(n_cells)
+    ocl["drawn"]["mesh_path"] = mesh_path
+    ocl["style_template_applied"] = (
+        oracle.style_template_applied_block(
+            template=spec.get("style_template"), trace=trace))
+    return envelope.success({
+        "output_path": str(output_path),
+        "format": fmt,
+        "size_bytes": size_bytes,
+        "plotted_min": sa["plotted_min"],
+        "plotted_max": sa["plotted_max"],
+        "plotted_shape": list(values.shape),
+        "applied_downsample": None,
+        "applied_lon_shift": False,
+        "nan_fraction": sa["nan_fraction"],
+        "oracle": ocl,
+    }, warnings=warnings)
+
+
+def _render_cice_grid(spec: dict[str, Any]) -> dict[str, Any]:
+    """Cycle 9 §3.4 — CICE 2-D-reshape pcolormesh renderer."""
+    import xarray as xr  # type: ignore[import-untyped]
+    mesh_path = spec["mesh_path"]
+    fig = None
+    try:
+        try:
+            mesh_ds = xr.open_dataset(mesh_path, decode_times=False)
+        except (FileNotFoundError, OSError) as e:
+            return envelope.error(
+                "mesh_path_unreadable",
+                f"could not open mesh_path {mesh_path!r}: {e}")
+        try:
+            tlat = np.asarray(mesh_ds["TLAT"].values, dtype="float64")
+            tlon = np.asarray(mesh_ds["TLON"].values, dtype="float64")
+            g_nj = int(mesh_ds.sizes["nj"])
+            g_ni = int(mesh_ds.sizes["ni"])
+        finally:
+            mesh_ds.close()
+        n_cells = g_nj * g_ni
+        values = np.asarray(spec.get("values"), dtype="float64").reshape(-1)
+        if values.size != n_cells:
+            return envelope.error(
+                "shape_mismatch",
+                f"values length {values.size} != grid nj*ni "
+                f"{n_cells} — wrong grid for this slice?")
+        values_2d = values.reshape(g_nj, g_ni)
+
+        (resolved, proj, cmap_name, vmin, vmax, clip_applied,
+         warnings, trace, early) = (
+            _common_unstructured_safety_and_style(spec, values))
+        if early is not None:
+            return early
+
+        fig = plt.figure(figsize=(8.0, 5.0))
+        ax = fig.add_subplot(1, 1, 1, projection=proj)
+        cmap = plt.get_cmap(cmap_name).copy()
+        cmap.set_bad(alpha=0.0)
+        masked = np.ma.masked_invalid(values_2d)
+        ax.pcolormesh(
+            tlon, tlat, masked,
+            transform=ccrs.PlateCarree(),
+            cmap=cmap, vmin=vmin, vmax=vmax,
+            rasterized=True, shading="auto",
+        )
+        ax.set_global()
+        coastlines_drawn = False
+        try:
+            ax.add_feature(cfeature.COASTLINE, linewidth=0.5)
+            coastlines_drawn = True
+        except Exception:
+            pass
+        if resolved.get("gridlines") != "none":
+            ax.gridlines(draw_labels=False, linewidth=0.3, alpha=0.4)
+        cbar_pos = resolved.get("colorbar_position") or "right"
+        if cbar_pos != "none":
+            from matplotlib import cm as _cm
+            from matplotlib.colors import Normalize
+            sm = _cm.ScalarMappable(
+                norm=Normalize(vmin=vmin, vmax=vmax), cmap=cmap)
+            orientation = ("horizontal"
+                            if cbar_pos in ("top", "bottom")
+                            else "vertical")
+            cb = fig.colorbar(sm, ax=ax, orientation=orientation,
+                              fraction=0.04, pad=0.04)
+            if spec.get("colorbar_label"):
+                cb.set_label(spec["colorbar_label"])
+        if spec.get("title"):
+            ax.set_title(spec["title"])
+        fig.tight_layout()
+
+        proj_name = resolved.get("projection", "PlateCarree")
+        return _save_and_oracle_unstructured(
+            fig=fig, ax=ax, values=values, spec=spec,
+            resolved=resolved, trace=trace,
+            proj_name=proj_name, cmap_name=cmap_name,
+            vmin=vmin, vmax=vmax, clip_applied=clip_applied,
+            warnings=warnings,
+            grid_kind_label="unstructured_cice",
+            n_cells=n_cells, mesh_path=mesh_path,
+            coastlines_drawn=coastlines_drawn,
+        )
+    except Exception as e:
+        return envelope.error("internal_render_error",
+                              f"{type(e).__name__}: {e}")
+    finally:
+        if fig is not None:
+            plt.close(fig)
+
+
+def _render_eamxx_grid(spec: dict[str, Any]) -> dict[str, Any]:
+    """Cycle 9 §3.4 — EAMxx physics-grid scatter renderer."""
+    import xarray as xr  # type: ignore[import-untyped]
+    mesh_path = spec["mesh_path"]
+    fig = None
+    try:
+        try:
+            mesh_ds = xr.open_dataset(mesh_path, decode_times=False)
+        except (FileNotFoundError, OSError) as e:
+            return envelope.error(
+                "mesh_path_unreadable",
+                f"could not open mesh_path {mesh_path!r}: {e}")
+        try:
+            lat = np.asarray(mesh_ds["lat"].values, dtype="float64")
+            lon = np.asarray(mesh_ds["lon"].values, dtype="float64")
+            ncol = int(mesh_ds.sizes["ncol"])
+        finally:
+            mesh_ds.close()
+        values = np.asarray(spec.get("values"), dtype="float64").reshape(-1)
+        if values.size != ncol:
+            return envelope.error(
+                "shape_mismatch",
+                f"values length {values.size} != grid ncol {ncol} "
+                f"— wrong grid for this slice?")
+
+        (resolved, proj, cmap_name, vmin, vmax, clip_applied,
+         warnings, trace, early) = (
+            _common_unstructured_safety_and_style(spec, values))
+        if early is not None:
+            return early
+
+        fig = plt.figure(figsize=(8.0, 5.0))
+        ax = fig.add_subplot(1, 1, 1, projection=proj)
+        cmap = plt.get_cmap(cmap_name).copy()
+        cmap.set_bad(alpha=0.0)
+        # Point-size scales down as ncol grows so dense grids don't
+        # over-paint.
+        if ncol > 200_000:
+            point_size = 0.5
+        elif ncol > 20_000:
+            point_size = 1.0
+        else:
+            point_size = 4.0
+        sc = ax.scatter(
+            lon, lat, c=values, s=point_size,
+            transform=ccrs.PlateCarree(),
+            cmap=cmap, vmin=vmin, vmax=vmax,
+            edgecolors="none", marker="s",
+        )
+        ax.set_global()
+        coastlines_drawn = False
+        try:
+            ax.add_feature(cfeature.COASTLINE, linewidth=0.5)
+            coastlines_drawn = True
+        except Exception:
+            pass
+        if resolved.get("gridlines") != "none":
+            ax.gridlines(draw_labels=False, linewidth=0.3, alpha=0.4)
+        cbar_pos = resolved.get("colorbar_position") or "right"
+        if cbar_pos != "none":
+            orientation = ("horizontal"
+                            if cbar_pos in ("top", "bottom")
+                            else "vertical")
+            cb = fig.colorbar(sc, ax=ax, orientation=orientation,
+                              fraction=0.04, pad=0.04)
+            if spec.get("colorbar_label"):
+                cb.set_label(spec["colorbar_label"])
+        if spec.get("title"):
+            ax.set_title(spec["title"])
+        fig.tight_layout()
+
+        proj_name = resolved.get("projection", "PlateCarree")
+        return _save_and_oracle_unstructured(
+            fig=fig, ax=ax, values=values, spec=spec,
+            resolved=resolved, trace=trace,
+            proj_name=proj_name, cmap_name=cmap_name,
+            vmin=vmin, vmax=vmax, clip_applied=clip_applied,
+            warnings=warnings,
+            grid_kind_label="unstructured_eamxx",
+            n_cells=ncol, mesh_path=mesh_path,
+            coastlines_drawn=coastlines_drawn,
+        )
     except Exception as e:
         return envelope.error("internal_render_error",
                               f"{type(e).__name__}: {e}")
