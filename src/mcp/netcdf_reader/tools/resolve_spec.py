@@ -267,7 +267,7 @@ def resolve_spec(
         # uses NCells (history) / nCells (mesh). Cycle 11 is
         # MPAS-only; CICE/EAMxx cell-axis selectors are cycle 12+.
         cell_dim = next((d for d in da.dims
-                         if str(d).lower() == "ncells"), None)
+                         if str(d).lower() in ("ncells", "ni", "ncol")), None)
         if cell_index is not None:
             if cell_dim is None:
                 return envelope.error(
@@ -405,11 +405,11 @@ def resolve_spec(
                 shape.append(hi - lo + 1)
             elif d in ("lon", "longitude", "x") and "lon_index" in resolved:
                 shape.append(1)
-            elif (str(d).lower() == "ncells"
+            elif (str(d).lower() in ("ncells", "ni", "ncol")
                   and "cell_index" in resolved):
                 # cell_index reduces the cell axis to a scalar.
                 shape.append(1)
-            elif (str(d).lower() == "ncells"
+            elif (str(d).lower() in ("ncells", "ni", "ncol")
                   and "cell_indices" in resolved):
                 shape.append(len(resolved["cell_indices"]))
             else:

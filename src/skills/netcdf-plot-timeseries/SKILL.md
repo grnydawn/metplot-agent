@@ -194,6 +194,58 @@ render_timeseries({
 })
 ```
 
+### Multi-cell overlay (cycle 13 theme C)
+
+When the user says "compare these N cells on one plot" or "show
+me the cells at (lat₁,lon₁), (lat₂,lon₂), …" on an unstructured
+mesh, build a multi-series timeseries:
+
+```
+import numpy as np
+indices = [find_nearest_cell(mesh_ds, lat=la, lon=lo)
+            for (la, lo) in user_points]
+
+series = []
+for idx, (la, lo) in zip(indices, user_points):
+    env = read_slice(glob_path, "Temperature", level=0,
+                      cell_index=idx, mesh_path=mesh)
+    series.append({
+        "values": env["result"]["values"],
+        "time":   resolved_time_axis,
+        "label":  f"cell {idx} ({la}°, {lo}°)",
+    })
+
+render_timeseries({"series": series, "ylabel": "degree_C"})
+```
+
+The renderer auto-emits a legend when `series` has more than
+one entry; no extra spec fields needed.
+
+### Named-region lookup (cycle 13 theme C)
+
+For region-mean timeseries on unstructured grids, use
+`find_region(name)` to resolve the bbox first, then pass it to
+`cells_in_bbox` with whatever lon convention the mesh uses.
+
+```
+reg = find_region("North Atlantic")
+# reg["lon_min"] = -80, reg["lon_max"] = 0 (catalog spelling)
+# MPAS / Omega meshes are in 0..360, so shift:
+lon_min = reg["lon_min"] % 360
+lon_max = reg["lon_max"] % 360
+# If lon_min ends up > lon_max, cells_in_bbox treats it as
+# a cross-dateline range automatically (cycle 11 plumbing).
+
+cells = cells_in_bbox(mesh_ds,
+                      lat_min=reg["lat_min"], lat_max=reg["lat_max"],
+                      lon_min=lon_min, lon_max=lon_max)
+```
+
+Cross-dateline regions (`North Pacific`, `Tropical Pacific`,
+`South Pacific`) have `lon_min > lon_max` in the catalog —
+that shape is preserved verbatim and `cells_in_bbox` handles
+it via the OR-union path.
+
 ### Pitfalls (cycle-11 specific)
 
 - **Bare glob without mesh_path** returns `spatial=null`; can't

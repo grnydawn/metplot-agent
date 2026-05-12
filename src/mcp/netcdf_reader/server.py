@@ -41,7 +41,10 @@ def list_tool_names() -> list[str]:
             # Cycle 11 — unstructured-mesh helpers
             "find_nearest_cell", "cells_in_bbox",
             # Cycle 12 — ncks-parity analysis tools
-            "reduce_variable", "dump_cdl"]
+            "reduce_variable", "dump_cdl",
+            # Cycle 13 — region lookup (theme C) +
+            # great-circle cross-section sampler (theme D).
+            "find_region", "slice_along_section"]
 
 
 def dispatch(name: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -79,6 +82,16 @@ def dispatch(name: str, args: dict[str, Any]) -> dict[str, Any]:
             return _reduce_var.reduce_variable(adapter=_ADAPTER, **args)
         if name == "dump_cdl":
             return _dump_cdl.dump_cdl(adapter=_ADAPTER, **args)
+        # Cycle 13 — region lookup (theme C)
+        if name == "find_region":
+            from src.mcp.netcdf_reader.regions import find_region_tool
+            return find_region_tool(**args)
+        # Cycle 13 — great-circle cross-section sampler (theme D)
+        if name == "slice_along_section":
+            from src.mcp.netcdf_reader.sections import (
+                slice_along_section_tool,
+            )
+            return slice_along_section_tool(adapter=_ADAPTER, **args)
         return envelope.error("unknown_tool", f"unknown tool: {name}",
                               context={"name": name})
     except TypeError as e:
