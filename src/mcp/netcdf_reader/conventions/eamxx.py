@@ -35,19 +35,36 @@ _EAMXX_CASE_RE = re.compile(r"SCREAM", re.IGNORECASE)
 
 
 def detect(ds: xr.Dataset, attrs: dict[str, Any]) -> dict[str, Any] | None:
-    evidence: list[str] = []
-
+    # Cycle 10 F-04: early-exit when `source` clearly names a
+    # non-EAMxx E3SM component. CIME case names are shared across
+    # components, so the case-attr signal alone false-positives
+    # on ELM/CICE/CPL/etc. files when the parent run is SCREAM.
     source = attrs.get("source", "")
-    if isinstance(source, str) and _EAMXX_SOURCE_RE.search(source):
+    if isinstance(source, str):
+        source_lower = source.lower()
+        for other_producer in (
+            "e3sm land model",
+            "e3sm sea ice model",
+            "e3sm ocean model",
+            "e3sm river runoff",
+        ):
+            if other_producer in source_lower:
+                return None
+
+    evidence: list[str] = []
+    source_matches = (
+        isinstance(source, str) and _EAMXX_SOURCE_RE.search(source))
+    if source_matches:
         evidence.append(f"source attr matches EAMxx/SCREAM ({source!r})")
 
     case = attrs.get("case", "")
-    if isinstance(case, str) and _EAMXX_CASE_RE.search(case):
+    case_matches = (
+        isinstance(case, str) and _EAMXX_CASE_RE.search(case))
+    if case_matches:
         evidence.append(f"case attr contains SCREAM ({case!r})")
 
     # Dim-shape corroboration. ncol = physics column axis;
-    # elem + gp = dycore spectral-element axes. Either one,
-    # combined with a source/case signal, raises confidence.
+    # elem + gp = dycore spectral-element axes.
     has_ncol = "ncol" in ds.dims
     has_dycore = "elem" in ds.dims and "gp" in ds.dims
     if has_ncol:
@@ -57,15 +74,18 @@ def detect(ds: xr.Dataset, attrs: dict[str, Any]) -> dict[str, Any] | None:
             f"EAMxx dycore axes present "
             f"('elem'={ds.sizes['elem']}, 'gp'={ds.sizes['gp']})")
 
-    # We require AT LEAST one of the source/case attrs to fire,
-    # otherwise we'd false-positive on any file shipping a generic
-    # `ncol` dim (some non-EAMxx CF files use that name).
-    has_attr_signal = any(
-        e.startswith(("source attr", "case attr")) for e in evidence)
-    if not has_attr_signal:
+    # Cycle 10 F-04: tightened signal requirements.
+    # - source-attr match is unambiguous → stands alone.
+    # - case-attr match is a CIME-name artifact → requires dim
+    #   corroboration (ncol OR elem+gp) to fire.
+    if source_matches:
+        pass  # strong signal; ok
+    elif case_matches and (has_ncol or has_dycore):
+        pass  # case + dim corroboration is enough
+    else:
         return None
 
-    # Confidence: attr + dim corroboration = high; attr alone = medium.
+    # Confidence: any dim corroboration → high; source-attr-only → medium.
     if has_ncol or has_dycore:
         confidence = "high"
     else:

@@ -154,12 +154,28 @@ def extract_time(ds: xr.Dataset) -> dict[str, Any] | None:
     diffs = np.diff(values) if n > 1 else None
     if diffs is None or len(diffs) == 0:
         monotonic = "unknown"
-    elif np.all(diffs > np.timedelta64(0, "ns")):
-        monotonic = "increasing"
-    elif np.all(diffs < np.timedelta64(0, "ns")):
-        monotonic = "decreasing"
     else:
-        monotonic = "non-monotonic"
+        # Cycle 10 F-01 fix: when the time coord is object-dtype
+        # (cftime, e.g. DatetimeNoLeap from sub-daily Omega hifreq
+        # files), np.diff returns Python datetime.timedelta objects.
+        # Those can't be compared to np.timedelta64 — TypeError
+        # propagates. Fall back to a pure-Python monotonicity check
+        # in that case.
+        if diffs.dtype == object:
+            import datetime as _dt
+            zero = _dt.timedelta(0)
+            if all(d > zero for d in diffs):
+                monotonic = "increasing"
+            elif all(d < zero for d in diffs):
+                monotonic = "decreasing"
+            else:
+                monotonic = "non-monotonic"
+        elif np.all(diffs > np.timedelta64(0, "ns")):
+            monotonic = "increasing"
+        elif np.all(diffs < np.timedelta64(0, "ns")):
+            monotonic = "decreasing"
+        else:
+            monotonic = "non-monotonic"
     # Calendar — xarray sets it on the coord's encoding or attrs
     calendar = coord.encoding.get("calendar") or coord.attrs.get("calendar") or "standard"
     # Step (uniform diff if all equal)
@@ -188,8 +204,15 @@ def _dt_to_iso(v: Any) -> str:
     return np.datetime_as_string(v, unit="s") if hasattr(v, "astype") else str(v)
 
 
-def _timedelta_to_iso(td: np.timedelta64) -> str:
-    seconds = int(td / np.timedelta64(1, "s"))
+def _timedelta_to_iso(td: Any) -> str:
+    # Cycle 10 F-01: when the time coord is object-dtype (cftime),
+    # diffs are Python datetime.timedelta, not np.timedelta64. Handle
+    # both — `total_seconds()` works on datetime.timedelta.
+    import datetime as _dt
+    if isinstance(td, _dt.timedelta):
+        seconds = int(td.total_seconds())
+    else:
+        seconds = int(td / np.timedelta64(1, "s"))
     if seconds % 86400 == 0:
         return f"P{seconds // 86400}D"
     if seconds % 3600 == 0:

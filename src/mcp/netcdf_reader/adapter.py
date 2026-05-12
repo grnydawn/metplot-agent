@@ -17,6 +17,25 @@ from src.mcp.netcdf_reader.protocols import FormatAdapter
 __all__ = ["FormatAdapter", "NetCDFAdapter"]
 
 
+def _open_with_decode_fallback(opener: Any) -> xr.Dataset:
+    """Cycle 10 F-02 fix — try decode_times=True; on ValueError
+    (year-0001 noleap, undecodable cftime origins, etc.) retry
+    with decode_times=False and stash a flag on the dataset so
+    callers can emit TIME_DECODE_FAILED.
+
+    `opener` is a callable taking a single `decode` bool arg and
+    returning an xr.Dataset.
+    """
+    try:
+        return opener(True)
+    except ValueError:
+        ds = opener(False)
+        # Use a leading underscore so the namespace is reserved
+        # and won't collide with file-author attrs.
+        ds.attrs["_metplot_time_decode_failed"] = True
+        return ds
+
+
 class NetCDFAdapter:
     name = "netcdf"
     supported_schemes = {"file", "http", "https", "s3", "ssh"}
@@ -49,8 +68,10 @@ class NetCDFAdapter:
         if file_objects:
             if len(file_objects) != 1:
                 raise NotImplementedError("multi-file SSH not yet wired")
-            return xr.open_dataset(file_objects[0], engine="h5netcdf",
-                                   decode_times=True, chunks="auto")
+            return _open_with_decode_fallback(
+                lambda decode: xr.open_dataset(
+                    file_objects[0], engine="h5netcdf",
+                    decode_times=decode, chunks="auto"))
 
         if len(paths) == 1:
             cls = classify(paths[0])
@@ -83,9 +104,13 @@ class NetCDFAdapter:
                         cfg.port = cls.port
                     client, _attempts = silent_auth_chain(cfg)
                 handle = open_sftp_file(client, cls.remote_path)
-                return xr.open_dataset(handle, engine="h5netcdf",
-                                       decode_times=True, chunks="auto")
-            return xr.open_dataset(paths[0], decode_times=True, chunks="auto")
+                return _open_with_decode_fallback(
+                    lambda decode: xr.open_dataset(
+                        handle, engine="h5netcdf",
+                        decode_times=decode, chunks="auto"))
+            return _open_with_decode_fallback(
+                lambda decode: xr.open_dataset(
+                    paths[0], decode_times=decode, chunks="auto"))
 
         from src.mcp.netcdf_reader.paths.multi_file import open_multi_file
         return open_multi_file(paths)
@@ -93,7 +118,9 @@ class NetCDFAdapter:
     def detect_conventions(self, ds: xr.Dataset, attrs: dict[str, Any]) -> dict[str, Any]:
         from src.mcp.netcdf_reader.conventions import cf as _cf
         from src.mcp.netcdf_reader.conventions import cice as _cice
+        from src.mcp.netcdf_reader.conventions import cpl as _cpl
         from src.mcp.netcdf_reader.conventions import eamxx as _eamxx
+        from src.mcp.netcdf_reader.conventions import elm as _elm
         from src.mcp.netcdf_reader.conventions import mpas as _mpas
         from src.mcp.netcdf_reader.conventions import roms as _roms
         from src.mcp.netcdf_reader.conventions import wrf as _wrf
@@ -101,14 +128,18 @@ class NetCDFAdapter:
         # generic CF. EAMxx must come before CF because EAMxx files
         # declare `Conventions = "CF-1.x"` and would otherwise route to
         # the CF (rectilinear) branch; cycle-9 detection lifts them onto
-        # the unstructured branch via the `source` / `case` attrs. CICE
-        # comes last among the specific detectors — its variable-name
-        # fingerprint doesn't collide with the upstream conventions.
+        # the unstructured branch via the `source` / `case` attrs.
+        # Cycle 10: ELM (E3SM Land Model) comes after EAMxx so the
+        # tightened EAMxx detector's early-exit on E3SM-Land-Model
+        # source attr clears the way. CICE last among the specific
+        # detectors — variable-fingerprint based, doesn't collide.
         for det in (_wrf.detect(ds, attrs),
                     _roms.detect(ds, attrs),
                     _mpas.detect(ds, attrs),
                     _eamxx.detect(ds, attrs),
-                    _cice.detect(ds, attrs)):
+                    _elm.detect(ds, attrs),
+                    _cice.detect(ds, attrs),
+                    _cpl.detect(ds, attrs)):
             if det is not None:
                 return det
         return _cf.detect(ds, attrs)

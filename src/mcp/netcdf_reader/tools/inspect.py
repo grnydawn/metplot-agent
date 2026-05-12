@@ -124,6 +124,17 @@ def inspect(
             f"open took {elapsed:.0f}s; consider sshfs / staging",
             context={"elapsed_seconds": elapsed},
         ))
+    # Cycle 10 F-02: adapter falls back to decode_times=False when
+    # xarray's decoder can't parse the file's time origin (year-0001
+    # noleap, etc.). Surface that as a structured warning so callers
+    # know `time` may be raw int64 instead of decoded datetimes.
+    if ds.attrs.get("_metplot_time_decode_failed"):
+        warnings.append(envelope.warn(
+            envelope.WarningCode.TIME_DECODE_FAILED,
+            "xarray could not decode the file's time units; opened "
+            "with decode_times=False — time values are raw numbers",
+            context={"path": path},
+        ))
 
     try:
         attrs = dict(ds.attrs)
@@ -320,6 +331,21 @@ def inspect(
             "dims": {str(k): int(v) for k, v in ds.sizes.items()},
             "attrs": {k: _safe(v) for k, v in attrs.items()},
         }
+    except Exception as e:
+        # Cycle 10 Task A0 — exception-safety harness. Any failure
+        # inside the inspect pipeline (convention dispatch, spatial
+        # / time / vertical extraction, paired-merge) MUST surface
+        # as an INTERNAL_ERROR envelope, not a raw Python exception.
+        # F-01 cycle-9 regression: cf.py:extract_time raised
+        # TypeError on hifreq files and the exception escaped to
+        # the caller. Never again.
+        return envelope.error(
+            envelope.ErrorCode.INTERNAL_ERROR,
+            f"{type(e).__name__}: {e}",
+            context={"path": path,
+                     "mesh_path": mesh_path,
+                     "stage": "inspect_pipeline"},
+        )
     finally:
         ds.close()
         if mesh_ds is not None:
