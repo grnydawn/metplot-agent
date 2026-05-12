@@ -1367,7 +1367,8 @@ using `data/omega/ocean_test_mesh.nc` as the mesh.
 mesh `data/omega/ocean_test_mesh.nc`.
 
 **Expected**:
-- ✓ `kind = "local_multi"`, `n_files = 12`.
+- ✓ `kind = "local_multi"`, `len(result.files) = 13` (12 monthly
+  histories + 1 mesh in the list).
 - ✓ `time.n = 12`, range Feb 0001 → Jan 0002.
 - ✓ Variables enumerate once (de-duplicated across files).
 - ✓ `spatial.coord_kind = "unstructured"`, `n_cells = 7153`.
@@ -1510,8 +1511,10 @@ vertical layers only.
 
 **Expected**:
 - ✓ Calls `read_slice(path, "Temperature", time="first",
-  index_selectors={"NVertLayers": [0, 9]})` → shape `[10,
-  7153]`.
+  index_selectors={"NVertLayers": [0, 9]})` → shape `[7153,
+  10]` (NCells dim comes first in this file's on-disk order,
+  NVertLayers second; cycle-3 read_slice preserves on-disk
+  axis order).
 - ✓ Dim name `NVertLayers` matched case-insensitively.
 
 ### 21.13 Reduce — global mean Temperature (collapse cells)
@@ -1537,7 +1540,9 @@ from the 12 Omega monthly files.
 **Expected**:
 - ✓ Pipeline: paired-glob inspect → `reduce_variable(glob,
   "Temperature", reduce_dims=["time"], op="avg",
-  mesh_path=mesh)` → shape `[60, 7153]`.
+  mesh_path=mesh)` → shape `[7153, 60]` (NCells dim is
+  before NVertLayers in this file's on-disk order; reducing
+  time leaves the remaining two dims in that order).
 - ✓ Or: agent first uses `index_selectors={NVertLayers: [0,
   0]}` + reduce over time → shape `[7153]`.
 
