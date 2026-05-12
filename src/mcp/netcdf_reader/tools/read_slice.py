@@ -99,6 +99,17 @@ def _apply_selectors(da, resolved: dict[str, Any]):
             if d in ("lon", "longitude", "x"):
                 isel[d] = resolved["lon_index"]
                 break
+    # Cycle 11: cell-axis selectors. resolved["cell_dim"] (set by
+    # resolve_spec) names the actual on-disk dim (case-preserving),
+    # so we can isel without re-doing the case-insensitive search.
+    if "cell_index" in resolved:
+        d = resolved.get("cell_dim")
+        if d and d in da.dims:
+            isel[d] = resolved["cell_index"]
+    if "cell_indices" in resolved:
+        d = resolved.get("cell_dim")
+        if d and d in da.dims:
+            isel[d] = resolved["cell_indices"]
     return da.isel(**isel)
 
 
@@ -112,6 +123,8 @@ def read_slice(
     lon: Any = None,
     region: str | None = None,
     regrid: str | None = None,
+    cell_index: int | None = None,
+    cell_indices: list[int] | None = None,
     max_inline_bytes: int = 100_000,
     adapter: FormatAdapter,
     ssh_config: dict[str, Any] | None = None,
@@ -119,7 +132,9 @@ def read_slice(
 ) -> dict[str, Any]:
     spec_env = resolve_spec(
         path, variable, time=time, level=level, lat=lat, lon=lon,
-        region=region, regrid=regrid, adapter=adapter,
+        region=region, regrid=regrid,
+        cell_index=cell_index, cell_indices=cell_indices,
+        adapter=adapter,
         ssh_config=ssh_config, mesh_path=mesh_path,
     )
     if not spec_env["ok"]:

@@ -32,10 +32,27 @@ def resolve_spec(
     lon: Any = None,
     region: str | None = None,
     regrid: str | None = None,
+    cell_index: int | None = None,
+    cell_indices: list[int] | None = None,
     adapter: FormatAdapter,
     ssh_config: dict[str, Any] | None = None,
     mesh_path: str | None = None,
 ) -> dict[str, Any]:
+    # Cycle 11 Task 2: cell-axis selectors are mutually exclusive
+    # with lat/lon (the rectilinear/curvilinear path); rejecting at
+    # the resolve layer surfaces a clean invalid_spec instead of a
+    # confused isel.
+    if (cell_index is not None or cell_indices is not None) and (
+            lat is not None or lon is not None):
+        return envelope.error(
+            "invalid_spec",
+            "cell_index/cell_indices are mutually exclusive with "
+            "lat/lon selectors", context={"path": path})
+    if cell_index is not None and cell_indices is not None:
+        return envelope.error(
+            "invalid_spec",
+            "supply either cell_index or cell_indices, not both",
+            context={"path": path})
     try:
         cls = classify(path)
     except ClassifyError as e:
@@ -213,6 +230,52 @@ def resolve_spec(
                 idx = int(np.argmin(np.abs(lon_v - lon_sel.value)))
                 resolved["lon_index"] = idx
 
+        # --- cell-axis selectors (cycle 11) ---
+        # Find the variable's cell dim (case-insensitive). MPAS
+        # uses NCells (history) / nCells (mesh). Cycle 11 is
+        # MPAS-only; CICE/EAMxx cell-axis selectors are cycle 12+.
+        cell_dim = next((d for d in da.dims
+                         if str(d).lower() == "ncells"), None)
+        if cell_index is not None:
+            if cell_dim is None:
+                return envelope.error(
+                    "invalid_spec",
+                    f"variable {variable!r} has no cell dim (NCells); "
+                    f"cell_index requires an unstructured cell axis",
+                    context={"dims": list(da.dims)})
+            n = int(ds.sizes[cell_dim])
+            if not (0 <= cell_index < n):
+                return envelope.error(
+                    envelope.ErrorCode.OUT_OF_BOUNDS,
+                    f"cell_index {cell_index} out of range for "
+                    f"{cell_dim}={n}",
+                    context={"cell_dim": cell_dim, "n_cells": n})
+            resolved["cell_index"] = int(cell_index)
+            resolved["cell_dim"] = cell_dim
+        if cell_indices is not None:
+            if cell_dim is None:
+                return envelope.error(
+                    "invalid_spec",
+                    f"variable {variable!r} has no cell dim (NCells); "
+                    f"cell_indices requires an unstructured cell axis",
+                    context={"dims": list(da.dims)})
+            n = int(ds.sizes[cell_dim])
+            idx_arr = np.asarray(cell_indices, dtype=np.int64)
+            if idx_arr.size == 0:
+                return envelope.error(
+                    envelope.ErrorCode.EMPTY_SLICE,
+                    "cell_indices is empty",
+                    context={"cell_dim": cell_dim})
+            if (idx_arr.min() < 0) or (idx_arr.max() >= n):
+                return envelope.error(
+                    envelope.ErrorCode.OUT_OF_BOUNDS,
+                    f"cell_indices out of range for {cell_dim}={n}",
+                    context={"cell_dim": cell_dim, "n_cells": n,
+                             "min": int(idx_arr.min()),
+                             "max": int(idx_arr.max())})
+            resolved["cell_indices"] = idx_arr.tolist()
+            resolved["cell_dim"] = cell_dim
+
         # Compute slice shape and bytes estimate
         shape: list[int] = []
         for d in da.dims:
@@ -230,6 +293,13 @@ def resolve_spec(
                 shape.append(hi - lo + 1)
             elif d in ("lon", "longitude", "x") and "lon_index" in resolved:
                 shape.append(1)
+            elif (str(d).lower() == "ncells"
+                  and "cell_index" in resolved):
+                # cell_index reduces the cell axis to a scalar.
+                shape.append(1)
+            elif (str(d).lower() == "ncells"
+                  and "cell_indices" in resolved):
+                shape.append(len(resolved["cell_indices"]))
             else:
                 shape.append(int(ds.sizes[d]))
 
@@ -247,6 +317,8 @@ def resolve_spec(
             "selectors": {
                 "time": time, "level": level, "lat": lat, "lon": lon,
                 "region": region, "regrid": regrid,
+                "cell_index": cell_index,
+                "cell_indices": cell_indices,
             },
             "resolved": resolved,
             "slice_shape": shape,
