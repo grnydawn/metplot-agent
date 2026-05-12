@@ -11,7 +11,6 @@ a valid time block without raising.
 from __future__ import annotations
 
 import datetime as _dt
-from pathlib import Path
 
 import cftime
 import numpy as np

@@ -17,8 +17,11 @@ and the agent walks the file, slices data, and renders a PNG.
 
 ## Status
 
-Cycle 8 Phase B (shipped 2026-05-12) added unstructured-mesh
-plotting for the MPAS family. Current capability summary:
+Cycle 10 (shipped 2026-05-12) added time-decode robustness
+(Omega hifreq + SCREAM rhist no longer crash), dim-aware
+mesh-pair candidate ranking, ELM + CPL convention detection,
+EAMxx detector tightening, and multi-file unstructured time-
+series. Current capability summary:
 
 | Capability | Status |
 |---|---|
@@ -27,6 +30,10 @@ plotting for the MPAS family. Current capability summary:
 | Unstructured Voronoi maps (MPAS-Ocean, MPAS-A, MPAS-Seaice, Omega, E3SM) | shipping (cycle 8) |
 | CICE5/6 flattened block-decomposed grids (paired with grid file) | shipping (cycle 9) |
 | EAMxx physics-column grid (paired with scrip-style grid file) | shipping (cycle 9) |
+| E3SM Land Model (ELM) inspect detection | shipping (cycle 10) |
+| E3SM Coupler (CPL) inspect detection | shipping (cycle 10) |
+| Multi-file unstructured time-series (monthly globs + mesh) | shipping (cycle 10) |
+| Time-decode fallback on undecodable time origins (year-0001 noleap) | shipping (cycle 10) |
 | Time-series plots | shipping (cycle 3) |
 | Vertical profiles + cross-sections | shipping (cycle 3) |
 | Style-by-reference (extract style from a screenshot) | shipping (cycle 3) |
@@ -35,10 +42,12 @@ plotting for the MPAS family. Current capability summary:
 | 7 build targets (claude-code, cursor, copilot, gemini-cli, codex, antigravity, claude-desktop) | shipping (cycles 4 + 7) |
 | Setup helper for Python deps (cartopy, scipy, MCP servers) | shipping (cycle 5) |
 
-Out of scope this release (cycle 10+): EAMxx dycore spectral-element
-grids (`elem × gp × gp`), CICE U-grid (velocity-on-edge) plotting,
-region clipping on unstructured grids, contour/streamline on
-unstructured grids, interactive 3-D mesh viewers.
+Out of scope this release (cycle 11+): EAMxx dycore
+spectral-element grids (`elem × gp × gp`), ELM PFT-mosaic
+visualization, CPL plotting, CICE U-grid (velocity-on-edge)
+plotting, region clipping on unstructured grids,
+contour/streamline on unstructured grids, interactive 3-D mesh
+viewers.
 
 ## Quickstart
 

@@ -10,7 +10,6 @@ on the dataset, and inspect surfaces TIME_DECODE_FAILED warning.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import xarray as xr
@@ -42,7 +41,7 @@ def _year0001_noleap_file(tmp_path: Path) -> Path:
         tvar = f.createVariable("time", "f8", ("time",))
         tvar.units = "days since 0001-01-01 00:00:00"
         tvar.calendar = "noleap"
-        foo = f.createVariable("foo", "f8", ("time", "y"))
+        f.createVariable("foo", "f8", ("time", "y"))
         # No time entries → foo has shape (0, 2).
     return p
 
