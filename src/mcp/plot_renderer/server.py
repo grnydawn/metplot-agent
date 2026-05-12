@@ -1,5 +1,5 @@
 # src/mcp/plot_renderer/server.py
-"""MCP server entry point. Thin dispatch over the 3 callable tools."""
+"""MCP server entry point. Thin dispatch over the 4 callable tools."""
 from __future__ import annotations
 
 import asyncio
@@ -9,6 +9,7 @@ from src.mcp.plot_renderer import envelope
 from src.mcp.plot_renderer.tools import (
     render_map as _map,
     render_profile as _profile,
+    render_section as _section,
     render_timeseries as _ts,
 )
 
@@ -23,7 +24,9 @@ except ImportError:  # pragma: no cover
 
 
 def list_tool_names() -> list[str]:
-    return ["render_map", "render_timeseries", "render_profile"]
+    return ["render_map", "render_timeseries", "render_profile",
+            # Cycle 13 theme D — unstructured cross-section
+            "render_section"]
 
 
 def dispatch(name: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -36,6 +39,8 @@ def dispatch(name: str, args: dict[str, Any]) -> dict[str, Any]:
             return _ts.render_timeseries(spec)
         if name == "render_profile":
             return _profile.render_profile(spec)
+        if name == "render_section":
+            return _section.render_section(spec)
         return envelope.error(
             "unknown_tool",
             f"unknown tool: {name}",

@@ -21,8 +21,8 @@ class _Server(TypedDict):
 
 
 _SERVERS: list[_Server] = [
-    {"package_dir": "netcdf_reader", "expected_tool_count": 13},
-    {"package_dir": "plot_renderer", "expected_tool_count": 3},
+    {"package_dir": "netcdf_reader", "expected_tool_count": 14},
+    {"package_dir": "plot_renderer", "expected_tool_count": 4},
 ]
 
 
