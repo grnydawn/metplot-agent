@@ -118,6 +118,7 @@ class NetCDFAdapter:
     def detect_conventions(self, ds: xr.Dataset, attrs: dict[str, Any]) -> dict[str, Any]:
         from src.mcp.netcdf_reader.conventions import cf as _cf
         from src.mcp.netcdf_reader.conventions import cice as _cice
+        from src.mcp.netcdf_reader.conventions import cpl as _cpl
         from src.mcp.netcdf_reader.conventions import eamxx as _eamxx
         from src.mcp.netcdf_reader.conventions import elm as _elm
         from src.mcp.netcdf_reader.conventions import mpas as _mpas
@@ -137,7 +138,8 @@ class NetCDFAdapter:
                     _mpas.detect(ds, attrs),
                     _eamxx.detect(ds, attrs),
                     _elm.detect(ds, attrs),
-                    _cice.detect(ds, attrs)):
+                    _cice.detect(ds, attrs),
+                    _cpl.detect(ds, attrs)):
             if det is not None:
                 return det
         return _cf.detect(ds, attrs)
