@@ -41,6 +41,8 @@ def _load_build_module(host_dirname: str):
     # importlib spec; the file location is what actually matters.
     py_name = f"targets.{host_dirname.replace('-', '_')}.build"
     spec = importlib.util.spec_from_file_location(py_name, build_py)
+    assert spec is not None and spec.loader is not None, (
+        f"could not load build module spec for {host_dirname}")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
