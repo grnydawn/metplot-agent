@@ -96,7 +96,51 @@ def find_mesh_candidates(history_path: Path) -> list[Path]:
         for p in sorted(parent.glob(pattern)):
             add(p)
 
+    # Cycle 10 Task B — F-03 dim-aware re-rank. When ≥2 candidates
+    # compete, open each (cheap: dim sizes only) and promote
+    # dim-matching meshes ahead of basename-only matches. The
+    # basename-rank order is preserved within each group so the
+    # exact-prefix heuristic still wins ties.
+    if len(candidates) >= 2:
+        candidates = _rank_by_dim_match(history_path, candidates)
+
     return candidates
+
+
+def _rank_by_dim_match(history_path: Path,
+                        candidates: list[Path]) -> list[Path]:
+    """Open the history file once and each candidate once (metadata
+    only), score each candidate by whether its dims agree with the
+    history's via `validate_mesh_pair`, and return candidates with
+    dim-matching ones first. Failure to open any file is non-fatal —
+    that candidate falls to the bottom with no dim-match.
+    """
+    try:
+        hist_ds = xr.open_dataset(history_path, decode_times=False)
+    except Exception:
+        return candidates  # can't even open history → leave order alone
+    try:
+        matches: list[Path] = []
+        non_matches: list[Path] = []
+        for c in candidates:
+            try:
+                cand_ds = xr.open_dataset(c, decode_times=False)
+            except Exception:
+                non_matches.append(c)
+                continue
+            try:
+                err = validate_mesh_pair(hist_ds, cand_ds)
+            except Exception:
+                err = "validator exception"
+            finally:
+                cand_ds.close()
+            if err is None:
+                matches.append(c)
+            else:
+                non_matches.append(c)
+        return matches + non_matches
+    finally:
+        hist_ds.close()
 
 
 def validate_mesh_pair(history_ds: xr.Dataset,
