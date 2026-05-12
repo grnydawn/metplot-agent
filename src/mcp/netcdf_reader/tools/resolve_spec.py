@@ -144,11 +144,20 @@ def resolve_spec(
 
         # --- level ---
         if level is not None:
-            # MPAS-family files use NVertLayers (history) / nVertLevels
-            # (mesh); recognized case-insensitively.
+            # Vertical-dim names by family (recognized case-insensitively):
+            #   CF / generic   : plev, lev, level, altitude, z
+            #   WRF            : bottom_top
+            #   ROMS           : s_rho, s_w
+            #   MPAS           : nvertlayers, nvertlevels
+            #   EAMxx          : lev (already covered), ilev (interface)
+            #   CICE5/6        : nilyr (ice layers), nslyr (snow layers),
+            #                    nkice, nkbio, ncat (thickness categories)
             v_dim_set_lower = {"plev", "lev", "level", "altitude", "z",
                                 "bottom_top", "s_rho", "s_w",
-                                "nvertlayers", "nvertlevels"}
+                                "nvertlayers", "nvertlevels",
+                                "ilev",
+                                "nilyr", "nslyr", "nkice", "nkbio",
+                                "ncat", "ntilyr", "ntslyr"}
             v_dim = next((d for d in da.dims
                           if str(d).lower() in v_dim_set_lower), None)
             if v_dim is None:

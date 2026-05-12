@@ -11,6 +11,8 @@ from typing import TYPE_CHECKING, Any
 
 from src.mcp.netcdf_reader import cache, envelope
 from src.mcp.netcdf_reader.conventions import cf as _cf
+from src.mcp.netcdf_reader.conventions import cice as _cice
+from src.mcp.netcdf_reader.conventions import eamxx as _eamxx
 from src.mcp.netcdf_reader.conventions import mpas as _mpas
 from src.mcp.netcdf_reader.conventions import roms as _roms
 from src.mcp.netcdf_reader.conventions import wrf as _wrf
@@ -190,7 +192,95 @@ def inspect(
                     # the caller can supply a mesh_path on retry.
                     # `ds.close()` fires in the outer finally block.
                     return _mesh_pairing_required_envelope(
-                        path, variables)
+                        path, variables,
+                        family="MPAS",
+                        missing_coords=["latCell", "lonCell"],
+                    )
+        elif primary == "CICE":
+            variables = _cf.extract_variables(ds)
+            vertical = _cf.extract_vertical(ds)
+            t = _cf.extract_time(ds)
+            if mesh_ds is not None:
+                from src.mcp.netcdf_reader.paths.mesh_pair import (
+                    validate_mesh_pair,
+                )
+                err = validate_mesh_pair(ds, mesh_ds)
+                if err:
+                    return envelope.error(
+                        envelope.ErrorCode.MULTI_FILE_COMBINE_FAILED,
+                        f"history/grid dim mismatch: {err}",
+                        context={"path": path,
+                                 "mesh_path": mesh_path})
+                spatial = _cice.extract_spatial_cice(ds, mesh_ds)
+                if spatial is not None:
+                    # CICE: all spatial vars live on (nj, ni). Tag
+                    # every variable whose dim list includes ni AND
+                    # nj (any case) as cell_centered.
+                    for v in variables:
+                        dims_lower = [str(d).lower() for d in v["dims"]]
+                        if "ni" in dims_lower and "nj" in dims_lower:
+                            v["grid_kind"] = "cell_centered"
+            else:
+                spatial = None
+                if cls.kind == PathKind.LOCAL_SINGLE:
+                    return _mesh_pairing_required_envelope(
+                        path, variables,
+                        family="CICE",
+                        missing_coords=["TLAT", "TLON"],
+                    )
+        elif primary == "EAMxx":
+            variables = _cf.extract_variables(ds)
+            vertical = _cf.extract_vertical(ds)
+            t = _cf.extract_time(ds)
+            # Surface dycore-axis variables to the caller as a
+            # structured warning — they're detected, listed, but not
+            # plottable in cycle 9.
+            dycore_vars = [
+                v["name"] for v in variables
+                if "elem" in [str(d) for d in v["dims"]]
+                and "gp" in [str(d) for d in v["dims"]]
+            ]
+            if dycore_vars:
+                for v in variables:
+                    dim_names = [str(d) for d in v["dims"]]
+                    if "elem" in dim_names and "gp" in dim_names:
+                        v["grid_kind"] = "dycore_spectral"
+                warnings.append(envelope.warn(
+                    envelope.WarningCode.DYCORE_VARS_PRESENT,
+                    f"{len(dycore_vars)} EAMxx dycore-axis variables "
+                    f"detected (elem×gp×gp); plotting deferred to "
+                    f"cycle 10+",
+                    context={"variables": dycore_vars},
+                ))
+            if mesh_ds is not None:
+                from src.mcp.netcdf_reader.paths.mesh_pair import (
+                    validate_mesh_pair,
+                )
+                err = validate_mesh_pair(ds, mesh_ds)
+                if err:
+                    return envelope.error(
+                        envelope.ErrorCode.MULTI_FILE_COMBINE_FAILED,
+                        f"history/grid dim mismatch: {err}",
+                        context={"path": path,
+                                 "mesh_path": mesh_path})
+                spatial = _eamxx.extract_spatial_eamxx(ds, mesh_ds)
+                if spatial is not None:
+                    cell_dim_lower = spatial["cell_dim"].lower()
+                    for v in variables:
+                        if any(str(d).lower() == cell_dim_lower
+                                for d in v["dims"]):
+                            # Don't overwrite the dycore_spectral tag
+                            # we set above.
+                            if v.get("grid_kind") != "dycore_spectral":
+                                v["grid_kind"] = "cell_centered"
+            else:
+                spatial = None
+                if cls.kind == PathKind.LOCAL_SINGLE:
+                    return _mesh_pairing_required_envelope(
+                        path, variables,
+                        family="EAMxx",
+                        missing_coords=["lat", "lon"],
+                    )
         else:
             variables = _cf.extract_variables(ds)
             spatial = _cf.extract_spatial(ds)
@@ -250,17 +340,23 @@ def _safe(v: Any) -> Any:
 def _mesh_pairing_required_envelope(
     path: str,
     variables: list[dict[str, Any]],
+    *,
+    family: str = "MPAS",
+    missing_coords: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Surface the history-file-without-mesh case as a structured
+    """Surface the history-file-without-geometry case as a structured
     ambiguous envelope so the caller can prompt the user for a
-    mesh_path and retry. Cycle 8 §3.3.
+    mesh_path / grid_path and retry. Cycle 8 §3.3 + cycle 9 §3.3.
 
-    Candidates are derived from sibling-file naming heuristics in
-    `paths/mesh_pair.find_mesh_candidates`. Confidence is "high" for
-    the top match (exact-prefix or canonical name), "medium" for
-    broader matches; for the cycle 8 MVP we don't try to dim-match
-    here (that happens after retry, in the merged-pair load path)."""
+    `family` is one of "MPAS", "CICE", "EAMxx" and controls the
+    prompt wording + which coord names are reported missing. The
+    candidate list comes from sibling-file basename heuristics in
+    `paths/mesh_pair.find_mesh_candidates`, which already knows the
+    glob patterns for each family.
+    """
     from pathlib import Path
+    if missing_coords is None:
+        missing_coords = ["latCell", "lonCell"]
     candidate_paths = find_mesh_candidates(Path(path))
     candidates = [
         {
@@ -275,30 +371,37 @@ def _mesh_pairing_required_envelope(
         }
         for i, p in enumerate(candidate_paths)
     ]
+    family_noun = {
+        "MPAS": "mesh file (e.g. *_mesh.nc, init.nc)",
+        "CICE": "grid file (e.g. grid.nc, cice_grid.nc, pop_grid.nc)",
+        "EAMxx": "physics-grid file (e.g. *scrip*.nc, ne*pg2*.nc)",
+    }.get(family, "geometry file")
+    coords_str = "/".join(f"`{c}`" for c in missing_coords)
     if candidates:
         prompt = (
-            f"This MPAS history file ships no `latCell`/`lonCell` "
-            f"coords. Likely sibling mesh files in the same "
-            f"directory: {', '.join(p.name for p in candidate_paths)}. "
+            f"This {family} history file ships no {coords_str} coords. "
+            f"Likely sibling {family_noun} in the same directory: "
+            f"{', '.join(p.name for p in candidate_paths)}. "
             f"Pick one (or supply a different path) and retry with "
             f"`mesh_path`.")
     else:
         prompt = (
-            "This MPAS history file ships no `latCell`/`lonCell` "
-            "coords. No likely sibling mesh files were found in the "
-            "same directory; supply a `mesh_path` pointing at the "
-            "matching MPAS mesh file and retry.")
+            f"This {family} history file ships no {coords_str} coords. "
+            f"No likely sibling {family_noun} were found in the same "
+            f"directory; supply a `mesh_path` pointing at the matching "
+            f"{family} {family_noun} and retry.")
     return envelope.ambiguous(
         subcode=envelope.AmbiguitySubcode.MESH_PAIRING_REQUIRED,
         message=(
-            "MPAS history file requires a sibling mesh file to "
-            "resolve spatial geometry"),
+            f"{family} history file requires a sibling "
+            f"{family_noun.split(' (')[0]} to resolve spatial geometry"),
         candidates=candidates,
         prompt=prompt,
         retry_with_param="mesh_path",
         context={
             "path": path,
-            "missing_coords": ["latCell", "lonCell"],
+            "family": family,
+            "missing_coords": missing_coords,
             "variables_in_history": [v["name"] for v in variables],
         },
     )

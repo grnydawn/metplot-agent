@@ -92,17 +92,23 @@ class NetCDFAdapter:
 
     def detect_conventions(self, ds: xr.Dataset, attrs: dict[str, Any]) -> dict[str, Any]:
         from src.mcp.netcdf_reader.conventions import cf as _cf
+        from src.mcp.netcdf_reader.conventions import cice as _cice
+        from src.mcp.netcdf_reader.conventions import eamxx as _eamxx
         from src.mcp.netcdf_reader.conventions import mpas as _mpas
         from src.mcp.netcdf_reader.conventions import roms as _roms
         from src.mcp.netcdf_reader.conventions import wrf as _wrf
         # WRF / ROMS / MPAS take precedence — they're more specific than
-        # generic CF. MPAS is checked after WRF/ROMS because those have
-        # tighter fingerprints (TITLE attr, s_rho dim) and shouldn't
-        # collide; an MPAS-Atmosphere file with nCells could otherwise
-        # outrank a stronger producer-specific signal.
+        # generic CF. EAMxx must come before CF because EAMxx files
+        # declare `Conventions = "CF-1.x"` and would otherwise route to
+        # the CF (rectilinear) branch; cycle-9 detection lifts them onto
+        # the unstructured branch via the `source` / `case` attrs. CICE
+        # comes last among the specific detectors — its variable-name
+        # fingerprint doesn't collide with the upstream conventions.
         for det in (_wrf.detect(ds, attrs),
                     _roms.detect(ds, attrs),
-                    _mpas.detect(ds, attrs)):
+                    _mpas.detect(ds, attrs),
+                    _eamxx.detect(ds, attrs),
+                    _cice.detect(ds, attrs)):
             if det is not None:
                 return det
         return _cf.detect(ds, attrs)
