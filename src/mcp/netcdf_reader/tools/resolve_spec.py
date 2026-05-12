@@ -64,20 +64,20 @@ def resolve_spec(
                 "index_selectors must be a dict {dim_name: [start, "
                 "stop, stride?]}",
                 context={"path": path})
-        for dname, spec in index_selectors.items():
-            if not isinstance(spec, (list, tuple)) or len(spec) not in (2, 3):
+        for dname, dim_spec in index_selectors.items():
+            if not isinstance(dim_spec, (list, tuple)) or len(dim_spec) not in (2, 3):
                 return envelope.error(
                     "invalid_spec",
                     f"index_selectors[{dname!r}] must be a list of "
-                    f"2 or 3 ints [start, stop, stride?]; got {spec!r}",
+                    f"2 or 3 ints [start, stop, stride?]; got {dim_spec!r}",
                     context={"path": path, "dim": dname})
             try:
-                _vals = [int(v) for v in spec]
+                _vals = [int(v) for v in dim_spec]
             except (TypeError, ValueError):
                 return envelope.error(
                     "invalid_spec",
                     f"index_selectors[{dname!r}] values must be ints; "
-                    f"got {spec!r}",
+                    f"got {dim_spec!r}",
                     context={"path": path, "dim": dname})
             if len(_vals) == 3 and _vals[2] < 1:
                 return envelope.error(
@@ -388,9 +388,9 @@ def resolve_spec(
         shape: list[int] = []
         for d in da.dims:
             if str(d) in idx_sel:
-                s, e, st = idx_sel[str(d)]
-                # Inclusive-stop with stride: indices s, s+st, ..., last <= e
-                shape.append((e - s) // st + 1)
+                _s, _stop, _st = idx_sel[str(d)]
+                # Inclusive-stop with stride: indices _s, _s+_st, ..., last <= _stop
+                shape.append((_stop - _s) // _st + 1)
             elif d in ("time", "Time", "ocean_time") and "time_index" in resolved:
                 shape.append(1)
             elif d in ("plev", "lev", "level", "bottom_top") and "level_index" in resolved:

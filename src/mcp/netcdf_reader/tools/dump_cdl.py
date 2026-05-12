@@ -160,7 +160,7 @@ def dump_cdl(
                         context={"available": list(ds.variables)})
             var_names = list(variables)
         else:
-            var_names = list(ds.data_vars) + [
+            var_names = [str(v) for v in ds.data_vars] + [
                 str(c) for c in ds.coords if c not in ds.data_vars]
 
         # Derive a display name (the file's stem).
