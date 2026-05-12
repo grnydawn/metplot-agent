@@ -84,3 +84,14 @@ def test_pyproject_install_metadata_complete(built_plugin: Path) -> None:
         # Setuptools packaging block we patched in
         assert "[tool.setuptools.packages.find]" in pp_text
         assert 'include = ["src", "src.*"]' in pp_text
+
+
+def test_ssh_broker_entry_point_registered(built_plugin):
+    """Cycle 14 — metplot-ssh-broker CLI must be installable via the
+    netcdf_reader bundle's pyproject.toml."""
+    pp_text = (built_plugin / "mcp-servers" / "netcdf_reader"
+                / "pyproject.toml").read_text()
+    assert "metplot-ssh-broker" in pp_text, (
+        "expected metplot-ssh-broker entry-point in netcdf_reader pyproject")
+    assert "src.ssh_broker.cli:main" in pp_text, (
+        "expected entry-point target src.ssh_broker.cli:main")
