@@ -119,6 +119,7 @@ class NetCDFAdapter:
         from src.mcp.netcdf_reader.conventions import cf as _cf
         from src.mcp.netcdf_reader.conventions import cice as _cice
         from src.mcp.netcdf_reader.conventions import eamxx as _eamxx
+        from src.mcp.netcdf_reader.conventions import elm as _elm
         from src.mcp.netcdf_reader.conventions import mpas as _mpas
         from src.mcp.netcdf_reader.conventions import roms as _roms
         from src.mcp.netcdf_reader.conventions import wrf as _wrf
@@ -126,13 +127,16 @@ class NetCDFAdapter:
         # generic CF. EAMxx must come before CF because EAMxx files
         # declare `Conventions = "CF-1.x"` and would otherwise route to
         # the CF (rectilinear) branch; cycle-9 detection lifts them onto
-        # the unstructured branch via the `source` / `case` attrs. CICE
-        # comes last among the specific detectors — its variable-name
-        # fingerprint doesn't collide with the upstream conventions.
+        # the unstructured branch via the `source` / `case` attrs.
+        # Cycle 10: ELM (E3SM Land Model) comes after EAMxx so the
+        # tightened EAMxx detector's early-exit on E3SM-Land-Model
+        # source attr clears the way. CICE last among the specific
+        # detectors — variable-fingerprint based, doesn't collide.
         for det in (_wrf.detect(ds, attrs),
                     _roms.detect(ds, attrs),
                     _mpas.detect(ds, attrs),
                     _eamxx.detect(ds, attrs),
+                    _elm.detect(ds, attrs),
                     _cice.detect(ds, attrs)):
             if det is not None:
                 return det
