@@ -28,6 +28,7 @@ def inspect(
     path: str, *,
     adapter: FormatAdapter,
     ssh_config: dict[str, Any] | None = None,
+    mesh_path: str | None = None,
 ) -> dict[str, Any]:
     try:
         cls = classify(path)
@@ -39,11 +40,31 @@ def inspect(
                 else envelope.ErrorCode.FILE_NOT_FOUND)
         return envelope.error(code, msg, context={"path": path})
 
+    cls_mesh = None
+    if mesh_path is not None:
+        try:
+            cls_mesh = classify(mesh_path)
+        except ClassifyError as e:
+            msg = str(e)
+            code = (envelope.ErrorCode.UNSUPPORTED_PATH_SCHEME
+                    if "unsupported scheme" in msg or "malformed" in msg
+                    else envelope.ErrorCode.FILE_NOT_FOUND)
+            return envelope.error(code, msg,
+                                  context={"path": mesh_path})
+
     is_remote = cls.kind in (PathKind.REMOTE_URL, PathKind.SSH_REMOTE)
-    key = cache.inspection_key(cls.paths or [path], remote=is_remote)
-    cached = cache.read_inspection(key)
-    if cached is not None:
-        return envelope.success(cached)
+    # Cycle 8 task 3: don't read/write the inspection cache when a
+    # mesh_path is supplied. The cache key only encodes the primary
+    # file list, so caching paired inspections would silently return
+    # the unpaired envelope on retry. Bypassing keeps semantics
+    # predictable; cycle-9 can extend the cache key if perf justifies.
+    if mesh_path is None:
+        key = cache.inspection_key(cls.paths or [path], remote=is_remote)
+        cached = cache.read_inspection(key)
+        if cached is not None:
+            return envelope.success(cached)
+    else:
+        key = None
 
     t0 = _time.monotonic()
     try:
@@ -70,6 +91,25 @@ def inspect(
             return _ssh_auth_failed_envelope(cls, str(e))
         return envelope.error(envelope.ErrorCode.INTERNAL_ERROR,
                               repr(e), context={"path": path})
+
+    # Open mesh-pair if supplied. Errors here close `ds` to avoid
+    # leaking the opened history dataset's file handle.
+    mesh_ds = None
+    if cls_mesh is not None:
+        try:
+            mesh_ds = adapter.open(cls_mesh.paths or [mesh_path],
+                                    ssh_config=ssh_config)
+        except FileNotFoundError as e:
+            ds.close()
+            return envelope.error(
+                envelope.ErrorCode.FILE_NOT_FOUND,
+                str(e), context={"mesh_path": mesh_path})
+        except Exception as e:
+            ds.close()
+            return envelope.error(
+                envelope.ErrorCode.INTERNAL_ERROR,
+                f"failed to open mesh_path: {e!r}",
+                context={"mesh_path": mesh_path})
     elapsed = _time.monotonic() - t0
     warnings: list[dict[str, Any]] = []
     if elapsed > 30 and cls.kind in (PathKind.REMOTE_URL, PathKind.SSH_REMOTE):
@@ -109,17 +149,44 @@ def inspect(
             t = _cf.extract_time(ds)
         elif primary == "MPAS":
             variables = _cf.extract_variables(ds)
-            spatial = _mpas.extract_spatial_mpas(ds)
             vertical = _cf.extract_vertical(ds)
             t = _cf.extract_time(ds)
-            if spatial is None and cls.kind == PathKind.LOCAL_SINGLE:
-                # MPAS file has the cell dim but no latCell/lonCell —
-                # the history-file-without-mesh shape. Short-circuit
-                # to a `mesh_pairing_required` ambiguous envelope so
-                # the caller can supply a mesh_path on retry.
-                # `ds.close()` fires in the outer finally block.
-                return _mesh_pairing_required_envelope(
-                    path, variables)
+            if mesh_ds is not None:
+                # Paired mode: validate dim-match, then extract
+                # spatial from the mesh. Variables stay from the
+                # history file; mesh geometry vars are kept out of
+                # the variable listing (caller doesn't want
+                # `verticesOnCell` in a plottable-variables list).
+                from src.mcp.netcdf_reader.paths.mesh_pair import (
+                    validate_mesh_pair,
+                )
+                err = validate_mesh_pair(ds, mesh_ds)
+                if err:
+                    return envelope.error(
+                        envelope.ErrorCode.MULTI_FILE_COMBINE_FAILED,
+                        f"history/mesh dim mismatch: {err}",
+                        context={"path": path,
+                                 "mesh_path": mesh_path})
+                spatial = _mpas.extract_spatial_mpas(mesh_ds)
+                # Tag history variables that share the cell dim with
+                # the mesh — case-insensitive match per cycle-6
+                # history-vs-mesh casing asymmetry.
+                if spatial is not None:
+                    cell_dim_lower = spatial["cell_dim"].lower()
+                    for v in variables:
+                        if any(str(d).lower() == cell_dim_lower
+                                for d in v["dims"]):
+                            v["grid_kind"] = "cell_centered"
+            else:
+                spatial = _mpas.extract_spatial_mpas(ds)
+                if spatial is None and cls.kind == PathKind.LOCAL_SINGLE:
+                    # MPAS file has the cell dim but no latCell/lonCell —
+                    # the history-file-without-mesh shape. Short-circuit
+                    # to a `mesh_pairing_required` ambiguous envelope so
+                    # the caller can supply a mesh_path on retry.
+                    # `ds.close()` fires in the outer finally block.
+                    return _mesh_pairing_required_envelope(
+                        path, variables)
         else:
             variables = _cf.extract_variables(ds)
             spatial = _cf.extract_spatial(ds)
@@ -143,10 +210,13 @@ def inspect(
                     ))
                     break
 
+        files = list(cls.paths or [])
+        if mesh_ds is not None and cls_mesh is not None:
+            files.extend(cls_mesh.paths or [mesh_path])
         result = {
             "path": cls.raw,
             "kind": cls.kind,
-            "files": cls.paths,
+            "files": files,
             "convention": convention,
             "variables": variables,
             "time": t,
@@ -157,8 +227,11 @@ def inspect(
         }
     finally:
         ds.close()
+        if mesh_ds is not None:
+            mesh_ds.close()
 
-    cache.write_inspection(key, result)
+    if key is not None:
+        cache.write_inspection(key, result)
     return envelope.success(result, warnings=warnings)
 
 
