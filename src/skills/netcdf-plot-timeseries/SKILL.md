@@ -126,6 +126,46 @@ The relevant template fields for time series are: `colormap_kind`
 Map-specific fields (`projection_family`, `extent_hint`, `colorbar_position`)
 are ignored by `render_timeseries`.
 
+## Multi-file unstructured time-series (MPAS/Omega family) — cycle 10
+
+When the user has a directory of monthly history files (e.g.
+`ocn.hist.0001-{01..12}-01_00.00.00.nc`) plus the matching mesh
+file (`ocean_test_mesh.nc`, `*_mesh.nc`, etc.), build the
+time-series from the whole run in one shot:
+
+1. Inspect the glob with `mesh_path=`:
+
+       inspect(path="<dir>/ocn.hist.*-*.nc",
+               mesh_path="<dir>/ocean_test_mesh.nc")
+
+   Returns `kind=local_multi`, `spatial.coord_kind=unstructured`,
+   `time.n=<total months>`, and variables tagged
+   `cell_centered`.
+
+2. Spatial reduction options:
+   - **Single cell**: pick the cell nearest a user-named
+     lat/lon via the mesh's `latCell`/`lonCell` (`np.argmin
+     ((lat-lat0)**2 + (lon-lon0)**2)`).
+   - **Area-weighted mean over a region**: filter cells whose
+     `(latCell, lonCell)` fall in the bbox; weight by
+     `areaCell` from the mesh (if present) or by `cos(latCell)`.
+   - **Global area-weighted mean**: same with no bbox filter.
+
+3. `read_slice` the variable + cell-index → 1-D values across
+   all time entries. Pass the slice + the resolved time coord
+   to `render_timeseries`.
+
+Pitfalls:
+- The bare glob (without `mesh_path`) returns `spatial=null` —
+  you can't pick cells without geometry. Always supply mesh_path
+  for unstructured glob workflows.
+- For large meshes (`n_cells > 100k`) and many timesteps, prefer
+  `xr.open_mfdataset` with chunking; the cycle-1 multi-file path
+  uses lazy chunks by default.
+- Cross-year file naming (`0002-01-01_*.nc`) gets included by
+  globs like `000*-*-01_*.nc` — verify the count matches what
+  the user expects.
+
 ## Verification
 
 - Output file size > 5 KB.
