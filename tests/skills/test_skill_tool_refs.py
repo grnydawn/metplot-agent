@@ -11,7 +11,7 @@ import pytest
 from tests.skills._skill_helpers import list_skills, parse_skill
 
 
-# Canonical tool lists from cycles 1 and 2 (per their dispatch lists)
+# Canonical tool list — cycles 1+2 base plus cycle-11/12 additions.
 _REAL_TOOLS = {
     "netcdf-reader.inspect",
     "netcdf-reader.resolve_spec",
@@ -21,6 +21,12 @@ _REAL_TOOLS = {
     "netcdf-reader.find_variables",
     "netcdf-reader.find_time",
     "netcdf-reader.regrid_to_centers",
+    # Cycle 11 — unstructured-mesh helpers
+    "netcdf-reader.find_nearest_cell",
+    "netcdf-reader.cells_in_bbox",
+    # Cycle 12 — ncks-parity analysis tools
+    "netcdf-reader.reduce_variable",
+    "netcdf-reader.dump_cdl",
     "plot-renderer.render_map",
     "plot-renderer.render_timeseries",
     "plot-renderer.render_profile",

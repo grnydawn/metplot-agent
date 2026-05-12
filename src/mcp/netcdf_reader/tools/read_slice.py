@@ -110,6 +110,13 @@ def _apply_selectors(da, resolved: dict[str, Any]):
         d = resolved.get("cell_dim")
         if d and d in da.dims:
             isel[d] = resolved["cell_indices"]
+    # Cycle 12: index_selectors (ncks -d parity). Stop is inclusive,
+    # hence the +1 when building the Python slice.
+    if "index_selectors" in resolved:
+        for d, spec_vals in resolved["index_selectors"].items():
+            if d in da.dims:
+                s, e, st = spec_vals
+                isel[d] = slice(s, e + 1, st)
     return da.isel(**isel)
 
 
@@ -125,6 +132,7 @@ def read_slice(
     regrid: str | None = None,
     cell_index: int | None = None,
     cell_indices: list[int] | None = None,
+    index_selectors: dict[str, list[int]] | None = None,
     max_inline_bytes: int = 100_000,
     adapter: FormatAdapter,
     ssh_config: dict[str, Any] | None = None,
@@ -134,6 +142,7 @@ def read_slice(
         path, variable, time=time, level=level, lat=lat, lon=lon,
         region=region, regrid=regrid,
         cell_index=cell_index, cell_indices=cell_indices,
+        index_selectors=index_selectors,
         adapter=adapter,
         ssh_config=ssh_config, mesh_path=mesh_path,
     )

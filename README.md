@@ -17,11 +17,13 @@ and the agent walks the file, slices data, and renders a PNG.
 
 ## Status
 
-Cycle 10 (shipped 2026-05-12) added time-decode robustness
-(Omega hifreq + SCREAM rhist no longer crash), dim-aware
-mesh-pair candidate ranking, ELM + CPL convention detection,
-EAMxx detector tightening, and multi-file unstructured time-
-series. Current capability summary:
+Cycle 12 (shipped 2026-05-12) added ncks-style analysis tools:
+hyperslab stride in `read_slice`, dim reduction via the new
+`reduce_variable`, and CDL dump via the new `dump_cdl`. Output
+is bit-exact identical to NCO's `ncks -d` (hyperslab) and
+`ncwa -y` (min/max reduction), and tight-tolerance identical
+for arithmetic reductions (avg/sum/rms). Current capability
+summary:
 
 | Capability | Status |
 |---|---|
@@ -36,6 +38,7 @@ series. Current capability summary:
 | Time-decode fallback on undecodable time origins (year-0001 noleap) | shipping (cycle 10) |
 | Unstructured time-series rendering (single cell / regional / global mean, MPAS family) | shipping (cycle 11) |
 | Unstructured vertical profile rendering (cell-indexed, MPAS family) | shipping (cycle 11) |
+| ncks-style analysis (hyperslab stride + dim reduction + CDL dump; bit-exact-vs-NCO tested) | shipping (cycle 12) |
 | Time-series plots | shipping (cycle 3) |
 | Vertical profiles + cross-sections | shipping (cycle 3) |
 | Style-by-reference (extract style from a screenshot) | shipping (cycle 3) |

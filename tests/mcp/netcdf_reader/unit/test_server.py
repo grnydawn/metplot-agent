@@ -1,7 +1,7 @@
 from src.mcp.netcdf_reader.server import dispatch, list_tool_names
 
 
-def test_list_tool_names_exposes_all_10():
+def test_list_tool_names_exposes_all_12():
     names = set(list_tool_names())
     assert names == {
         "inspect", "resolve_spec", "regrid_to_centers",
@@ -9,6 +9,8 @@ def test_list_tool_names_exposes_all_10():
         "find_variables", "find_time",
         # Cycle 11 — unstructured-mesh helpers
         "find_nearest_cell", "cells_in_bbox",
+        # Cycle 12 — ncks-parity analysis tools
+        "reduce_variable", "dump_cdl",
     }
 
 
@@ -41,3 +43,26 @@ def test_dispatch_find_variables(cf_4d_file):
     })
     assert out["ok"] is True
     assert out["result"]["matches"][0]["name"] == "ta"
+
+
+def test_dispatch_reduce_variable(cf_3d_file):
+    """Cycle 12: dispatch routes reduce_variable to its tool."""
+    out = dispatch("reduce_variable", {
+        "path": str(cf_3d_file), "variable": "tos",
+        "reduce_dims": ["time"], "op": "avg",
+    })
+    assert out["ok"] is True, out.get("error")
+    assert out["result"]["op"] == "avg"
+    assert out["result"]["reduced_dims"] == ["time"]
+
+
+def test_dispatch_dump_cdl(cf_3d_file):
+    """Cycle 12: dispatch routes dump_cdl to its tool."""
+    out = dispatch("dump_cdl", {
+        "path": str(cf_3d_file), "header_only": True,
+    })
+    assert out["ok"] is True, out.get("error")
+    cdl = out["result"]["cdl"]
+    assert cdl.startswith("netcdf ")
+    assert "dimensions:" in cdl
+    assert "data:" not in cdl  # header_only

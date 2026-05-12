@@ -53,6 +53,11 @@ For follow-up resolution beyond `inspect()`:
   `long_name`/`standard_name`/`description` for fuzzy lookup.
 - `netcdf-reader.find_time(path, hint)` — parse "2024-09", "last", "first"
   into ISO + index.
+- `netcdf-reader.dump_cdl(path, *, variables=None, header_only=False)` —
+  full CDL text (the format that `ncdump` / `ncks --cdl` produces).
+  Useful when the user wants to grep the schema, paste it into a bug
+  report, or feed it to `ncgen`. See the `netcdf-analyze` skill for
+  the full ncks-style toolkit.
 
 ## Pitfalls
 
