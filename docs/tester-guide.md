@@ -66,6 +66,7 @@ fixtures in `tests/mcp/netcdf_reader/conftest.py`.
 18. [Refinement applier (`metplot-refine`)](#18-refinement-applier)
 19. [Uninstall + clean reinstall](#19-uninstall--clean-reinstall)
 20. [Failure modes & error envelopes](#20-failure-modes--error-envelopes)
+21. [Real-data scenarios (`data/omega/`, `data/e3sm/`)](#21-real-data-scenarios-dataomega-datae3sm)
 
 ---
 
@@ -1303,6 +1304,373 @@ still `ok=true`:
 - `SLOW_REMOTE_READ` — open took > 30 s
 - `TIME_DECODE_FAILED` — Time dim present but no time coord
   (cycle 6 task 3 step 1; MPAS mesh files)
+
+---
+
+## 21. Real-data scenarios (`data/omega/`, `data/e3sm/`)
+
+The repository bundles two small real-model dataset folders so
+the tester (and the dogfood-tester guide) can exercise the
+agent against actual MPAS-Ocean (Omega) and E3SM outputs
+without needing to download anything. These tests are the
+ground truth for cycle-9 through cycle-12 capabilities.
+
+### 21.0 What's in `data/`
+
+**`data/omega/`** — MPAS-Ocean / E3SM Omega ocean component.
+
+| File | Shape / role |
+|---|---|
+| `ocn.hist.0001-{02..12}-01_00.00.00.nc`, `ocn.hist.0002-01-01_00.00.00.nc` | 12 monthly history files (Feb 0001 → Jan 0002). Each: `(time=1, NCells=7153, NVertLayers=60)`. Vars: `Temperature`, `Salinity`, `LayerThickness`, `SshCell`, `NormalVelocity`, `Debug{1,2,3}`. Time encoded as `seconds since 0001-01-01 00:00:00` (noleap-ish year-0001). |
+| `ocn.hifreq.0001-06.nc`, `ocn.hifreq.0001-07.nc` | Sub-monthly cadence (4 + 3 timesteps respectively). Vars: `Temperature`, `Salinity`, `Debug{1,2,3}`. Useful for fine-grained timeline tests. |
+| `ocn.restart.0001-07-01_00.00.00.nc`, `ocn.restart.0002-01-01_00.00.00.nc` | Full-state restart files (much larger). |
+| `ocean_test_mesh.nc` | MPAS mesh (`nCells=7153`, `nVertLevels=60`, includes `latCell`/`lonCell` in radians and `areaCell`). Pair with any `ocn.hist.*.nc`. |
+| `global_test_mesh.nc`, `planar_test_mesh.nc` | Alternative meshes (global lat/lon and planar Cartesian). |
+| `IOTest.nc` | I/O smoke fixture. |
+
+**`data/e3sm/`** — E3SM component outputs (CICE / SCREAM / ELM / CPL).
+
+| File | Shape / role |
+|---|---|
+| `cice.r.0001-01-01-21600.nc` | CICE5/6 restart. `(ncat=1, nj=1, ni=48602)` flattened block-decomposed. Vars: `aicen`, `vicen`, `vsnon`, `Tsfcn`. Needs a paired CICE grid file for plotting. |
+| `scream.phys.h.INSTANT.nsteps_x22.0001-01-01-39600.nc` | SCREAM (EAMxx) physics history. `(time=1, ncol=48602, lev=128)`. Vars: `T_mid`, `horiz_winds`, `pseudo_density`, `p_mid`, `area`. EAMxx physics-column grid. |
+| `scream.phys.h.rhist.INSTANT.nsteps_x22.0001-01-01-21600.nc` | SCREAM rhist (post-restart history). Exercises the cycle-10 time-decode fallback. |
+| `scream.diags.h.{,rhist.}INSTANT.nsteps_x22.0001-01-01-*.nc` | SCREAM diagnostic history. Same grid as `phys.h`. |
+| `scream.r.INSTANT.nsteps_x12.0001-01-01-21600.nc` | SCREAM restart. |
+| `elm.r.0001-01-01-21600.nc` | E3SM Land Model restart. Many unstructured land-grid dims (`gridcell=15865`, `column=238788`, `pft=492628`, levels like `levgrnd`, `levsno`). Detect-only (cycle 10). |
+| `elm.rh0.0001-01-01-21600.nc` | ELM secondary restart history. |
+| `cpl.hi.0001-01-01-39600.nc` | E3SM coupler history. `(time=1)` with multiple `doma_*` / `doml_*` / `domo_*` / `domi_*` domain prefixes. Detect-only (cycle 10). |
+| `cpl.r.0001-01-01-21600.nc` | CPL restart. |
+
+These prompts assume the working directory is the repo root so
+relative paths work. Replace with absolute paths if the agent
+needs them.
+
+### 21.1 Inspect — Omega monthly history (paired mesh)
+
+**You**: Inspect `data/omega/ocn.hist.0001-02-01_00.00.00.nc`
+using `data/omega/ocean_test_mesh.nc` as the mesh.
+
+**Expected**:
+- ✓ Single `inspect(path, mesh_path)` call.
+- ✓ `result.convention = "MPAS"`, `result.spatial.coord_kind =
+  "unstructured"`, `result.spatial.n_cells = 7153`.
+- ✓ `result.spatial.lon_convention = "0..360"` (MPAS radians
+  decoded to degrees).
+- ✓ `result.time.n = 1`, range starts `0001-02-01`.
+- ✓ Variables include `Temperature`, `Salinity`, `SshCell`
+  tagged `grid_kind: "cell_centered"`.
+
+### 21.2 Inspect — Omega monthly glob (12 files + mesh)
+
+**You**: Inspect `data/omega/ocn.hist.000*-*-01_00.00.00.nc` with
+mesh `data/omega/ocean_test_mesh.nc`.
+
+**Expected**:
+- ✓ `kind = "local_multi"`, `n_files = 12`.
+- ✓ `time.n = 12`, range Feb 0001 → Jan 0002.
+- ✓ Variables enumerate once (de-duplicated across files).
+- ✓ `spatial.coord_kind = "unstructured"`, `n_cells = 7153`.
+- ✓ No `mesh_pairing_required` ambiguity (mesh supplied
+  explicitly).
+
+### 21.3 Inspect — Omega hifreq (sub-monthly)
+
+**You**: Inspect `data/omega/ocn.hifreq.0001-06.nc` paired with
+the mesh.
+
+**Expected**:
+- ✓ `time.n = 4` (4 timesteps within June 0001).
+- ✓ Time axis monotonic; frequency irregular but reported.
+- ✓ Variables: `Temperature`, `Salinity`, `Debug{1,2,3}` —
+  smaller set than the monthly histories.
+
+### 21.4 Time-series — single cell over 12 months
+
+**You**: Plot a time series of Omega `Temperature` at the
+surface for cell index 100 over all 12 monthly files in
+`data/omega/`, using `ocean_test_mesh.nc`.
+
+**Expected**:
+- ✓ Pipeline: paired-glob `inspect` → `read_slice(glob,
+  "Temperature", level=0, cell_index=100, mesh_path=...,
+  time="all")` → result shape `[12]` → `render_timeseries`.
+- ✓ PNG > 5 KB with 12 points on the time axis, dates spanning
+  Feb 0001 → Jan 0002.
+- ✓ Y-axis label includes units (e.g. `degree_C`).
+- ✓ Series is finite (no all-NaN warning).
+
+### 21.5 Time-series — North Atlantic regional mean
+
+**You**: Plot the area-weighted mean Omega `Temperature` over
+the North Atlantic (lon 280..360, lat 20..70) at the surface
+across the 12 monthly files.
+
+**Expected**:
+- ✓ Calls `cells_in_bbox(mesh, lat_min=20, lat_max=70,
+  lon_min=280, lon_max=360)` — note the 0..360 lon convention
+  (NA is 280..360, **not** −80..0).
+- ✓ `read_slice(glob, "Temperature", level=0,
+  cell_indices=[...], mesh_path=..., time="all")` → shape
+  `[12, ~470]`.
+- ✓ Skill-side area-weighted mean via `area_weights(mesh_ds,
+  indices=...)` → shape `[12]`.
+- ✓ `render_timeseries` → PNG with title naming the region and
+  the weighting method.
+
+### 21.6 Time-series — global area-weighted mean
+
+**You**: Plot the global area-weighted mean of Omega
+`Temperature` at the surface over the 12 monthly files.
+
+**Expected**:
+- ✓ No `cells_in_bbox` call (global = all cells).
+- ✓ `area_weights(mesh_ds)` returns shape `[7153]`.
+- ✓ Skill-side weighted mean → shape `[12]`.
+- ✓ Render → PNG with single trace, no legend (single series).
+
+### 21.7 Time-series — sub-monthly cadence (hifreq glob)
+
+**You**: Plot the time series of `Temperature` at cell 100,
+surface, across `data/omega/ocn.hifreq.0001-*.nc` (both June
+and July files), using `ocean_test_mesh.nc`.
+
+**Expected**:
+- ✓ Paired-glob inspect of 2 hifreq files → `time.n = 7` (4
+  June + 3 July).
+- ✓ `read_slice(glob, "Temperature", level=0, cell_index=100,
+  mesh_path=...)` → shape `[7]`.
+- ✓ Render → PNG with 7 time points spread irregularly across
+  June–July of year 0001.
+- ✓ X-axis tick labels reflect the actual irregular cadence
+  (not pretend-monthly).
+
+### 21.8 Vertical profile — single cell, all 60 levels
+
+**You**: Plot the vertical Temperature profile at cell index
+100 from `data/omega/ocn.hist.0001-02-01_00.00.00.nc`, paired
+with the mesh.
+
+**Expected**:
+- ✓ `read_slice(history, "Temperature", time="first",
+  cell_index=100, mesh_path=...)` → shape `[60]` (all
+  `NVertLayers`).
+- ✓ `render_profile` → PNG with y-axis label "depth" or "layer
+  index", y-axis **inverted** (surface at top, deep at bottom
+  for MPAS-Ocean convention).
+- ✓ Variable label "Temperature" on x-axis with units.
+
+### 21.9 Vertical profile — by lat/lon (find_nearest_cell)
+
+**You**: Plot the Temperature profile at lat=30, lon=300 from
+the same Omega history.
+
+**Expected**:
+- ✓ Calls `find_nearest_cell(mesh, lat=30, lon=300)` → integer
+  index.
+- ✓ Reports the chosen cell index back to the user (e.g.
+  "nearest cell: 4217").
+- ✓ Then runs the §21.8 pipeline with that index. PNG looks
+  similar.
+- ✓ Lon must be in the mesh's 0..360 convention (don't say
+  −60).
+
+### 21.10 Map — paired mesh on real data
+
+**You**: Map Omega `Temperature` at the surface for the first
+time step from `data/omega/ocn.hist.0001-02-01_00.00.00.nc`,
+using `ocean_test_mesh.nc`.
+
+**Expected**:
+- ✓ Pipeline: paired `inspect` → `read_slice(history,
+  "Temperature", time="first", level=0, mesh_path=mesh)` →
+  `render_map(...)`.
+- ✓ `oracle.drawn.grid_kind = "unstructured"`,
+  `n_cells = 7153`, `mesh_path` echoed.
+- ✓ PNG > 100 KB, full globe in default projection.
+
+### 21.11 Hyperslab — every other timestep (cycle 12)
+
+**You**: Read every other timestep of `Temperature` from
+`data/omega/ocn.hifreq.0001-06.nc` (i.e. timesteps 0 and 2).
+
+**Expected**:
+- ✓ Calls `read_slice(path, "Temperature",
+  index_selectors={"time": [0, 3, 2]}, mesh_path=mesh)`.
+- ✓ `result.shape = [2, 60, 7153]` (or with mesh-path skipped:
+  `[2, 60, 7153]`).
+- ✓ Stop is inclusive (`[0, 3, 2]` → indices 0, 2 → 2 elements,
+  not 1).
+
+### 21.12 Hyperslab — top-of-water-column subset
+
+**You**: Read `Temperature` from
+`data/omega/ocn.hist.0001-02-01_00.00.00.nc` for the top 10
+vertical layers only.
+
+**Expected**:
+- ✓ Calls `read_slice(path, "Temperature", time="first",
+  index_selectors={"NVertLayers": [0, 9]})` → shape `[10,
+  7153]`.
+- ✓ Dim name `NVertLayers` matched case-insensitively.
+
+### 21.13 Reduce — global mean Temperature (collapse cells)
+
+**You**: Compute the cell-averaged Temperature per (time,
+level) from `data/omega/ocn.hist.0001-02-01_00.00.00.nc`.
+
+**Expected**:
+- ✓ Calls `reduce_variable(path, "Temperature",
+  reduce_dims=["NCells"], op="avg")`.
+- ✓ `result.shape = [1, 60]`, `result.dims = ["time",
+  "NVertLayers"]`, `result.reduced_dims = ["NCells"]`.
+- ✓ Result is a scalar profile (one value per level).
+- ✓ Caveat: this is **unweighted**; if the user wants
+  area-weighting, route them to the skill-side
+  `area_weights(...)` pattern (cycle 11).
+
+### 21.14 Reduce — time average over the 12-month series
+
+**You**: Compute the annual-mean Temperature at the surface
+from the 12 Omega monthly files.
+
+**Expected**:
+- ✓ Pipeline: paired-glob inspect → `reduce_variable(glob,
+  "Temperature", reduce_dims=["time"], op="avg",
+  mesh_path=mesh)` → shape `[60, 7153]`.
+- ✓ Or: agent first uses `index_selectors={NVertLayers: [0,
+  0]}` + reduce over time → shape `[7153]`.
+
+### 21.15 dump_cdl — header-only schema
+
+**You**: Dump the CDL header (no data) of
+`data/omega/ocean_test_mesh.nc`.
+
+**Expected**:
+- ✓ Calls `dump_cdl(path, header_only=True)`.
+- ✓ Returns a multi-line CDL string starting `netcdf
+  ocean_test_mesh {` and containing `dimensions:` + `nCells = 7153
+  ;` + `variables:` + a `// global attributes:` block.
+- ✓ Does NOT contain a `data:` section.
+
+### 21.16 dump_cdl — variables filter
+
+**You**: Show me just the `Temperature` variable schema from
+`data/omega/ocn.hist.0001-02-01_00.00.00.nc`.
+
+**Expected**:
+- ✓ Calls `dump_cdl(path, variables=["Temperature"],
+  header_only=True)`.
+- ✓ The `variables:` block contains
+  `double Temperature(time, NCells, NVertLayers) ;` and its
+  attribute lines, but no other variable lines.
+
+### 21.17 ncks side-by-side — hyperslab parity check
+
+**You** (tester runs both):
+```bash
+ncks -O -v Temperature -d NCells,0,99 \
+     data/omega/ocn.hist.0001-02-01_00.00.00.nc /tmp/ncks_out.nc
+```
+Then ask the agent: read Temperature from the same file with
+`index_selectors={"NCells": [0, 99]}` and compare to
+`/tmp/ncks_out.nc`.
+
+**Expected**:
+- ✓ Agent calls `read_slice(path, "Temperature",
+  index_selectors={"NCells": [0, 99]}, max_inline_bytes=<big>)`.
+- ✓ Returned values `np.array_equal` to the contents of
+  `/tmp/ncks_out.nc` opened with xarray.
+- ✓ Spec claim "bit-exact identical to `ncks -d`" holds end to
+  end on real data.
+
+### 21.18 ncwa side-by-side — reduction parity check
+
+**You** (tester runs):
+```bash
+ncwa -O -v Temperature -y avg -a NCells \
+     data/omega/ocn.hist.0001-02-01_00.00.00.nc /tmp/ncwa_out.nc
+```
+Then ask the agent to compute the cell-mean Temperature from
+the same file.
+
+**Expected**:
+- ✓ Agent calls `reduce_variable(path, "Temperature",
+  reduce_dims=["NCells"], op="avg")`.
+- ✓ Returned array matches `/tmp/ncwa_out.nc` Temperature
+  values within `rtol=1e-12` (numpy pairwise vs ncwa serial
+  summation diverges at last ULPs — documented in cycle-12
+  spec §1 success criterion #5).
+- ✓ For `op="min"` or `op="max"`, the comparison is
+  bit-exact (no accumulation).
+
+### 21.19 CICE r-file detection (E3SM)
+
+**You**: Inspect `data/e3sm/cice.r.0001-01-01-21600.nc`.
+
+**Expected**:
+- ✓ `ambiguous` envelope with `subcode =
+  "mesh_pairing_required"` (cycle 9: CICE needs a separate
+  grid file).
+- ✓ `convention = "CICE"`, `cell_dim = "ni"`.
+- ✓ Variable fingerprint detected: `aicen`, `vicen`, `Tsfcn`,
+  `vsnon`.
+- ✓ `error.candidates` lists likely sibling grid files; the
+  bundled data doesn't include one, so the list may be empty
+  — that's a valid "no candidate found" answer.
+
+### 21.20 SCREAM (EAMxx) physics history detection
+
+**You**: Inspect
+`data/e3sm/scream.phys.h.INSTANT.nsteps_x22.0001-01-01-39600.nc`.
+
+**Expected**:
+- ✓ `ambiguous` envelope with `subcode =
+  "mesh_pairing_required"`.
+- ✓ `convention = "EAMxx"` (or `"SCREAM"`), takes precedence
+  over plain CF via the `source` / `case` attrs / averaging
+  attrs.
+- ✓ `cell_dim = "ncol"`, `n_cells = 48602`.
+- ✓ Variables include `T_mid`, `horiz_winds`, `p_mid` —
+  `cell_centered`.
+
+### 21.21 SCREAM rhist time-decode fallback (cycle 10)
+
+**You**: Inspect
+`data/e3sm/scream.phys.h.rhist.INSTANT.nsteps_x22.0001-01-01-21600.nc`.
+
+**Expected**:
+- ✓ No crash (cycle 10 fix: rhist files use an undecodable
+  year-0001 origin under noleap; the adapter falls back to
+  raw seconds).
+- ✓ `result.warnings` contains `TIME_DECODE_FAILED` (or
+  equivalent — surfacing the fallback path).
+- ✓ Inspect otherwise succeeds and surfaces the schema as in
+  §21.20.
+
+### 21.22 ELM r-file detection (cycle 10)
+
+**You**: Inspect `data/e3sm/elm.r.0001-01-01-21600.nc`.
+
+**Expected**:
+- ✓ `convention = "ELM"`.
+- ✓ Surfaces the unstructured land-grid dims (`gridcell`,
+  `column`, `pft`, `levgrnd`, `levsno`).
+- ✓ Detection-only (cycle 10 scope): plotting is **not**
+  shipped for ELM — the agent should respond with "I can see
+  this is ELM, but plotting ELM grids is out of scope for the
+  current release; routing to a non-plot action is fine".
+
+### 21.23 CPL hi-file detection (cycle 10)
+
+**You**: Inspect `data/e3sm/cpl.hi.0001-01-01-39600.nc`.
+
+**Expected**:
+- ✓ `convention = "CPL"` (E3SM coupler).
+- ✓ Detection surfaces the `doma_*` / `doml_*` / `domo_*` /
+  `domi_*` domain prefixes (atmosphere / land / ocean / ice).
+- ✓ Detection-only (cycle 10 scope): same caveat as §21.22 —
+  no plotting path shipped.
 
 ---
 
