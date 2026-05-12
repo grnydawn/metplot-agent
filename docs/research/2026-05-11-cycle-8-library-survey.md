@@ -252,19 +252,100 @@ Drop **PyVista**, **hvplot/holoviews**, and **`xarray-mpas`** from the
 candidate list. Issue a small cycle-8 spec amendment to fix
 §2.1 accordingly.
 
-## PoC plan
+## PoC results (2026-05-11)
 
-Per spec §2.2 — one runnable script per realistically-viable
-candidate, each producing a PNG of MPAS-Ocean
-`Temperature[t=0, surface]` from the on-disk file pair:
+Three PoC scripts at `.scratch/cycle-8-poc/` (gitignored) — one per
+realistically-viable candidate. All three produced recognizable
+global MPAS-Ocean surface-temperature maps. PNGs at
+`.scratch/cycle-8-poc/out-*.png`.
 
-- `.scratch/cycle-8-poc/uxarray_poc.py` (primary path)
-- `.scratch/cycle-8-poc/tripcolor_poc.py` (secondary path; mpas_tools helper)
-- `.scratch/cycle-8-poc/datashader_poc.py` (scaling fallback)
+### Summary
 
-PNGs land at `.scratch/cycle-8-poc/out-*.png` (gitignored).
-This survey doc gets a "PoC results" subsection after the PoCs run,
-with rendered-screenshot references and per-script observations.
+| PoC | Render time | PNG size | LoC | Visual quality | Notes |
+|---|---|---|---|---|---|
+| `uxarray_poc.py` | 12.1s | 692 KB | ~50 | sharp Voronoi cell mosaic | `open_mfdataset(mesh, hist)` works first-call; `Temperature.to_polycollection()` has an internal np.delete bug as of uxarray v2026.04.1, so the PoC reaches for `uxds.uxgrid.to_polycollection()` + manual `set_array(surf.values)` instead. |
+| `tripcolor_poc.py` | 11.6s | 639 KB | ~75 | clean flat-shaded Voronoi polygons | Hand-fanned `verticesOnCell` → `matplotlib.collections.PolyCollection`. Zero new heavy deps. Dateline-wrap mitigation drops 95 cells (1.3%). |
+| `datashader_poc.py` | 3.3s rasterize | 422 KB | ~90 | smooth linear-interp gradient | Triangle-fan into `Canvas.trimesh()`. ~3× faster than the matplotlib paths at this scale; PIL output wrapped in `ax.imshow(transform=PlateCarree)` for cartopy axes. Same dateline-wrap mitigation drops 95 cells. |
+
+### Findings carried over into Phase B planning
+
+1. **MPAS-Ocean `lat*` / `lon*` ships in radians** with `units=None`.
+   The mesh file's `latVertex`, `lonVertex`, `latCell`, `lonCell`
+   all lack a `units` attribute and use the [0, 2π] (lon) / [-π/2,
+   π/2] (lat) convention. Any unstructured-spatial extractor in
+   cycle 8 §3.2's `extract_unstructured_spatial(...)` MUST detect
+   radians by range (`abs(arr).max() <= 2*np.pi + 0.01`) and
+   convert to degrees, OR honor an explicit `units="radians"` attr
+   when present. The first PoC pass got this wrong (checked only
+   `|max| <= π`) and produced a degenerate zero-meridian strip — a
+   real failure mode the inspect envelope's spatial-extraction tests
+   must cover.
+
+2. **uxarray remaps dim names**. `nCells` → `n_face`, `Time` (mesh)
+   stays uppercase, `time` (history) stays lowercase. The
+   `NVertLayers` casing (history-side) is preserved. This means
+   the cycle 8 §3.3 mesh-pairing tool needs awareness of both the
+   raw NetCDF dim names (for backwards-compatible reads through the
+   existing inspect envelope) AND uxarray's UGRID-normalized names
+   (when the renderer consumes a `UxDataset`).
+
+3. **uxarray history-file dim casing.** The MPAS-Ocean history file
+   `ocn.hist.0001-02-01_00.00.00.nc` uses lowercase `time` +
+   uppercase `NCells` / `NVertLayers` / `NEdges`. The mesh uses
+   lowercase `nCells` / `nVertLevels` / `nEdges`. This asymmetry
+   (already noted in cycle 6's `conventions/mpas.py` detection
+   work) is real, persistent, and the case-insensitive dim matching
+   that cycle 6 shipped is necessary, not nice-to-have.
+
+4. **Dateline-wrap is non-trivial.** Both hand-rolled PoCs drop
+   ~1.3% of cells that straddle the antimeridian (lon span > 180°
+   in degrees). uxarray handles it transparently — another
+   argument for picking it as primary. Phase B's `_render_unstructured_map`
+   in the matplotlib fallback path needs an explicit antimeridian
+   wrap routine (split each crossing polygon into two pieces with
+   wrapped lon).
+
+5. **Render time at 7k cells.** uxarray and tripcolor both spend
+   ~11–12s; that's matplotlib's `PolyCollection` rendering
+   dominating, not the data-loading or projection step.
+   Datashader's numba'd path is ~3.5× faster (3.3s) and will
+   diverge much more at higher cell counts. The spec §5 risk #4
+   ("Performance on full-resolution meshes") is real but tractable
+   — datashader (or uxarray's native datashader backend) is the
+   1M-cell escape hatch.
+
+6. **No `units` attr on Temperature.** `hist["Temperature"]` has a
+   `units` attr of `"C"` (Celsius) but no `standard_name`. The
+   range [-1.72, 29.82] matches sea-water observed range. Cycle 8
+   skill-side will need to know that MPAS-Ocean Temperature is
+   `sea_water_conservative_temperature` (TEOS-10) per the cycle-6
+   dogfood TEOS-10 finding — that alias mapping is already queued
+   as a refinement draft from cycle 6 Phase A.
+
+### Visual confirmation
+
+`out-uxarray.png` (692 KB), `out-tripcolor.png` (639 KB),
+`out-datashader.png` (422 KB) — all three show:
+
+- Warm equatorial waters (yellow / 25–30°C)
+- Cold polar waters (purple / -2–5°C)
+- Land masking (no fill where the MPAS mesh has no cells —
+  continents render as the white-background coastlines through)
+- Date-line continuity (uxarray) or near-continuity with 1.3%
+  cell drop (tripcolor / datashader)
+
+Spec §1 Phase A success criterion #1 — "Does the chosen library
+produce a recognizable MPAS-Ocean surface-temperature map?" — is
+satisfied for all three viable candidates.
+
+### Recommendation update
+
+The PoCs confirm the survey recommendation: **uxarray as primary,
+matplotlib `tripcolor` + hand-rolled unflatten as secondary,
+datashader as 1M+ cell scaling fallback.** Phase B can move forward
+on uxarray with the secondary path documented as the
+`--no-unstructured` opt-out plan for installer-budget constrained
+deployments.
 
 ## Sources
 

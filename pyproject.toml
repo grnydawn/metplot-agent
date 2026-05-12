@@ -36,6 +36,19 @@ dev = [
   "ruff>=0.4",
   "mypy>=1.8",
 ]
+# Cycle-8 Phase A research deps. Candidate libraries the
+# library-survey doc identified, installed for PoC validation
+# against the dogfood files. Phase B will pick one and move it into
+# `mcp` (since plot-renderer will import it at runtime); this group
+# goes away at that point.
+#
+# NB: `mpas_tools` is conda-forge-only as of May 2026 (not on PyPI);
+# the matplotlib `tripcolor` secondary PoC vendors the
+# Voronoi-fan-to-triangulation logic by hand instead.
+cycle8-poc = [
+  "uxarray>=2026.04",
+  "datashader>=0.19",
+]
 
 [project.scripts]
 metplot-build = "tools.build:cli"
