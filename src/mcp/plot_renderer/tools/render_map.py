@@ -330,6 +330,10 @@ def _peek_grid_kind(mesh_path: str) -> str:
     Returns one of:
       - "cice"   — TLAT(nj, ni) / TLON(nj, ni) present → pcolormesh.
       - "eamxx"  — lat(ncol) / lon(ncol) 1-D present → scatter.
+      - "elm"    — latixy/longxy on gridcell dim → scatter (cycle 13).
+      - "cpl"    — any <domain>_lat/<domain>_lon present, where
+                   domain ∈ {doma, doml, domo, domi} → scatter
+                   (cycle 13).
       - "mpas"   — fallback / uxarray-recognizable Voronoi mesh.
     """
     import xarray as xr  # type: ignore[import-untyped]
@@ -343,6 +347,19 @@ def _peek_grid_kind(mesh_path: str) -> str:
         if ("TLAT" in ds.variables and "TLON" in ds.variables
                 and "nj" in ds.dims and "ni" in ds.dims):
             return "cice"
+        # Cycle 13: ELM gridcell scatter. Check before EAMxx because
+        # latixy/longxy are ELM-specific; the EAMxx path looks for
+        # the more-generic `lat`/`lon`.
+        if ("gridcell" in ds.dims
+                and "latixy" in ds.variables
+                and "longxy" in ds.variables):
+            return "elm"
+        # Cycle 13: CPL multi-domain. Any of the four prefixes
+        # signals coupler.
+        for dom in ("doma", "doml", "domo", "domi"):
+            if (f"{dom}_lat" in ds.variables
+                    and f"{dom}_lon" in ds.variables):
+                return "cpl"
         if ("lat" in ds.variables and "lon" in ds.variables
                 and ds["lat"].ndim == 1
                 and ds["lon"].ndim == 1
@@ -367,6 +384,11 @@ def _render_unstructured_map(spec: dict[str, Any]) -> dict[str, Any]:
         return _render_cice_grid(spec)
     if grid_kind == "eamxx":
         return _render_eamxx_grid(spec)
+    # Cycle 13 theme B — ELM/CPL scatter dispatches.
+    if grid_kind == "elm":
+        return _render_elm_gridcell(spec)
+    if grid_kind == "cpl":
+        return _render_cpl_domain(spec)
     return _render_mpas_voronoi(spec)
 
 
@@ -915,6 +937,200 @@ def _render_eamxx_grid(spec: dict[str, Any]) -> dict[str, Any]:
             warnings=warnings,
             grid_kind_label="unstructured_eamxx",
             n_cells=ncol, mesh_path=mesh_path,
+            coastlines_drawn=coastlines_drawn,
+        )
+    except Exception as e:
+        return envelope.error("internal_render_error",
+                              f"{type(e).__name__}: {e}")
+    finally:
+        if fig is not None:
+            plt.close(fig)
+
+
+def _render_elm_gridcell(spec: dict[str, Any]) -> dict[str, Any]:
+    """Cycle 13 theme B — ELM gridcell scatter renderer.
+
+    Reads latixy / longxy on the gridcell dim and scatter-plots
+    one value per gridcell. PFT / column-level rendering is out
+    of scope (cycle 14+)."""
+    import xarray as xr  # type: ignore[import-untyped]
+    mesh_path = spec["mesh_path"]
+    fig = None
+    try:
+        try:
+            mesh_ds = xr.open_dataset(mesh_path, decode_times=False)
+        except (FileNotFoundError, OSError) as e:
+            return envelope.error(
+                "mesh_path_unreadable",
+                f"could not open mesh_path {mesh_path!r}: {e}")
+        try:
+            lat = np.asarray(mesh_ds["latixy"].values, dtype="float64").reshape(-1)
+            lon = np.asarray(mesh_ds["longxy"].values, dtype="float64").reshape(-1)
+            ngc = int(mesh_ds.sizes["gridcell"])
+        finally:
+            mesh_ds.close()
+        values = np.asarray(spec.get("values"), dtype="float64").reshape(-1)
+        if values.size != ngc:
+            return envelope.error(
+                "shape_mismatch",
+                f"values length {values.size} != gridcell {ngc} "
+                f"— wrong grid for this slice?")
+
+        (resolved, proj, cmap_name, vmin, vmax, clip_applied,
+         warnings, trace, early) = (
+            _common_unstructured_safety_and_style(spec, values))
+        if early is not None:
+            return early
+
+        fig = plt.figure(figsize=(8.0, 5.0))
+        ax = fig.add_subplot(1, 1, 1, projection=proj)
+        cmap = plt.get_cmap(cmap_name).copy()
+        cmap.set_bad(alpha=0.0)
+        if ngc > 100_000:
+            point_size = 0.5
+        elif ngc > 10_000:
+            point_size = 1.0
+        else:
+            point_size = 6.0
+        sc = ax.scatter(
+            lon, lat, c=values, s=point_size,
+            transform=ccrs.PlateCarree(),
+            cmap=cmap, vmin=vmin, vmax=vmax,
+            edgecolors="none", marker="s",
+        )
+        ax.set_global()
+        coastlines_drawn = False
+        try:
+            ax.add_feature(cfeature.COASTLINE, linewidth=0.5)
+            coastlines_drawn = True
+        except Exception:
+            pass
+        if resolved.get("gridlines") != "none":
+            ax.gridlines(draw_labels=False, linewidth=0.3, alpha=0.4)
+        cbar_pos = resolved.get("colorbar_position") or "right"
+        if cbar_pos != "none":
+            orientation = ("horizontal"
+                            if cbar_pos in ("top", "bottom")
+                            else "vertical")
+            cb = fig.colorbar(sc, ax=ax, orientation=orientation,
+                              fraction=0.04, pad=0.04)
+            if spec.get("colorbar_label"):
+                cb.set_label(spec["colorbar_label"])
+        if spec.get("title"):
+            ax.set_title(spec["title"])
+        fig.tight_layout()
+
+        proj_name = resolved.get("projection", "PlateCarree")
+        return _save_and_oracle_unstructured(
+            fig=fig, ax=ax, values=values, spec=spec,
+            resolved=resolved, trace=trace,
+            proj_name=proj_name, cmap_name=cmap_name,
+            vmin=vmin, vmax=vmax, clip_applied=clip_applied,
+            warnings=warnings,
+            grid_kind_label="unstructured_elm",
+            n_cells=ngc, mesh_path=mesh_path,
+            coastlines_drawn=coastlines_drawn,
+        )
+    except Exception as e:
+        return envelope.error("internal_render_error",
+                              f"{type(e).__name__}: {e}")
+    finally:
+        if fig is not None:
+            plt.close(fig)
+
+
+def _render_cpl_domain(spec: dict[str, Any]) -> dict[str, Any]:
+    """Cycle 13 theme B — CPL single-domain scatter renderer.
+
+    Reads <domain>_lat / <domain>_lon for the requested CPL
+    domain prefix (`doma` default, or `doml`/`domo`/`domi`).
+    Multi-domain overlay is out of scope (cycle 14+)."""
+    import xarray as xr  # type: ignore[import-untyped]
+    mesh_path = spec["mesh_path"]
+    domain = spec.get("domain", "doma")
+    fig = None
+    try:
+        try:
+            mesh_ds = xr.open_dataset(mesh_path, decode_times=False)
+        except (FileNotFoundError, OSError) as e:
+            return envelope.error(
+                "mesh_path_unreadable",
+                f"could not open mesh_path {mesh_path!r}: {e}")
+        try:
+            lat_v = f"{domain}_lat"
+            lon_v = f"{domain}_lon"
+            if (lat_v not in mesh_ds.variables
+                    or lon_v not in mesh_ds.variables):
+                return envelope.error(
+                    "invalid_spec",
+                    f"CPL domain {domain!r} not found in mesh: "
+                    f"{lat_v}/{lon_v} missing. Available domains: "
+                    f"{sorted({k.split('_', 1)[0] for k in mesh_ds.variables if k.endswith('_lat')})}")
+            lat = np.asarray(mesh_ds[lat_v].values, dtype="float64").reshape(-1)
+            lon = np.asarray(mesh_ds[lon_v].values, dtype="float64").reshape(-1)
+            ncells = lat.size
+        finally:
+            mesh_ds.close()
+        values = np.asarray(spec.get("values"), dtype="float64").reshape(-1)
+        if values.size != ncells:
+            return envelope.error(
+                "shape_mismatch",
+                f"values length {values.size} != domain {domain!r} "
+                f"cell count {ncells}")
+
+        (resolved, proj, cmap_name, vmin, vmax, clip_applied,
+         warnings, trace, early) = (
+            _common_unstructured_safety_and_style(spec, values))
+        if early is not None:
+            return early
+
+        fig = plt.figure(figsize=(8.0, 5.0))
+        ax = fig.add_subplot(1, 1, 1, projection=proj)
+        cmap = plt.get_cmap(cmap_name).copy()
+        cmap.set_bad(alpha=0.0)
+        if ncells > 100_000:
+            point_size = 0.5
+        elif ncells > 10_000:
+            point_size = 1.0
+        else:
+            point_size = 6.0
+        sc = ax.scatter(
+            lon, lat, c=values, s=point_size,
+            transform=ccrs.PlateCarree(),
+            cmap=cmap, vmin=vmin, vmax=vmax,
+            edgecolors="none", marker="s",
+        )
+        ax.set_global()
+        coastlines_drawn = False
+        try:
+            ax.add_feature(cfeature.COASTLINE, linewidth=0.5)
+            coastlines_drawn = True
+        except Exception:
+            pass
+        if resolved.get("gridlines") != "none":
+            ax.gridlines(draw_labels=False, linewidth=0.3, alpha=0.4)
+        cbar_pos = resolved.get("colorbar_position") or "right"
+        if cbar_pos != "none":
+            orientation = ("horizontal"
+                            if cbar_pos in ("top", "bottom")
+                            else "vertical")
+            cb = fig.colorbar(sc, ax=ax, orientation=orientation,
+                              fraction=0.04, pad=0.04)
+            if spec.get("colorbar_label"):
+                cb.set_label(spec["colorbar_label"])
+        if spec.get("title"):
+            ax.set_title(spec["title"])
+        fig.tight_layout()
+
+        proj_name = resolved.get("projection", "PlateCarree")
+        return _save_and_oracle_unstructured(
+            fig=fig, ax=ax, values=values, spec=spec,
+            resolved=resolved, trace=trace,
+            proj_name=proj_name, cmap_name=cmap_name,
+            vmin=vmin, vmax=vmax, clip_applied=clip_applied,
+            warnings=warnings,
+            grid_kind_label="unstructured_cpl",
+            n_cells=ncells, mesh_path=mesh_path,
             coastlines_drawn=coastlines_drawn,
         )
     except Exception as e:

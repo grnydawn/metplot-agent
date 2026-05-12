@@ -219,6 +219,25 @@ mesh. Flow differences from the rectilinear path:
    with `grid_kind: "dycore_spectral"` returns a
    structured `unstructured_dycore_unsupported` error.
 
+10. **ELM gridcell scatter (cycle 13).** E3SM Land Model
+    files paired with a mesh containing `latixy`/`longxy` on a
+    `gridcell` dim → scatter render at gridcell resolution.
+    1-D `values` of length `gridcell` go directly to the
+    scatter path. Oracle reports `grid_kind: "unstructured_elm"`.
+    Point-size auto-scales (6 px at 15k gridcells; 0.5 px at
+    100k+). **OUT OF SCOPE this cycle**: PFT, landunit, column
+    mosaic — only gridcell-level scalar fields render.
+
+11. **CPL single-domain scatter (cycle 13).** E3SM coupler
+    files ship four domain prefixes (`doma_`/`doml_`/`domo_`/
+    `domi_` for atm/lnd/ocn/ice). Pass `spec["domain"]` to pick
+    which one; default = `doma`. The renderer reads
+    `<domain>_lat`/`<domain>_lon` (typically 2-D `(ny=1, nx)`)
+    and scatters. Oracle reports
+    `grid_kind: "unstructured_cpl"`. **OUT OF SCOPE**: multi-
+    domain overlay (rendering atm + lnd + ocn + ice together) —
+    one domain per render in cycle 13.
+
 ## Pitfalls
 
 - **Empty slice, blank plot.** If the region/time selection produces a
