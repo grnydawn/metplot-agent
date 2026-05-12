@@ -196,8 +196,10 @@ class _InMemoryServer(paramiko.ServerInterface):
                 channel.sendall(stdout)
             if stderr:
                 channel.sendall_stderr(stderr)
+            channel.shutdown_write()  # Signal EOF on stdout/stderr to client
             channel.send_exit_status(exit_code)
-            channel.close()
+            # Don't close eagerly — let the client close. The transport
+            # garbage-collects the channel when the test ends.
 
         threading.Thread(target=_worker, daemon=True).start()
         return True
