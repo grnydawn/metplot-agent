@@ -68,7 +68,7 @@ def find_region(name: str) -> dict[str, Any]:
         "region",
         f"no region named {name!r}",
         candidates=candidates,
-        prompt=f"Did you mean one of these regions?",
+        prompt="Did you mean one of these regions?",
         retry_with_param="name",
         context={"requested": name},
     )

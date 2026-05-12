@@ -28,8 +28,7 @@ import xarray as xr
 from src.mcp.netcdf_reader import envelope
 from src.mcp.netcdf_reader.paths.classify import ClassifyError, classify
 from src.mcp.netcdf_reader.selectors_unstructured import (
-    _FAMILIES, _coords_deg, _detect_convention,
-    find_nearest_cell,
+    _FAMILIES, _detect_convention, find_nearest_cell,
 )
 
 _EARTH_RADIUS_KM = 6371.0

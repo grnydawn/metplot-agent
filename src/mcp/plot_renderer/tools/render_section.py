@@ -104,9 +104,9 @@ def render_section(spec: dict[str, Any]) -> dict[str, Any]:
             cb.set_label(spec["units"])
         fig.tight_layout()
 
-        fmt = spec.get("format") or _defaults.LIBRARY_DEFAULTS.get(
-            "format", "png")
-        dpi = int(spec.get("dpi")
+        fmt = str(spec.get("format")
+                  or _defaults.LIBRARY_DEFAULTS.get("format", "png"))
+        dpi = int(spec.get("dpi")  # type: ignore[arg-type]
                   or _defaults.LIBRARY_DEFAULTS.get("dpi", 150))
         lifecycle.validate_dpi(dpi)
         if spec.get("output_path"):

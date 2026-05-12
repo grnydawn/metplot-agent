@@ -57,7 +57,7 @@ def _detect_convention(mesh_ds: xr.Dataset) -> str:
         "could not detect mesh convention; expected one of MPAS "
         "(latCell/lonCell/nCells), CICE (TLAT/TLON/ni), or EAMxx "
         f"(lat/lon/ncol). Mesh has variables: "
-        f"{sorted(mesh_ds.variables)[:10]}")
+        f"{sorted(str(v) for v in mesh_ds.variables)[:10]}")
 
 
 def _resolve_mesh_vars(mesh_ds: xr.Dataset, convention: str = "auto"

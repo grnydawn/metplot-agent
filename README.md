@@ -17,13 +17,11 @@ and the agent walks the file, slices data, and renders a PNG.
 
 ## Status
 
-Cycle 12 (shipped 2026-05-12) added ncks-style analysis tools:
-hyperslab stride in `read_slice`, dim reduction via the new
-`reduce_variable`, and CDL dump via the new `dump_cdl`. Output
-is bit-exact identical to NCO's `ncks -d` (hyperslab) and
-`ncwa -y` (min/max reduction), and tight-tolerance identical
-for arithmetic reductions (avg/sum/rms). Current capability
-summary:
+Cycle 13 (shipped 2026-05-12) bundled four follow-on themes:
+CICE/EAMxx cell-axis selectors, ELM/CPL map render, multi-cell
+overlay + named-region lookup on unstructured grids, and
+great-circle cross-section plots. Tool counts: netcdf-reader
+14, plot-renderer 4. Current capability summary:
 
 | Capability | Status |
 |---|---|
@@ -39,6 +37,10 @@ summary:
 | Unstructured time-series rendering (single cell / regional / global mean, MPAS family) | shipping (cycle 11) |
 | Unstructured vertical profile rendering (cell-indexed, MPAS family) | shipping (cycle 11) |
 | ncks-style analysis (hyperslab stride + dim reduction + CDL dump; bit-exact-vs-NCO tested) | shipping (cycle 12) |
+| Unstructured cell-axis selectors for CICE (`ni`) + EAMxx (`ncol`) families | shipping (cycle 13) |
+| ELM gridcell-level map render + CPL single-domain map render (closes detect-only gap) | shipping (cycle 13) |
+| Multi-cell overlay timeseries + named-region lookup (`find_region`) on unstructured | shipping (cycle 13) |
+| Great-circle cross-section plots (`slice_along_section` + `render_section`) on unstructured | shipping (cycle 13) |
 | Time-series plots | shipping (cycle 3) |
 | Vertical profiles + cross-sections | shipping (cycle 3) |
 | Style-by-reference (extract style from a screenshot) | shipping (cycle 3) |
@@ -47,12 +49,15 @@ summary:
 | 7 build targets (claude-code, cursor, copilot, gemini-cli, codex, antigravity, claude-desktop) | shipping (cycles 4 + 7) |
 | Setup helper for Python deps (cartopy, scipy, MCP servers) | shipping (cycle 5) |
 
-Out of scope this release (cycle 11+): EAMxx dycore
-spectral-element grids (`elem × gp × gp`), ELM PFT-mosaic
-visualization, CPL plotting, CICE U-grid (velocity-on-edge)
-plotting, region clipping on unstructured grids,
-contour/streamline on unstructured grids, interactive 3-D mesh
-viewers.
+Out of scope this release (cycle 13+): EAMxx dycore
+spectral-element grids (`elem × gp × gp`), ELM PFT-mosaic /
+landunit / column-level visualization, CPL multi-domain
+overlay rendering, CICE U-grid (velocity-on-edge) plotting,
+region clipping on the unstructured map renderer itself
+(cells_in_bbox + find_region cover the selector side; the
+renderer still draws the full mesh), contour / streamline on
+unstructured grids, time-animation of cross-sections,
+interactive 3-D mesh viewers.
 
 ## Quickstart
 

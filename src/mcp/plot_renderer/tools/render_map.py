@@ -1065,7 +1065,7 @@ def _render_cpl_domain(spec: dict[str, Any]) -> dict[str, Any]:
                     "invalid_spec",
                     f"CPL domain {domain!r} not found in mesh: "
                     f"{lat_v}/{lon_v} missing. Available domains: "
-                    f"{sorted({k.split('_', 1)[0] for k in mesh_ds.variables if k.endswith('_lat')})}")
+                    f"{sorted({str(k).split('_', 1)[0] for k in mesh_ds.variables if str(k).endswith('_lat')})}")
             lat = np.asarray(mesh_ds[lat_v].values, dtype="float64").reshape(-1)
             lon = np.asarray(mesh_ds[lon_v].values, dtype="float64").reshape(-1)
             ncells = lat.size

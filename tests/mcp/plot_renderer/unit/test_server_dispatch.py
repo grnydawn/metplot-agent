@@ -3,7 +3,11 @@ from src.mcp.plot_renderer.server import dispatch, list_tool_names
 
 
 def test_list_tool_names():
-    assert list_tool_names() == ["render_map", "render_timeseries", "render_profile"]
+    assert list_tool_names() == [
+        "render_map", "render_timeseries", "render_profile",
+        # Cycle 13 theme D — unstructured cross-section
+        "render_section",
+    ]
 
 
 def test_dispatch_unknown_tool():
