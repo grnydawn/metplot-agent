@@ -78,17 +78,22 @@ def build(src_root: Path, out_root: Path) -> None:
 def _refine_workflow() -> str:
     return (
         "---\n"
-        "description: Review the current session and propose refinement drafts. "
-        "(Placeholder — cycle 6 implementation; manual trigger only on Antigravity.)\n"
+        "description: Propose refinement drafts to the canonical metplot "
+        "skills based on the current session.\n"
         "---\n\n"
         "# /refine workflow\n\n"
-        "This is a placeholder for the cycle-6 skill-refiner. Once cycle 6 ships, "
-        "invoking `/refine` here will run the skill-refiner skill against the "
-        "current session's `.metplot/task-log.jsonl` and produce refinement "
-        "drafts under `.metplot/refinements/` for human review.\n\n"
-        "Until then, the task-log is being written but no automatic refinement "
-        "happens. Antigravity has no formal hook system as of May 2026, so this "
-        "manual workflow trigger is the only path on this host.\n"
+        "Invoke the `skill-refiner` skill against this session.\n\n"
+        "Read `.metplot/task-log.jsonl` plus the current conversation. "
+        "Tag observations using the refiner's six categories (`alias`, "
+        "`region`, `pitfall`, `user_pref`, `default`, `failure_mode`). "
+        "Write each draft to "
+        "`.metplot/refinements/<timestamp>-<target>-<tag>.md` with YAML "
+        "frontmatter naming the target file, section, operation, "
+        "confidence, and evidence.\n\n"
+        "Antigravity has no formal hook system as of May 2026, so this "
+        "workflow is manual-trigger only on this host. Do not modify "
+        "canonical skill files directly; the user applies drafts with "
+        "`metplot-refine`.\n"
     )
 
 

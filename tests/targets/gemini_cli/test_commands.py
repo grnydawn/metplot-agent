@@ -23,9 +23,26 @@ def test_refine_toml_parses(built_plugin: Path):
     assert "prompt" in d
 
 
-def test_refine_announces_placeholder(built_plugin: Path):
+def test_refine_no_placeholder_or_cycle_tokens(built_plugin: Path):
+    """Cycle-6 Phase B shipped skill-refiner — the refine body must
+    no longer call itself a placeholder or reference cycle 6."""
+    text = (built_plugin / "commands" / "metplot" / "refine.toml").read_text().lower()
+    for tok in ("placeholder", "cycle 6", "until cycle", "will be"):
+        assert tok not in text, f"deferral token leaked: {tok!r}"
+
+
+def test_refine_invokes_skill_refiner(built_plugin: Path):
     text = (built_plugin / "commands" / "metplot" / "refine.toml").read_text()
-    assert "placeholder" in text.lower() or "cycle 6" in text.lower()
+    assert "skill-refiner" in text.lower()
+    assert ".metplot/task-log.jsonl" in text
+    assert ".metplot/refinements/" in text
+
+
+def test_refine_calls_out_manual_trigger(built_plugin: Path):
+    """Gemini CLI has no Stop-hook equivalent; the body must flag
+    this so the user knows refinement won't auto-fire."""
+    text = (built_plugin / "commands" / "metplot" / "refine.toml").read_text().lower()
+    assert "manual" in text or "no stop-hook" in text or "no stop hook" in text
 
 
 def test_setup_toml_in_metplot_subdir(built_plugin: Path):
