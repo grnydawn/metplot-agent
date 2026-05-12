@@ -124,6 +124,17 @@ def inspect(
             f"open took {elapsed:.0f}s; consider sshfs / staging",
             context={"elapsed_seconds": elapsed},
         ))
+    # Cycle 10 F-02: adapter falls back to decode_times=False when
+    # xarray's decoder can't parse the file's time origin (year-0001
+    # noleap, etc.). Surface that as a structured warning so callers
+    # know `time` may be raw int64 instead of decoded datetimes.
+    if ds.attrs.get("_metplot_time_decode_failed"):
+        warnings.append(envelope.warn(
+            envelope.WarningCode.TIME_DECODE_FAILED,
+            "xarray could not decode the file's time units; opened "
+            "with decode_times=False — time values are raw numbers",
+            context={"path": path},
+        ))
 
     try:
         attrs = dict(ds.attrs)
