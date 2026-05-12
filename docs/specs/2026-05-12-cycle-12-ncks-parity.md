@@ -30,14 +30,26 @@ specific ncks flag family:
 | New MCP tool         | ncks analog               | What it does                                                |
 |---------------------|---------------------------|-------------------------------------------------------------|
 | `read_slice` ext.    | `ncks -d dim,start,end,stride` | Add index-mode hyperslab with stride to existing read_slice |
-| `reduce_variable`   | `ncks -y <op> -a <dims>`  | Collapse a variable along named dims via `{avg,min,max,sum,rms,total}` |
-| `dump_cdl`          | `ncks --cdl` / `ncks -m`  | Emit CDL text (semantically equivalent to ncgen-compatible CDL) |
+| `reduce_variable`   | `ncwa -y <op> -a <dims>`  | Collapse a variable along named dims via `{avg,min,max,sum,rms,total}` |
+| `dump_cdl`          | `ncks --cdl`              | Emit CDL text (semantically equivalent to ncgen-compatible CDL) |
 
-The cross-check is the spec's load-bearing claim: for every
-hyperslab and every reduction, our output values must be **bit-
-exact identical** to `ncks` run on the same inputs. CDL is held
-to a weaker bar (semantic equivalence) because text formatting
-diverges between tools.
+> Note: NCO splits subsetting (`ncks`) from reduction (`ncwa`).
+> Both ship in the same `nco` apt package, so install-wise it's
+> a single dependency. The user-facing intent of "ncks-style
+> analysis" covers both binaries.
+
+The cross-check is the spec's load-bearing claim:
+- **Hyperslab parity**: bit-exact identical to `ncks -d`
+  (`np.array_equal`).
+- **Reduction parity**: bit-exact for `min`/`max` (they pick a
+  value, no accumulation); tight-tolerance (`np.allclose` with
+  `rtol=1e-12`) for `avg`/`sum`/`rms` because numpy uses
+  pairwise summation while ncwa uses serial accumulation —
+  the two diverge in the last ULPs (relative diff ~2e-15, well
+  below float64 epsilon). See §5 open-risk #1.
+- **CDL parity**: semantically equivalent (same dims/vars/attrs
+  after structural parse); whitespace and exact float
+  formatting are allowed to differ.
 
 ## 1. Scope and success criteria
 
@@ -74,11 +86,13 @@ Cycle 12 is successful when all of the following hold:
    `{avg, min, max, sum, rms, total}`. `total` is a ncks-ism
    meaning "sum" (kept for parity). `reduce_dims=[]` reduces
    over all dims to a scalar.
-5. **`reduce_variable` values bit-exact match ncks** — for each
-   op in {avg, min, max, sum, rms} on a synthetic fixture:
-   our output equals `ncks -y <op> -a <dims> -v var in.nc out.nc`
-   then re-read. Float comparison uses `np.array_equal` (bit-
-   exact), not `allclose` — the spec is "identical", not "close".
+5. **`reduce_variable` values match NCO** — comparison binary is
+   `ncwa -y <op> -a <dims>` (NCO's reducer; ships in same `nco`
+   package as `ncks`). For `min`/`max`: bit-exact via
+   `np.array_equal`. For `avg`/`sum`/`rms`: tight tolerance via
+   `np.allclose(rtol=1e-12)` — the gap is summation-order
+   divergence (numpy pairwise vs ncwa serial) at the last ULPs;
+   relative diff observed ~2e-15. See §5 open-risk #1.
 6. **`dump_cdl` MCP tool** — new tool `dump_cdl(path, *,
    variables=None, header_only=False)` returns a JSON envelope
    with `result.cdl` containing CDL text. When `variables`
