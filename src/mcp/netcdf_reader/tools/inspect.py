@@ -17,6 +17,7 @@ from src.mcp.netcdf_reader.conventions import wrf as _wrf
 from src.mcp.netcdf_reader.paths.classify import (
     ClassifyError, PathKind, classify,
 )
+from src.mcp.netcdf_reader.paths.mesh_pair import find_mesh_candidates
 
 if TYPE_CHECKING:
     from src.mcp.netcdf_reader.paths.ssh import SSHAuthNeeded
@@ -111,6 +112,14 @@ def inspect(
             spatial = _mpas.extract_spatial_mpas(ds)
             vertical = _cf.extract_vertical(ds)
             t = _cf.extract_time(ds)
+            if spatial is None and cls.kind == PathKind.LOCAL_SINGLE:
+                # MPAS file has the cell dim but no latCell/lonCell —
+                # the history-file-without-mesh shape. Short-circuit
+                # to a `mesh_pairing_required` ambiguous envelope so
+                # the caller can supply a mesh_path on retry.
+                # `ds.close()` fires in the outer finally block.
+                return _mesh_pairing_required_envelope(
+                    path, variables)
         else:
             variables = _cf.extract_variables(ds)
             spatial = _cf.extract_spatial(ds)
@@ -158,6 +167,63 @@ def _safe(v: Any) -> Any:
     if isinstance(v, (str, int, float, bool)) or v is None:
         return v
     return str(v)
+
+
+def _mesh_pairing_required_envelope(
+    path: str,
+    variables: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Surface the history-file-without-mesh case as a structured
+    ambiguous envelope so the caller can prompt the user for a
+    mesh_path and retry. Cycle 8 §3.3.
+
+    Candidates are derived from sibling-file naming heuristics in
+    `paths/mesh_pair.find_mesh_candidates`. Confidence is "high" for
+    the top match (exact-prefix or canonical name), "medium" for
+    broader matches; for the cycle 8 MVP we don't try to dim-match
+    here (that happens after retry, in the merged-pair load path)."""
+    from pathlib import Path
+    candidate_paths = find_mesh_candidates(Path(path))
+    candidates = [
+        {
+            "value": str(p),
+            "label": p.name,
+            "param": "mesh_path",
+            "sensitive": False,
+            "evidence": [
+                f"basename heuristic matched in {p.parent}",
+            ],
+            "confidence": 0.7 if i == 0 else 0.5,
+        }
+        for i, p in enumerate(candidate_paths)
+    ]
+    if candidates:
+        prompt = (
+            f"This MPAS history file ships no `latCell`/`lonCell` "
+            f"coords. Likely sibling mesh files in the same "
+            f"directory: {', '.join(p.name for p in candidate_paths)}. "
+            f"Pick one (or supply a different path) and retry with "
+            f"`mesh_path`.")
+    else:
+        prompt = (
+            "This MPAS history file ships no `latCell`/`lonCell` "
+            "coords. No likely sibling mesh files were found in the "
+            "same directory; supply a `mesh_path` pointing at the "
+            "matching MPAS mesh file and retry.")
+    return envelope.ambiguous(
+        subcode=envelope.AmbiguitySubcode.MESH_PAIRING_REQUIRED,
+        message=(
+            "MPAS history file requires a sibling mesh file to "
+            "resolve spatial geometry"),
+        candidates=candidates,
+        prompt=prompt,
+        retry_with_param="mesh_path",
+        context={
+            "path": path,
+            "missing_coords": ["latCell", "lonCell"],
+            "variables_in_history": [v["name"] for v in variables],
+        },
+    )
 
 
 def _ssh_auth_needed_envelope(err: "SSHAuthNeeded") -> dict[str, Any]:

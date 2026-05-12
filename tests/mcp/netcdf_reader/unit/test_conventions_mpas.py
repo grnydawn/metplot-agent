@@ -157,7 +157,14 @@ def test_inspect_reports_mpas_on_mesh_like_file(tmp_path, monkeypatch):
 
 
 def test_inspect_reports_mpas_on_history_like_file(tmp_path, monkeypatch):
-    """End-to-end on the harder shape — no attrs, dim-fingerprint only."""
+    """End-to-end on the harder shape — no attrs, dim-fingerprint only.
+
+    Cycle-8 Phase B (task 2) tightened the contract: an MPAS history
+    file with no `latCell`/`lonCell` coords now returns an `ambiguous`
+    envelope with `mesh_pairing_required` subcode (the user must
+    supply a mesh_path on retry). The MPAS-detection logic still
+    fires — verified by the `context` block — but the inspect tool
+    refuses to fabricate a spatial envelope from missing geometry."""
     from src.mcp.netcdf_reader.adapter import NetCDFAdapter
     from src.mcp.netcdf_reader.tools.inspect import inspect
     monkeypatch.chdir(tmp_path)
@@ -165,6 +172,11 @@ def test_inspect_reports_mpas_on_history_like_file(tmp_path, monkeypatch):
     p = tmp_path / "hist.nc"
     ds.to_netcdf(p)
     env = inspect(str(p), adapter=NetCDFAdapter())
-    assert env["ok"] is True, env.get("error")
-    assert env["result"]["convention"]["primary"] == "MPAS", (
-        f"expected primary=MPAS; got {env['result']['convention']!r}")
+    # Cycle-8 contract: history-only → ambiguous mesh_pairing_required.
+    assert env["ok"] is False, (
+        f"expected ambiguous (history-no-mesh); got {env!r}")
+    assert env["error"]["code"] == "ambiguous"
+    assert env["error"]["subcode"] == "mesh_pairing_required"
+    assert env["error"]["retry_with_param"] == "mesh_path"
+    # The MPAS-detection signal is still recorded in the context.
+    assert "Temperature" in env["error"]["context"]["variables_in_history"]

@@ -91,6 +91,7 @@ class AmbiguitySubcode:
     TIME_MATCH = "time_match"
     REGION = "region"
     MULTI_FILE_COMBINE = "multi_file_combine"
+    MESH_PAIRING_REQUIRED = "mesh_pairing_required"
 
 
 class WarningCode:
