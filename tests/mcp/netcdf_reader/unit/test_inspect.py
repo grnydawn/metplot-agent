@@ -148,6 +148,53 @@ def test_inspect_mpas_mesh_shape_returns_sensible_envelope(tmp_path, monkeypatch
     assert r["attrs"]["config_start_time"] == "0000-01-01_00:00:00"
 
 
+def test_inspect_normalizes_placeholder_name_attrs(tmp_path, monkeypatch):
+    """Real-world files (CICE restart files, partial-CF research output)
+    ship `long_name = "MISSING"` or `standard_name = ""` instead of
+    omitting the attr. Downstream alias resolvers (and human readers)
+    treat those as legitimate metadata, which is worse than absent.
+    inspect should normalize the known placeholders to JSON null so
+    consumers can use a single `is None` check."""
+    monkeypatch.chdir(tmp_path)
+    placeholders = ["MISSING", "missing", "N/A", "n/a",
+                    "none", "None", ""]
+    data_vars = {}
+    for i, ph in enumerate(placeholders):
+        data_vars[f"v{i}"] = xr.DataArray(
+            np.zeros(3),
+            dims=("x",),
+            attrs={"long_name": ph, "standard_name": ph, "units": "m"},
+        )
+    # A control variable with real metadata — must survive untouched.
+    data_vars["keep"] = xr.DataArray(
+        np.zeros(3), dims=("x",),
+        attrs={"long_name": "Sea Surface Temperature",
+               "standard_name": "sea_surface_temperature",
+               "units": "K"},
+    )
+    ds = xr.Dataset(data_vars)
+    p = tmp_path / "ph.nc"
+    ds.to_netcdf(p)
+
+    env = inspect(str(p), adapter=NetCDFAdapter())
+    assert env["ok"] is True, env.get("error")
+    by_name = {v["name"]: v for v in env["result"]["variables"]}
+    for i, ph in enumerate(placeholders):
+        rec = by_name[f"v{i}"]
+        assert rec["long_name"] is None, (
+            f"placeholder long_name {ph!r} not normalized: "
+            f"got {rec['long_name']!r}")
+        assert rec["standard_name"] is None, (
+            f"placeholder standard_name {ph!r} not normalized: "
+            f"got {rec['standard_name']!r}")
+        # units is not in the normalization set — must pass through.
+        assert rec["units"] == "m"
+    # Control: real metadata untouched.
+    keep = by_name["keep"]
+    assert keep["long_name"] == "Sea Surface Temperature"
+    assert keep["standard_name"] == "sea_surface_temperature"
+
+
 def test_inspect_multifile_glob(cf_multifile_dir, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     glob_path = str(cf_multifile_dir / "*.nc")

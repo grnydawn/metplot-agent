@@ -10,6 +10,8 @@ from typing import Any
 import numpy as np
 import xarray as xr
 
+from src.mcp.netcdf_reader.conventions import cf as _cf
+
 
 _STAGGERED_DIMS = {"west_east_stag", "south_north_stag", "bottom_top_stag"}
 
@@ -80,8 +82,10 @@ def annotate_staggered_variables(ds: xr.Dataset) -> list[dict[str, Any]]:
         gk = _grid_kind_from_dims(tuple(str(d) for d in da.dims))
         out.append({
             "name": str(name),
-            "long_name": da.attrs.get("long_name") or da.attrs.get("description"),
-            "standard_name": da.attrs.get("standard_name"),
+            "long_name": _cf.normalize_name_attr(
+                da.attrs.get("long_name") or da.attrs.get("description")),
+            "standard_name": _cf.normalize_name_attr(
+                da.attrs.get("standard_name")),
             "units": da.attrs.get("units"),
             "dims": [str(d) for d in da.dims],
             "shape": list(da.shape),

@@ -68,6 +68,25 @@ _LAT_NAMES = ("lat", "latitude", "y", "rlat", "nav_lat")
 _LON_NAMES = ("lon", "longitude", "x", "rlon", "nav_lon")
 _TIME_NAMES = ("time", "Time", "T", "ocean_time")
 
+# Strings that real-world files use to mean "I have no metadata here"
+# instead of just omitting the attribute. Matched case-insensitively
+# after stripping whitespace. Keep this list tight — words that look
+# like placeholders may still be legitimate metadata in some corner
+# of the literature.
+_PLACEHOLDER_NAME_ATTRS = frozenset({"missing", "n/a", "none", ""})
+
+
+def normalize_name_attr(value: Any) -> Any:
+    """Coerce known placeholder strings on long_name / standard_name to
+    None so downstream consumers can use a single `is None` check
+    instead of a growing string-equality chain. Non-strings pass through
+    untouched."""
+    if not isinstance(value, str):
+        return value
+    if value.strip().lower() in _PLACEHOLDER_NAME_ATTRS:
+        return None
+    return value
+
 
 def extract_variables(ds: xr.Dataset) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
@@ -75,8 +94,8 @@ def extract_variables(ds: xr.Dataset) -> list[dict[str, Any]]:
         is_stag = any("stag" in str(d).lower() for d in da.dims)
         out.append({
             "name": str(name),
-            "long_name": da.attrs.get("long_name"),
-            "standard_name": da.attrs.get("standard_name"),
+            "long_name": normalize_name_attr(da.attrs.get("long_name")),
+            "standard_name": normalize_name_attr(da.attrs.get("standard_name")),
             "description": da.attrs.get("description"),
             "units": da.attrs.get("units"),
             "dims": [str(d) for d in da.dims],
