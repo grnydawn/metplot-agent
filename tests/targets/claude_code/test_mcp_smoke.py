@@ -10,11 +10,17 @@ from __future__ import annotations
 import importlib
 import sys
 from pathlib import Path
+from typing import TypedDict
 
 import pytest
 
 
-_SERVERS = [
+class _Server(TypedDict):
+    package_dir: str
+    expected_tool_count: int
+
+
+_SERVERS: list[_Server] = [
     {"package_dir": "netcdf_reader", "expected_tool_count": 8},
     {"package_dir": "plot_renderer", "expected_tool_count": 3},
 ]
@@ -29,7 +35,7 @@ def _evict_src_modules() -> None:
 
 @pytest.mark.parametrize("server", _SERVERS,
                          ids=lambda s: s["package_dir"])
-def test_bundled_server_imports(built_plugin: Path, server: dict) -> None:
+def test_bundled_server_imports(built_plugin: Path, server: _Server) -> None:
     """Verify the bundle's own source answers `from src.mcp.<pkg>...`.
 
     Why the precaution: the canonical repo's `src/` is already on
@@ -48,6 +54,9 @@ def test_bundled_server_imports(built_plugin: Path, server: dict) -> None:
         mod = importlib.import_module(modname)
         # Strongest assertion: the resolved source file came from the
         # bundle, not the canonical repo or a stale install.
+        assert mod.__file__ is not None, (
+            f"resolved module {modname} has no __file__ attr — that "
+            f"shouldn't happen for a file-backed import")
         mod_file = Path(mod.__file__).resolve()
         assert bundle_root.resolve() in mod_file.parents, (
             f"{server['package_dir']}: imported {mod_file}, expected a path "

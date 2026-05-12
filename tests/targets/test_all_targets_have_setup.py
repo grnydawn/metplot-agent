@@ -27,6 +27,8 @@ def _load_build(target: str):
         f"targets.{target.replace('-', '_')}.build",
         TARGETS_ROOT / target / "build.py",
     )
+    assert spec is not None and spec.loader is not None, (
+        f"could not load build module spec for {target}")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
