@@ -98,3 +98,80 @@ def area_weights(mesh_ds: xr.Dataset, *,
     if indices is not None:
         w = w[np.asarray(indices)]
     return w
+
+
+# ── MCP-facing entry points ────────────────────────────────────
+#
+# These wrappers open the mesh file, call the underlying helper, and
+# wrap the result in the standard envelope. They're what server.py
+# dispatches to so skills can invoke the helpers via the MCP boundary
+# the same way they invoke find_variables / find_time.
+
+def _open_mesh(mesh_path: str, *, adapter: Any
+                ) -> tuple[xr.Dataset | None, dict[str, Any] | None]:
+    """Shared open-with-error-handling for the MCP wrappers."""
+    from src.mcp.netcdf_reader import envelope
+    from src.mcp.netcdf_reader.paths.classify import (
+        ClassifyError, classify,
+    )
+    try:
+        cls = classify(mesh_path)
+    except ClassifyError as e:
+        return None, envelope.error(
+            envelope.ErrorCode.FILE_NOT_FOUND, str(e),
+            context={"mesh_path": mesh_path})
+    try:
+        return adapter.open(cls.paths or [mesh_path]), None
+    except FileNotFoundError as e:
+        return None, envelope.error(
+            envelope.ErrorCode.FILE_NOT_FOUND, str(e),
+            context={"mesh_path": mesh_path})
+
+
+def find_nearest_cell_tool(mesh_path: str, *,
+                            lat: float, lon: float,
+                            adapter: Any) -> dict[str, Any]:
+    """MCP-callable wrapper for find_nearest_cell."""
+    from src.mcp.netcdf_reader import envelope
+    ds, err = _open_mesh(mesh_path, adapter=adapter)
+    if err:
+        return err
+    assert ds is not None
+    try:
+        idx = find_nearest_cell(ds, lat=lat, lon=lon)
+        lats, lons = _coords_deg(ds)
+        return envelope.success({
+            "cell_index": idx,
+            "actual_lat": float(lats[idx]),
+            "actual_lon": float(lons[idx]),
+            "mesh_path": mesh_path,
+            "n_cells": int(ds.sizes["nCells"]),
+        })
+    finally:
+        ds.close()
+
+
+def cells_in_bbox_tool(mesh_path: str, *,
+                        lat_min: float, lat_max: float,
+                        lon_min: float, lon_max: float,
+                        adapter: Any) -> dict[str, Any]:
+    """MCP-callable wrapper for cells_in_bbox."""
+    from src.mcp.netcdf_reader import envelope
+    ds, err = _open_mesh(mesh_path, adapter=adapter)
+    if err:
+        return err
+    assert ds is not None
+    try:
+        idx = cells_in_bbox(
+            ds, lat_min=lat_min, lat_max=lat_max,
+            lon_min=lon_min, lon_max=lon_max)
+        return envelope.success({
+            "cell_indices": idx.tolist(),
+            "n_cells_in_bbox": int(idx.size),
+            "mesh_path": mesh_path,
+            "n_cells_total": int(ds.sizes["nCells"]),
+            "bbox": {"lat_min": lat_min, "lat_max": lat_max,
+                     "lon_min": lon_min, "lon_max": lon_max},
+        })
+    finally:
+        ds.close()
