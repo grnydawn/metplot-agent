@@ -164,3 +164,7 @@ def serve_forever(
             Path(socket_path).unlink()
         except FileNotFoundError:
             pass
+        try:
+            sel.close()
+        except Exception:
+            pass
