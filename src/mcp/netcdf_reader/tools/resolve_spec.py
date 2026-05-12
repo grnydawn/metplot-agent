@@ -34,6 +34,7 @@ def resolve_spec(
     regrid: str | None = None,
     cell_index: int | None = None,
     cell_indices: list[int] | None = None,
+    index_selectors: dict[str, list[int]] | None = None,
     adapter: FormatAdapter,
     ssh_config: dict[str, Any] | None = None,
     mesh_path: str | None = None,
@@ -53,6 +54,37 @@ def resolve_spec(
             "invalid_spec",
             "supply either cell_index or cell_indices, not both",
             context={"path": path})
+    # Cycle 12 Task 1: index_selectors shape validation (cheap
+    # checks before we open the file). Each entry must be a list
+    # of 2 or 3 ints; stride (if given) must be >= 1.
+    if index_selectors is not None:
+        if not isinstance(index_selectors, dict):
+            return envelope.error(
+                "invalid_spec",
+                "index_selectors must be a dict {dim_name: [start, "
+                "stop, stride?]}",
+                context={"path": path})
+        for dname, spec in index_selectors.items():
+            if not isinstance(spec, (list, tuple)) or len(spec) not in (2, 3):
+                return envelope.error(
+                    "invalid_spec",
+                    f"index_selectors[{dname!r}] must be a list of "
+                    f"2 or 3 ints [start, stop, stride?]; got {spec!r}",
+                    context={"path": path, "dim": dname})
+            try:
+                _vals = [int(v) for v in spec]
+            except (TypeError, ValueError):
+                return envelope.error(
+                    "invalid_spec",
+                    f"index_selectors[{dname!r}] values must be ints; "
+                    f"got {spec!r}",
+                    context={"path": path, "dim": dname})
+            if len(_vals) == 3 and _vals[2] < 1:
+                return envelope.error(
+                    "invalid_spec",
+                    f"index_selectors[{dname!r}] stride must be >= 1; "
+                    f"got {_vals[2]}",
+                    context={"path": path, "dim": dname})
     try:
         cls = classify(path)
     except ClassifyError as e:
@@ -276,10 +308,90 @@ def resolve_spec(
             resolved["cell_indices"] = idx_arr.tolist()
             resolved["cell_dim"] = cell_dim
 
+        # --- index_selectors (cycle 12: ncks -d parity) ---
+        # Resolve dim names case-insensitively against da.dims and
+        # check same-dim conflicts with named-axis selectors.
+        if index_selectors:
+            resolved_idx: dict[str, list[int]] = {}
+            # Build a map of which named selector occupies each dim
+            # of this variable (lower-cased dim name → kind).
+            occupied: dict[str, str] = {}
+            for d in da.dims:
+                dl = str(d).lower()
+                if d in ("time", "Time", "ocean_time") and (
+                        "time_index" in resolved):
+                    occupied[dl] = "time"
+                if "level_index" in resolved and dl in {
+                        "plev", "lev", "level", "altitude", "z",
+                        "bottom_top", "s_rho", "s_w",
+                        "nvertlayers", "nvertlevels", "ilev",
+                        "nilyr", "nslyr", "nkice", "nkbio",
+                        "ncat", "ntilyr", "ntslyr"}:
+                    occupied[dl] = "level"
+                if d in ("lat", "latitude", "y") and (
+                        "lat_index" in resolved
+                        or "lat_indices" in resolved):
+                    occupied[dl] = "lat"
+                if d in ("lon", "longitude", "x") and (
+                        "lon_index" in resolved
+                        or "lon_indices" in resolved):
+                    occupied[dl] = "lon"
+                if dl == "ncells" and (
+                        "cell_index" in resolved
+                        or "cell_indices" in resolved):
+                    occupied[dl] = "cell"
+
+            for dname, spec_vals in index_selectors.items():
+                # Case-insensitive resolution against the variable's dims.
+                actual = next((d for d in da.dims
+                               if str(d).lower() == dname.lower()), None)
+                if actual is None:
+                    return envelope.error(
+                        "invalid_spec",
+                        f"index_selectors references dim {dname!r} which "
+                        f"is not a dim of variable {variable!r}",
+                        context={"dim": dname,
+                                 "var_dims": [str(x) for x in da.dims]})
+                if str(actual).lower() in occupied:
+                    return envelope.error(
+                        "invalid_spec",
+                        f"index_selectors targets dim {actual!r} which is "
+                        f"already constrained by {occupied[str(actual).lower()]!r} "
+                        f"selector; pick one or the other",
+                        context={"dim": str(actual),
+                                 "other": occupied[str(actual).lower()]})
+                vals = [int(v) for v in spec_vals]
+                start = vals[0]
+                stop = vals[1]
+                stride = vals[2] if len(vals) == 3 else 1
+                n = int(ds.sizes[actual])
+                if not (0 <= start < n):
+                    return envelope.error(
+                        envelope.ErrorCode.OUT_OF_BOUNDS,
+                        f"index_selectors[{actual!r}] start {start} out of "
+                        f"range for dim size {n}",
+                        context={"dim": str(actual), "size": n,
+                                 "start": start})
+                if not (start <= stop < n):
+                    return envelope.error(
+                        envelope.ErrorCode.OUT_OF_BOUNDS,
+                        f"index_selectors[{actual!r}] stop {stop} out of "
+                        f"range for dim size {n} (must satisfy "
+                        f"start <= stop < {n})",
+                        context={"dim": str(actual), "size": n,
+                                 "start": start, "stop": stop})
+                resolved_idx[str(actual)] = [start, stop, stride]
+            resolved["index_selectors"] = resolved_idx
+
         # Compute slice shape and bytes estimate
+        idx_sel = resolved.get("index_selectors") or {}
         shape: list[int] = []
         for d in da.dims:
-            if d in ("time", "Time", "ocean_time") and "time_index" in resolved:
+            if str(d) in idx_sel:
+                s, e, st = idx_sel[str(d)]
+                # Inclusive-stop with stride: indices s, s+st, ..., last <= e
+                shape.append((e - s) // st + 1)
+            elif d in ("time", "Time", "ocean_time") and "time_index" in resolved:
                 shape.append(1)
             elif d in ("plev", "lev", "level", "bottom_top") and "level_index" in resolved:
                 shape.append(1)
@@ -319,6 +431,7 @@ def resolve_spec(
                 "region": region, "regrid": regrid,
                 "cell_index": cell_index,
                 "cell_indices": cell_indices,
+                "index_selectors": index_selectors,
             },
             "resolved": resolved,
             "slice_shape": shape,
