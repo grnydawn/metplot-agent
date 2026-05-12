@@ -56,6 +56,67 @@ If user asks to compare ("compare T profile in NA vs TP"):
 - Build `series=[{values, vertical, label}, ...]`.
 - Renderer auto-emits a legend.
 
+## Unstructured vertical profiles (MPAS/Omega family) — cycle 11
+
+For MPAS-Ocean / Omega / MPAS-A files, the variable's spatial
+axis is `NCells` (one entry per cell), not `(lat, lon)`. To
+profile at a chosen location:
+
+### Step 1 — paired inspect
+
+```
+inspect("ocn.hist.0001-02-01_00.00.00.nc",
+        mesh_path="ocean_test_mesh.nc")
+```
+
+Returns `spatial.coord_kind=unstructured`, variables tagged
+`cell_centered`.
+
+### Step 2 — pick the cell
+
+```
+find_nearest_cell(mesh_path, lat=<user_lat>, lon=<user_lon>)
+  → cell_index
+```
+
+(Lon convention: pass in the mesh's convention. Omega is 0..360
+so a North-Atlantic point is `lon=295` not `lon=-65`.)
+
+### Step 3 — slice all levels, single timestep, single cell
+
+```
+read_slice(history_path, "Temperature",
+            time="first", cell_index=<idx>,
+            mesh_path=mesh)
+  → shape=[NVertLayers]   # e.g. [60] for the test mesh
+```
+
+Note: no `level=` selector — leave the vertical axis intact for
+the profile.
+
+### Step 4 — render
+
+```
+render_profile({
+    "values":   values.tolist(),
+    "vertical": list(range(n_layers)),   # or depth coord
+    "vertical_kind": "depth",            # MPAS-Ocean is depth
+    "label":    "Temperature @ (40N, -65W)",
+    "xlabel":   "degree_C",
+})
+```
+
+For MPAS-Ocean depth profiles the renderer uses depth-down
+semantics (shallow at top, deep at bottom). If the mesh ships a
+`refBottomDepth` or per-layer depth coordinate, use it for
+`vertical=`; otherwise the layer index works for a smoke check.
+
+### Multi-cell comparison
+
+Build `series=[{values, vertical, label}]` with one entry per
+cell of interest (each picked via `find_nearest_cell`); the
+renderer auto-legends.
+
 ## Pitfalls
 
 - **Pressure-axis convention.** Atmospheric pressure decreases with

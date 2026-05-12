@@ -126,45 +126,90 @@ The relevant template fields for time series are: `colormap_kind`
 Map-specific fields (`projection_family`, `extent_hint`, `colorbar_position`)
 are ignored by `render_timeseries`.
 
-## Multi-file unstructured time-series (MPAS/Omega family) — cycle 10
+## Multi-file unstructured time-series (MPAS/Omega family) — cycle 11
 
 When the user has a directory of monthly history files (e.g.
 `ocn.hist.0001-{01..12}-01_00.00.00.nc`) plus the matching mesh
-file (`ocean_test_mesh.nc`, `*_mesh.nc`, etc.), build the
-time-series from the whole run in one shot:
+(`ocean_test_mesh.nc`, `*_mesh.nc`, etc.), build the time-series
+from the whole run in one shot. Cycle 11 ships the selector
+helpers (`find_nearest_cell`, `cells_in_bbox`, `area_weights`)
+and the `cell_index` / `cell_indices` plumbing in `read_slice`
+that make this a uniform pipeline.
 
-1. Inspect the glob with `mesh_path=`:
+### Step 1 — paired inspect
 
-       inspect(path="<dir>/ocn.hist.*-*.nc",
-               mesh_path="<dir>/ocean_test_mesh.nc")
+```
+inspect(path="<dir>/ocn.hist.000*-*-01_00.00.00.nc",
+        mesh_path="<dir>/ocean_test_mesh.nc")
+```
 
-   Returns `kind=local_multi`, `spatial.coord_kind=unstructured`,
-   `time.n=<total months>`, and variables tagged
-   `cell_centered`.
+Returns `kind=local_multi`, `spatial.coord_kind=unstructured`,
+`time.n=<total months>`, variables tagged `cell_centered`.
 
-2. Spatial reduction options:
-   - **Single cell**: pick the cell nearest a user-named
-     lat/lon via the mesh's `latCell`/`lonCell` (`np.argmin
-     ((lat-lat0)**2 + (lon-lon0)**2)`).
-   - **Area-weighted mean over a region**: filter cells whose
-     `(latCell, lonCell)` fall in the bbox; weight by
-     `areaCell` from the mesh (if present) or by `cos(latCell)`.
-   - **Global area-weighted mean**: same with no bbox filter.
+### Step 2 — pick the spatial reduction
 
-3. `read_slice` the variable + cell-index → 1-D values across
-   all time entries. Pass the slice + the resolved time coord
-   to `render_timeseries`.
+| Mode | Cell selection | Weighting |
+|---|---|---|
+| Single cell at (lat, lon) | `find_nearest_cell(mesh_path, lat, lon) → idx` | none |
+| Region (bbox) | `cells_in_bbox(mesh_path, lat_min, lat_max, lon_min, lon_max) → idx[]` | `area_weights(mesh_ds, indices=idx[])` |
+| Global | all cells (no selector) | `area_weights(mesh_ds)` |
 
-Pitfalls:
-- The bare glob (without `mesh_path`) returns `spatial=null` —
-  you can't pick cells without geometry. Always supply mesh_path
-  for unstructured glob workflows.
-- For large meshes (`n_cells > 100k`) and many timesteps, prefer
-  `xr.open_mfdataset` with chunking; the cycle-1 multi-file path
-  uses lazy chunks by default.
-- Cross-year file naming (`0002-01-01_*.nc`) gets included by
-  globs like `000*-*-01_*.nc` — verify the count matches what
-  the user expects.
+> **Lon convention**: pass the bbox in the mesh's lon convention.
+> Inspect the mesh's `spatial.lon_convention` first; Omega ships
+> 0..360, so a North-Atlantic bbox is `lon_min=280, lon_max=360`
+> (not -80..0). Cross-dateline bboxes work by setting
+> `lon_min > lon_max`.
+
+### Step 3 — slice
+
+```
+# Single cell, all times, single level
+read_slice(glob_path, "Temperature", level=0,
+            cell_index=idx, mesh_path=mesh)
+  → shape=[12]   # values across the 12 monthly files
+
+# Subset of cells (regional / global)
+read_slice(glob_path, "Temperature", level=0,
+            cell_indices=idx_list, mesh_path=mesh)
+  → shape=[12, len(idx_list)]
+```
+
+### Step 4 — skill-side reduction (for region / global)
+
+```
+import numpy as np
+ws = area_weights(mesh_ds, indices=idx_list)  # raw areas
+ws = ws / ws.sum()                              # normalize
+series = (values * ws[None, :]).sum(axis=1)   # → shape=[12]
+```
+
+### Step 5 — render
+
+```
+render_timeseries({
+    "values": series.tolist(),
+    "time":   resolved_time_axis,   # from inspect's time.range
+    "label":  "Temperature (NAtl area-mean, surface)",
+    "ylabel": "degree_C",
+})
+```
+
+### Pitfalls (cycle-11 specific)
+
+- **Bare glob without mesh_path** returns `spatial=null`; can't
+  pick cells. Always supply mesh_path for unstructured globs.
+- **`areaCell` missing**: `area_weights` falls back to uniform
+  weighting; this biases toward high-latitude small cells.
+  Surface that as a warning to the user when using a fallback.
+- **Cell-axis case asymmetry**: history uses `NCells`, mesh uses
+  `nCells`. The cycle-11 `cell_index` plumbing matches
+  case-insensitively, so callers don't need to worry — but if
+  hand-rolling an `isel`, lowercase the dim name first.
+- **Cross-year glob count**: `000*-*-01_*.nc` matches both year
+  0001 and year 0002 files. Verify the count matches user
+  expectation.
+- **Profiles use the same cell_index path** — see
+  `netcdf-plot-profile/SKILL.md`.
 
 ## Verification
 

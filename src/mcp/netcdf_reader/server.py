@@ -35,7 +35,9 @@ _ADAPTER = NetCDFAdapter()
 def list_tool_names() -> list[str]:
     return ["inspect", "resolve_spec", "regrid_to_centers",
             "peek", "read_slice", "compute_stats",
-            "find_variables", "find_time"]
+            "find_variables", "find_time",
+            # Cycle 11 — unstructured-mesh helpers
+            "find_nearest_cell", "cells_in_bbox"]
 
 
 def dispatch(name: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -57,6 +59,17 @@ def dispatch(name: str, args: dict[str, Any]) -> dict[str, Any]:
             return _find.find_variables(adapter=_ADAPTER, **args)
         if name == "find_time":
             return _find.find_time(adapter=_ADAPTER, **args)
+        # Cycle 11 — unstructured-mesh helpers
+        if name == "find_nearest_cell":
+            from src.mcp.netcdf_reader.selectors_unstructured import (
+                find_nearest_cell_tool,
+            )
+            return find_nearest_cell_tool(adapter=_ADAPTER, **args)
+        if name == "cells_in_bbox":
+            from src.mcp.netcdf_reader.selectors_unstructured import (
+                cells_in_bbox_tool,
+            )
+            return cells_in_bbox_tool(adapter=_ADAPTER, **args)
         return envelope.error("unknown_tool", f"unknown tool: {name}",
                               context={"name": name})
     except TypeError as e:
