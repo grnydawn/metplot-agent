@@ -96,11 +96,38 @@ def _find_coord(ds: xr.Dataset, candidates: tuple[str, ...]) -> str | None:
 
 
 def extract_time(ds: xr.Dataset) -> dict[str, Any] | None:
+    """Return a time-axis summary, or None if the file has no decodable
+    time coordinate.
+
+    Returns None in two cases:
+    - No time-named coord or variable in the file.
+    - A Time-like dim exists but has no time *variable* (the typical
+      MPAS mesh-file shape), OR the values have a non-datetime dtype
+      (the inspect tool can't summarize a range it can't format).
+
+    The caller (inspect.py) is responsible for emitting a structured
+    `time_decode_failed` warning when this function returns None but
+    a Time-like dim is present in `ds.dims`. Keeping the warning emit
+    outside this function avoids threading a warnings list through
+    every convention's extractor signature.
+    """
     name = _find_coord(ds, _TIME_NAMES)
     if name is None:
         return None
+    # A Time-like dim with no matching variable / coord: xarray fills
+    # in a synthetic int64 RangeIndex which can't be formatted as a
+    # datetime. Treat as "no time" and let the caller flag it.
+    if name not in ds.variables and name not in ds.coords:
+        return None
     coord = ds[name]
     values = coord.values
+    # Datetime-like dtype check. numpy datetime64 is fine; cftime
+    # objects are also fine (xarray returns them as object dtype with
+    # cftime.DatetimeNoLeap etc.). Anything else (int64 from a synthetic
+    # index, plain float, str) we treat as undecodable.
+    if not (np.issubdtype(values.dtype, np.datetime64)
+            or values.dtype == object):
+        return None
     n = len(values)
     if n == 0:
         return {"name": name, "n": 0, "calendar": "unknown",
@@ -121,11 +148,18 @@ def extract_time(ds: xr.Dataset) -> dict[str, Any] | None:
     if diffs is not None and len(diffs) > 0:
         if np.all(diffs == diffs[0]):
             step = _timedelta_to_iso(diffs[0])
+    # _dt_to_iso may still fail on exotic cftime objects; wrap as a
+    # last-resort fallback rather than letting the crash escape.
+    try:
+        first_iso = _dt_to_iso(values[0])
+        last_iso = _dt_to_iso(values[-1])
+    except (TypeError, ValueError):
+        return None
     return {
         "name": name,
         "n": n,
         "calendar": str(calendar),
-        "range": [_dt_to_iso(values[0]), _dt_to_iso(values[-1])],
+        "range": [first_iso, last_iso],
         "step": step,
         "monotonic": monotonic,
     }

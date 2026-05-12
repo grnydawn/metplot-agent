@@ -100,3 +100,4 @@ class WarningCode:
     NON_MONOTONIC_COORD = "non_monotonic_coord"
     NON_STANDARD_CALENDAR = "non_standard_calendar"
     PERCENTILE_CLIP_SUGGESTED = "percentile_clip_suggested"
+    TIME_DECODE_FAILED = "time_decode_failed"
