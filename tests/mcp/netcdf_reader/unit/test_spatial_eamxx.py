@@ -13,6 +13,8 @@ refuse on dim mismatch.
 """
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import xarray as xr
 
@@ -25,7 +27,7 @@ def _eamxx_phys_grid(ncol: int = 100, *, with_corners: bool = False
     rng = np.random.default_rng(0)
     lat = rng.uniform(-90.0, 90.0, size=ncol)
     lon = rng.uniform(0.0, 360.0, size=ncol)
-    data = {
+    data: dict[str, Any] = {
         "lat": (("ncol",), lat),
         "lon": (("ncol",), lon),
     }

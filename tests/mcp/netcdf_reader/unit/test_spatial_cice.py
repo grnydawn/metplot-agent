@@ -12,6 +12,8 @@ and refuse to fabricate geometry when the dim shapes don't agree.
 """
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import xarray as xr
 
@@ -27,7 +29,7 @@ def _cice_grid_dataset(nj: int = 4, ni: int = 6, *, with_bounds: bool = False
     lon_1d = np.linspace(0.0, 350.0, ni)
     tlat = np.broadcast_to(lat_1d[:, None], (nj, ni)).copy()
     tlon = np.broadcast_to(lon_1d[None, :], (nj, ni)).copy()
-    data = {
+    data: dict[str, Any] = {
         "TLAT": (("nj", "ni"), tlat),
         "TLON": (("nj", "ni"), tlon),
     }
