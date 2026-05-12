@@ -179,6 +179,7 @@ workaround in the dogfood guide is a stopgap for Phase A only.
 - **Impact:** Downstream alias resolution that scans `standard_name` for a match will try to match user phrases against `"MISSING"` and get nothing useful. Worse, an alias rule that key on `standard_name` non-null (rather than non-null-and-non-placeholder) treats these variables as if they had real metadata, which they don't.
 - **Confidence:** high. EAMxx specifically does this; some other writers use `"none"`, `"N/A"`, `""`. Common pattern in research output.
 - **Should the loop have remembered:** yes — normalize a configurable set of placeholder strings (`MISSING`, `missing`, `none`, `N/A`, `"" `) to `null` in `netcdf-reader.inspect` before they reach the agent. Update `netcdf-inspect/SKILL.md` Pitfalls section.
+- **Status:** ADDRESSED (commit `4582217`, cycle-6 task 3 step 2) — `cf.py::normalize_name_attr` collapses `{"MISSING","missing","N/A","n/a","none","None",""}` (case-insensitive, whitespace-stripped) to JSON `null` at the variable-summary build step in both CF and WRF code paths. Real-file verify on `cice.nc`: 32/32 variables had both `long_name` and `standard_name = "MISSING"`; now both surface as `null` with zero leaks. Skill-side `Pitfalls` update is still open (refiner-targetable).
 
 ### Convention detection misses obvious file-type fingerprints
 - **Date:** 2026-05-11
@@ -190,6 +191,7 @@ workaround in the dogfood guide is a stopgap for Phase A only.
 - **Impact:** Without convention identification, the agent can't load the right convention-specific knowledge (CICE category indexing, MPAS mesh requirements, EAMxx dual-grid handling).
 - **Confidence:** high. The fingerprints are stable and exclusive to each model.
 - **Should the loop have remembered:** partial — the *detection patterns* belong in `netcdf-reader`'s convention-detection layer (not a refinement target the refiner can produce). The *downstream knowledge* (what each variable means, which grid to default to) belongs in `aliases.md` and skill Pitfalls and IS reachable by `add_alias` / pitfall refinement.
+- **Status:** PARTIAL (commit `f197328`, cycle-6 task 3 step 3) — MPAS fingerprint added (`conventions/mpas.py`: `Conventions=MPAS` attr OR `nCells`+`nEdges` dim pair case-insensitive OR MPAS coord vars; real-file verify: `ocean_mesh.nc` MPAS/high with 6 evidence lines, `ocn.hist.*` MPAS/high on dim-fingerprint-alone). **Still open:** CICE variable-name fingerprint (`aicen`/`vicen`/`Tsfcn`/…) and EAMxx dual-grid fingerprint (`ncol` + `elem×gp×gp`) — each warrants its own `conventions/cice.py` / `conventions/eamxx.py` module.
 
 ### Convention confidence "high" can co-exist with broken CF compliance
 - **Date:** 2026-05-11
@@ -213,6 +215,7 @@ workaround in the dogfood guide is a stopgap for Phase A only.
 - **Contract violation:** the inspect tool's response contract has structured subcodes (`ssh_auth_needed`, `file_not_found`, etc.). `internal_error` with a raw Python exception message leaking through is not in that contract — it's a crash, not graceful failure. The agent has no actionable next step.
 - **Confidence:** high. Reproducible. The file is a real, common MPAS-Ocean mesh file shape; not pathological.
 - **Should the loop have remembered:** yes — `failure_mode` Pitfall in `netcdf-inspect/SKILL.md`. The inspect implementation needs (a) to tolerate `Time` dim without a time variable (return `time: null` rather than crashing), (b) to handle `gregorian_noleap` and year-0 timestamps without raising, and (c) to wrap time-decode failures in a structured `time_decode_failed` subcode rather than letting `internal_error` escape.
+- **Status:** ADDRESSED (commit `358d44f`, cycle-6 task 3 step 1) — `cf.py::extract_time` now (a) returns `None` when the time name is a dim with no matching variable/coord, (b) returns `None` when the values dtype is neither `np.datetime64` nor `object` (cftime), and (c) wraps the final `_dt_to_iso` pair in `try/except (TypeError, ValueError)`. `tools/inspect.py` emits a structured `time_decode_failed` warning (new `WarningCode.TIME_DECODE_FAILED`) when `extract_time` returns `None` but a Time-like dim is present. Real-file verify on `ocean_mesh.nc`: now returns `ok: True`, `result.time = None`, warning with `context={"dim": "Time", "size": 1}`, all 52 vars / 9 dims populated.
 
 ### `Conventions: MPAS` is not in the convention-detection table
 - **Date:** 2026-05-11
@@ -221,6 +224,7 @@ workaround in the dogfood guide is a stopgap for Phase A only.
 - **Plotting impact:** Without convention identification, downstream skills can't load MPAS-specific knowledge: that mesh files come separately, that `nCells` is an unstructured-cell axis (not a flattened lat/lon), that variables like `temperature`/`salinity` use TEOS-10 semantics, and that the mesh-history file pairing is needed to render.
 - **Confidence:** high. MPAS is a documented, widely-used convention (MPAS-Ocean, MPAS-Atmosphere, MPAS-Seaice — all of E3SM and several CESM components). The detection signals are unambiguous.
 - **Should the loop have remembered:** partial — the *detection rule* belongs in `netcdf-reader` source (Python conventions module), not a refiner-target. Refiner can add the *downstream knowledge* (Pitfalls in `netcdf-inspect/SKILL.md`: "if `Conventions: MPAS` or dims include `nCells`/`nEdges`, expect unstructured Voronoi mesh in a separate file"). A separate ticket should add the MPAS branch to the convention detector.
+- **Status:** ADDRESSED (commit `f197328`, cycle-6 task 3 step 3) — new `src/mcp/netcdf_reader/conventions/mpas.py` with a layered signal ladder: (1) `Conventions` attr contains `MPAS`, (2) `model_name`/`source`/`core_name` attrs, (3) `nCells`+`nEdges` dim pair (case-insensitive — mesh files use lowercase, history files use uppercase), (4) MPAS coord variables (`latCell`, `verticesOnCell`, …). Confidence is `high` when either an attr signal OR the full dim pair is present. Wired into `adapter.detect_conventions` between WRF/ROMS and CF. Real-file verify: `ocean_mesh.nc` → MPAS/high with 6 evidence lines; `ocn.hist.0001-02-01_00.00.00.nc` → MPAS/high on dim-fingerprint-alone (the harder case — no attrs). Skill-side `netcdf-inspect/SKILL.md` Pitfall about mesh-history pairing is still open (refiner-targetable).
 
 ## Uncategorized
 
