@@ -97,6 +97,26 @@ def build(src_root: Path, out_root: Path) -> None:
         }],
     }, indent=2) + "\n")
 
+    # Stop hook — spawn a fresh subagent to run /metplot:refine when the
+    # parent session finishes. Best-effort: skip cleanly if `claude` is
+    # not on PATH; always exit 0 so a refiner hiccup never blocks the
+    # parent session end (spec §4 principle 6). The subagent runs in the
+    # background via `nohup … &` so the hook returns immediately rather
+    # than blocking the parent on the refinement-LLM round-trip.
+    (hooks_dir / "refine.json").write_text(json.dumps({
+        "Stop": [{
+            "matcher": "*",
+            "hooks": [{
+                "type": "command",
+                "command": (
+                    "command -v claude >/dev/null 2>&1 && "
+                    "(nohup claude -p '/metplot:refine' "
+                    ">/dev/null 2>&1 &); exit 0"
+                ),
+            }],
+        }],
+    }, indent=2) + "\n")
+
     # Slash commands
     commands_dir = plugin_dir / "commands"
     commands_dir.mkdir()
