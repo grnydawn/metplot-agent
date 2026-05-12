@@ -1,5 +1,9 @@
 # targets/_common/skills.py
-"""Shared cycle-3 skills allowlist + copy helper used by every build target."""
+"""Shared skills allowlist + copy helper used by every build target.
+
+Cycle 3 shipped the five plotting skills. Cycle 6 Phase B adds
+`skill-refiner` (the closed-loop learning skill).
+"""
 from __future__ import annotations
 
 import shutil
@@ -12,12 +16,13 @@ INCLUDED_SKILLS = frozenset({
     "netcdf-plot-map",
     "netcdf-plot-timeseries",
     "netcdf-plot-profile",
+    "skill-refiner",
 })
 
 
 def copy_skills(src_root: Path, dst_skills_dir: Path) -> list[str]:
-    """Copy each cycle-3 skill from `src_root/skills/<name>/` into
-    `dst_skills_dir/<name>/`. Excludes `skill-refiner` (cycle 6).
+    """Copy each allowlisted skill from `src_root/skills/<name>/` into
+    `dst_skills_dir/<name>/`.
 
     Creates `dst_skills_dir` if missing.
 

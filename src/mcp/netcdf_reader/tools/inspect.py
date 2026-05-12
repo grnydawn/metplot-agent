@@ -111,6 +111,23 @@ def inspect(
             vertical = _cf.extract_vertical(ds)
             t = _cf.extract_time(ds)
 
+        # If time extraction returned None but the file actually has a
+        # Time-like dim, emit a structured warning so the user knows
+        # the inspect tool noticed and chose not to fail. This is the
+        # MPAS mesh-file shape (`Time` dim, no `time` variable) plus
+        # any other file where time decode silently bailed.
+        if t is None:
+            for tname in ("time", "Time", "T", "ocean_time"):
+                if tname in ds.dims and tname not in ds.variables:
+                    warnings.append(envelope.warn(
+                        envelope.WarningCode.TIME_DECODE_FAILED,
+                        f"dim {tname!r} present but no decodable time "
+                        f"coordinate; result.time = null",
+                        context={"dim": tname,
+                                 "size": int(ds.sizes[tname])},
+                    ))
+                    break
+
         result = {
             "path": cls.raw,
             "kind": cls.kind,

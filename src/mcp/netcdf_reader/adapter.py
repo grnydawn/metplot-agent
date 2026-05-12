@@ -92,10 +92,17 @@ class NetCDFAdapter:
 
     def detect_conventions(self, ds: xr.Dataset, attrs: dict[str, Any]) -> dict[str, Any]:
         from src.mcp.netcdf_reader.conventions import cf as _cf
+        from src.mcp.netcdf_reader.conventions import mpas as _mpas
         from src.mcp.netcdf_reader.conventions import roms as _roms
         from src.mcp.netcdf_reader.conventions import wrf as _wrf
-        # WRF and ROMS take precedence — they're more specific
-        for det in (_wrf.detect(ds, attrs), _roms.detect(ds, attrs)):
+        # WRF / ROMS / MPAS take precedence — they're more specific than
+        # generic CF. MPAS is checked after WRF/ROMS because those have
+        # tighter fingerprints (TITLE attr, s_rho dim) and shouldn't
+        # collide; an MPAS-Atmosphere file with nCells could otherwise
+        # outrank a stronger producer-specific signal.
+        for det in (_wrf.detect(ds, attrs),
+                    _roms.detect(ds, attrs),
+                    _mpas.detect(ds, attrs)):
             if det is not None:
                 return det
         return _cf.detect(ds, attrs)

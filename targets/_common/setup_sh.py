@@ -33,6 +33,7 @@ fi
 
 exec "$PYTHON_BIN" "$INSTALL_DEPS" \\
     --mcp-servers-dir "$SCRIPT_DIR/mcp-servers" \\
+    --launcher-dir "$SCRIPT_DIR/bin" \\
     "$@"
 '''
 
@@ -65,5 +66,6 @@ if ($env:VIRTUAL_ENV -and (Test-Path "$env:VIRTUAL_ENV/Scripts/python.exe")) {
 
 & $PythonBin $InstallDeps `
     --mcp-servers-dir "$ScriptDir/mcp-servers" `
+    --launcher-dir "$ScriptDir/bin" `
     @args
 '''

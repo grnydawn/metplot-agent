@@ -1,5 +1,8 @@
 # tests/targets/claude_code/test_commands_dir.py
-"""Verify commands/ has the expected /refine placeholder."""
+"""Verify commands/ has the shipped /refine command (no longer a placeholder).
+
+Detailed body assertions live in test_refine_real.py; this file holds
+the structural shape checks (file present, frontmatter parses)."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -18,10 +21,3 @@ def test_refine_has_frontmatter(built_plugin: Path) -> None:
     assert text.startswith("---\n")
     end = text.find("\n---\n", 4)
     assert end > 0, "refine.md frontmatter unterminated"
-
-
-def test_refine_announces_placeholder_status(built_plugin: Path) -> None:
-    """User-facing text should make clear this is a placeholder."""
-    text = (built_plugin / "commands" / "refine.md").read_text()
-    assert "placeholder" in text.lower()
-    assert "cycle 6" in text.lower()

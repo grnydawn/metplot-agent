@@ -110,7 +110,10 @@ def _readme() -> str:
         "opt out of optional packages. The script is idempotent.\n\n"
         "## Known limitations\n\n"
         "- **No skill loader** → instructions are a single context dump rather "
-        "than dynamic skill activation.\n"
+        "than dynamic skill activation. `skill-refiner` ships concatenated "
+        "into `project_instructions.md`; invoke it manually by asking the "
+        "model to \"run the skill-refiner procedure for this session\" at "
+        "end of session.\n"
         "- **No slash commands.**\n"
-        "- **No hooks** → cycle-6 self-improvement is manual only.\n"
+        "- **No hooks** → the refiner is manual-trigger only on this host.\n"
     )

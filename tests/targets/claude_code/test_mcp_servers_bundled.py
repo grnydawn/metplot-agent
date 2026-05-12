@@ -31,8 +31,8 @@ def test_pyproject_has_packages_find_block(built_plugin: Path, server: str) -> N
     text = (built_plugin / "mcp-servers" / server / "pyproject.toml").read_text()
     assert "[tool.setuptools.packages.find]" in text, (
         f"{server}: pyproject.toml missing [tool.setuptools.packages.find]")
-    assert 'where = ["src"]' in text, (
-        f"{server}: pyproject.toml missing where = [\"src\"]")
+    assert 'include = ["src", "src.*"]' in text, (
+        f"{server}: pyproject.toml missing include = [\"src\", \"src.*\"]")
 
 
 @pytest.mark.parametrize("server", sorted(_EXPECTED_SERVERS))

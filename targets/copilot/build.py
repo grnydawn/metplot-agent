@@ -65,10 +65,22 @@ def build(src_root: Path, out_root: Path) -> None:
     commands_dir.mkdir()
     (commands_dir / "refine.md").write_text(
         "---\n"
-        "description: Review the current session and propose refinement drafts. "
-        "(Placeholder — cycle 6.)\n"
+        "description: Propose refinement drafts to the canonical metplot "
+        "skills based on the current session.\n"
+        "user-invocable: true\n"
         "---\n\n"
-        "Placeholder for cycle-6 skill-refiner.\n"
+        "Invoke the `skill-refiner` skill against this session.\n\n"
+        "Read `.metplot/task-log.jsonl` plus the current conversation. "
+        "Tag observations using the refiner's six categories (`alias`, "
+        "`region`, `pitfall`, `user_pref`, `default`, `failure_mode`). "
+        "Write each draft to "
+        "`.metplot/refinements/<timestamp>-<target>-<tag>.md` with YAML "
+        "frontmatter naming the target file, section, operation, "
+        "confidence, and evidence.\n\n"
+        "Copilot has no Stop-hook equivalent, so `/refine` is "
+        "manual-trigger only on this host. Do not modify canonical "
+        "skill files directly; the user applies drafts with "
+        "`metplot-refine`.\n"
     )
     # user-invocable: true frontmatter mirrors the skill convention; effect on
     # commands/*.md not empirically verified for this host (cycle-6 follow-up).
@@ -102,9 +114,12 @@ def _plugin_readme() -> str:
         "```bash\n./setup.sh\n```\n\n"
         "On Windows: `./setup.ps1`. Pass `--no-cartopy` or `--no-scipy` to "
         "opt out of optional packages. The script is idempotent.\n\n"
-        "## Known limitations (cycle 7)\n\n"
-        "- **Hooks deferred to cycle 6.** Copilot's `Stop` hook (PascalCase) "
-        "will trigger skill-refiner once it ships.\n"
+        "## Known limitations\n\n"
+        "- **No Stop hook wiring.** Copilot exposes no documented Stop-hook "
+        "surface as of May 2026, so the `skill-refiner` skill is "
+        "manual-trigger only via `/refine` on this host. (Claude Code "
+        "fires the hook automatically at session end; other hosts wait "
+        "for native hook support.)\n"
         "- **Plugin system in Preview.** Some rough edges expected as of "
         "May 2026.\n"
     )

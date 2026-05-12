@@ -77,12 +77,21 @@ def build(src_root: Path, out_root: Path) -> None:
 def _refine_md() -> str:
     return (
         "---\n"
-        "description: Review the current session and propose refinement drafts. "
-        "(Placeholder — cycle 6.)\n"
+        "description: Propose refinement drafts to the canonical metplot "
+        "skills based on the current session.\n"
         "---\n\n"
-        "Placeholder for the cycle-6 skill-refiner trigger. Skills are "
-        "writing `.metplot/task-log.jsonl` on user corrections; cycle 6 "
-        "will read that and produce refinement drafts.\n"
+        "Invoke the `skill-refiner` skill against this session.\n\n"
+        "Read `.metplot/task-log.jsonl` plus the current conversation. "
+        "Tag observations using the refiner's six categories (`alias`, "
+        "`region`, `pitfall`, `user_pref`, `default`, `failure_mode`). "
+        "Write each draft to "
+        "`.metplot/refinements/<timestamp>-<target>-<tag>.md` with YAML "
+        "frontmatter naming the target file, section, operation, "
+        "confidence, and evidence.\n\n"
+        "Cursor has no Stop-hook equivalent, so `/refine` is "
+        "manual-trigger only on this host. Do not modify canonical "
+        "skill files directly; the user applies drafts with "
+        "`metplot-refine`.\n"
     )
 
 

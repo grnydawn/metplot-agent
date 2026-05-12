@@ -6,6 +6,12 @@ Re-roots the canonical `src/mcp/<name>/` source under
 import path used in server.py continues to work after `pip install`
 from the bundled location. Patches pyproject.toml to enable
 setuptools.packages.find against the bundled `src/` directory.
+
+The patched `[tool.setuptools.packages.find]` uses
+`include = ["src", "src.*"]` (with `namespaces = true`) so that
+`src` is preserved as a namespace prefix in the installed wheel.
+Using `where = ["src"]` would strip the prefix and break the
+`from src.mcp.<name>...` imports the canonical source uses.
 """
 from __future__ import annotations
 
@@ -53,7 +59,7 @@ def bundle_mcp_servers(src_root: Path, dst_root: Path) -> list[dict[str, Any]]:
         if "[tool.setuptools.packages.find]" not in pyproject_text:
             pyproject_text += (
                 "\n[tool.setuptools.packages.find]\n"
-                'where = ["src"]\n'
+                'include = ["src", "src.*"]\n'
                 "namespaces = true\n"
             )
         (dst / "pyproject.toml").write_text(pyproject_text)

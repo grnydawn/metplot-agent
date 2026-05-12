@@ -53,6 +53,10 @@ def test_main_warns_but_succeeds_when_optional_fails(monkeypatch, tmp_path):
 
 def test_main_bad_env_when_python_too_old(monkeypatch, tmp_path):
     monkeypatch.delenv("VIRTUAL_ENV", raising=False)
+    # detect_python now walks up from cwd looking for a project-local
+    # `.venv/`; chdir away from this repo's so the walk-up returns
+    # nothing and we hit the version_info check.
+    monkeypatch.chdir(tmp_path)
     monkeypatch.setattr("sys.version_info", (3, 9, 0, "final", 0))
     rc = main(["--mcp-servers-dir", str(tmp_path)])
     assert rc == EXIT_BAD_ENV

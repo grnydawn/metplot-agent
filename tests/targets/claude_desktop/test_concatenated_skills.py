@@ -5,17 +5,17 @@ def test_project_instructions_present(built_plugin: Path):
     assert (built_plugin / "project_instructions.md").is_file()
 
 
-def test_concatenates_all_5_skills(built_plugin: Path):
+def test_concatenates_all_6_skills(built_plugin: Path):
     text = (built_plugin / "project_instructions.md").read_text()
     for name in ("netcdf-inspect", "netcdf-plot-router",
                   "netcdf-plot-map", "netcdf-plot-timeseries",
-                  "netcdf-plot-profile"):
+                  "netcdf-plot-profile", "skill-refiner"):
         assert f"## Skill: {name}" in text, f"missing skill section for {name}"
 
 
-def test_skill_refiner_excluded(built_plugin: Path):
+def test_skill_refiner_included(built_plugin: Path):
     text = (built_plugin / "project_instructions.md").read_text()
-    assert "## Skill: skill-refiner" not in text
+    assert "## Skill: skill-refiner" in text
 
 
 def test_yaml_frontmatter_stripped(built_plugin: Path):

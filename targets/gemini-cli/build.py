@@ -80,12 +80,17 @@ def build(src_root: Path, out_root: Path) -> None:
 
 def _refine_toml() -> str:
     return (
-        'description = "Review the current session and propose refinement '
-        'drafts to the canonical skills. (Placeholder — full implementation '
-        'in cycle 6.)"\n'
-        'prompt = "The /refine command is a placeholder until cycle 6 ships '
-        'the skill-refiner skill. Until then: skills are appending corrections '
-        'to .metplot/task-log.jsonl, but no automatic refinement happens."\n'
+        'description = "Propose refinement drafts to the canonical metplot '
+        'skills based on the current session."\n'
+        'prompt = """Invoke the `skill-refiner` skill against this session. '
+        'Read `.metplot/task-log.jsonl` plus the current conversation. Tag '
+        'observations using the refiner\'s six categories (alias, region, '
+        'pitfall, user_pref, default, failure_mode). Write each draft to '
+        '`.metplot/refinements/<timestamp>-<target>-<tag>.md` with YAML '
+        'frontmatter. Gemini CLI has no Stop-hook equivalent, so /refine '
+        'is manual-trigger only on this host. Do not modify canonical '
+        'skill files directly; the user applies drafts with '
+        '`metplot-refine`."""\n'
     )
 
 

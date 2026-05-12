@@ -68,6 +68,25 @@ _LAT_NAMES = ("lat", "latitude", "y", "rlat", "nav_lat")
 _LON_NAMES = ("lon", "longitude", "x", "rlon", "nav_lon")
 _TIME_NAMES = ("time", "Time", "T", "ocean_time")
 
+# Strings that real-world files use to mean "I have no metadata here"
+# instead of just omitting the attribute. Matched case-insensitively
+# after stripping whitespace. Keep this list tight — words that look
+# like placeholders may still be legitimate metadata in some corner
+# of the literature.
+_PLACEHOLDER_NAME_ATTRS = frozenset({"missing", "n/a", "none", ""})
+
+
+def normalize_name_attr(value: Any) -> Any:
+    """Coerce known placeholder strings on long_name / standard_name to
+    None so downstream consumers can use a single `is None` check
+    instead of a growing string-equality chain. Non-strings pass through
+    untouched."""
+    if not isinstance(value, str):
+        return value
+    if value.strip().lower() in _PLACEHOLDER_NAME_ATTRS:
+        return None
+    return value
+
 
 def extract_variables(ds: xr.Dataset) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
@@ -75,8 +94,8 @@ def extract_variables(ds: xr.Dataset) -> list[dict[str, Any]]:
         is_stag = any("stag" in str(d).lower() for d in da.dims)
         out.append({
             "name": str(name),
-            "long_name": da.attrs.get("long_name"),
-            "standard_name": da.attrs.get("standard_name"),
+            "long_name": normalize_name_attr(da.attrs.get("long_name")),
+            "standard_name": normalize_name_attr(da.attrs.get("standard_name")),
             "description": da.attrs.get("description"),
             "units": da.attrs.get("units"),
             "dims": [str(d) for d in da.dims],
@@ -96,11 +115,38 @@ def _find_coord(ds: xr.Dataset, candidates: tuple[str, ...]) -> str | None:
 
 
 def extract_time(ds: xr.Dataset) -> dict[str, Any] | None:
+    """Return a time-axis summary, or None if the file has no decodable
+    time coordinate.
+
+    Returns None in two cases:
+    - No time-named coord or variable in the file.
+    - A Time-like dim exists but has no time *variable* (the typical
+      MPAS mesh-file shape), OR the values have a non-datetime dtype
+      (the inspect tool can't summarize a range it can't format).
+
+    The caller (inspect.py) is responsible for emitting a structured
+    `time_decode_failed` warning when this function returns None but
+    a Time-like dim is present in `ds.dims`. Keeping the warning emit
+    outside this function avoids threading a warnings list through
+    every convention's extractor signature.
+    """
     name = _find_coord(ds, _TIME_NAMES)
     if name is None:
         return None
+    # A Time-like dim with no matching variable / coord: xarray fills
+    # in a synthetic int64 RangeIndex which can't be formatted as a
+    # datetime. Treat as "no time" and let the caller flag it.
+    if name not in ds.variables and name not in ds.coords:
+        return None
     coord = ds[name]
     values = coord.values
+    # Datetime-like dtype check. numpy datetime64 is fine; cftime
+    # objects are also fine (xarray returns them as object dtype with
+    # cftime.DatetimeNoLeap etc.). Anything else (int64 from a synthetic
+    # index, plain float, str) we treat as undecodable.
+    if not (np.issubdtype(values.dtype, np.datetime64)
+            or values.dtype == object):
+        return None
     n = len(values)
     if n == 0:
         return {"name": name, "n": 0, "calendar": "unknown",
@@ -121,11 +167,18 @@ def extract_time(ds: xr.Dataset) -> dict[str, Any] | None:
     if diffs is not None and len(diffs) > 0:
         if np.all(diffs == diffs[0]):
             step = _timedelta_to_iso(diffs[0])
+    # _dt_to_iso may still fail on exotic cftime objects; wrap as a
+    # last-resort fallback rather than letting the crash escape.
+    try:
+        first_iso = _dt_to_iso(values[0])
+        last_iso = _dt_to_iso(values[-1])
+    except (TypeError, ValueError):
+        return None
     return {
         "name": name,
         "n": n,
         "calendar": str(calendar),
-        "range": [_dt_to_iso(values[0]), _dt_to_iso(values[-1])],
+        "range": [first_iso, last_iso],
         "step": step,
         "monotonic": monotonic,
     }

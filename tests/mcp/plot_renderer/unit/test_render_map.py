@@ -72,9 +72,12 @@ def test_unknown_colormap_returns_ambiguity(tmp_path, monkeypatch, small_2d_data
 
 def test_lon_shift_warning(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
+    # Need >=2 lats: cartopy 0.25's GEOS rejects degenerate single-row
+    # geometries with "getX called on empty Point". The lon-shift logic
+    # being exercised here doesn't depend on the lat axis.
     spec = {
-        "values": [[1.0, 2.0, 3.0, 4.0]],
-        "lat": [0.0],
+        "values": [[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]],
+        "lat": [0.0, 1.0],
         "lon": [180.0, 270.0, 0.0, 90.0],   # 0..360 layout
         "lon_convention": "-180..180",
     }

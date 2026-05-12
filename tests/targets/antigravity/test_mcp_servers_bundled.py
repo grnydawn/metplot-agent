@@ -18,4 +18,4 @@ def test_re_rooted_source(built_plugin: Path, server: str):
 def test_pyproject_patched(built_plugin: Path, server: str):
     text = (built_plugin / "mcp-servers" / server / "pyproject.toml").read_text()
     assert "[tool.setuptools.packages.find]" in text
-    assert 'where = ["src"]' in text
+    assert 'include = ["src", "src.*"]' in text

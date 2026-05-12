@@ -66,4 +66,9 @@ markers = [
 explicit_package_bases = true
 namespace_packages = true
 mypy_path = "."
-exclude = "src/mcp/netcdf_reader/pyproject.toml|src/mcp/plot-renderer|src/mcp/netcdf-reader"
+exclude = "src/mcp/netcdf_reader/pyproject.toml|src/mcp/plot-renderer|src/mcp/netcdf-reader|^build/"
+
+# cartopy doesn't ship type stubs as of May 2026.
+[[tool.mypy.overrides]]
+module = ["cartopy", "cartopy.*"]
+ignore_missing_imports = true

@@ -14,11 +14,12 @@ def test_included_skills_set():
     assert INCLUDED_SKILLS == frozenset({
         "netcdf-inspect", "netcdf-plot-router",
         "netcdf-plot-map", "netcdf-plot-timeseries", "netcdf-plot-profile",
+        "skill-refiner",
     })
 
 
-def test_skill_refiner_not_included():
-    assert "skill-refiner" not in INCLUDED_SKILLS
+def test_skill_refiner_included():
+    assert "skill-refiner" in INCLUDED_SKILLS
 
 
 def test_copy_skills_creates_dir_and_returns_names(tmp_path):
@@ -27,8 +28,8 @@ def test_copy_skills_creates_dir_and_returns_names(tmp_path):
     assert sorted(names) == sorted(INCLUDED_SKILLS)
     for name in names:
         assert (out / name / "SKILL.md").is_file()
-    # Refiner explicitly absent
-    assert not (out / "skill-refiner").exists()
+    # Refiner ships starting cycle 6 Phase B.
+    assert (out / "skill-refiner" / "SKILL.md").is_file()
 
 
 def test_copy_skills_raises_on_missing_source(tmp_path):
