@@ -219,6 +219,18 @@ contract.
 
 ### 7.1 Cycle 8 — unstructured-mesh plotting (Omega / MPAS-Ocean priority)
 
+> **Status (2026-05-12): SHIPPING via the `cycle-8-phase-b` branch.**
+> All six Phase B success criteria met: `coord_kind: "unstructured"`
+> shape on the inspect envelope, `mesh_pairing_required` ambiguous
+> for history-only files, paired `inspect(path, mesh_path=…)`,
+> `mesh_path` plumbed through `resolve_spec` + `read_slice`,
+> `_render_unstructured_map` branch via uxarray, and SKILL.md
+> guidance for both `netcdf-inspect` and `netcdf-plot-map`. CICE
+> flattened and EAMxx dycore stayed deferred per the original
+> spec §6 cycle-9+ split. See `docs/specs/2026-05-11-cycle-8-unstructured-mesh-plotting.md`
+> and `docs/research/2026-05-11-cycle-8-library-survey.md` for the
+> shipped surface.
+
 **Driver:** the `failure_mode` finding "Unstructured-mesh coverage
 gap — 3/3 real-world files unplottable" in
 `docs/research/2026-05-08-cycle-6-dogfood-findings.md`. The cycle-3

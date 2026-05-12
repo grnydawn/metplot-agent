@@ -139,6 +139,60 @@ this", attached image, or path to a saved figure):
 
 If no reference image: skip this entire flow.
 
+## Unstructured-mesh files (MPAS family)
+
+MPAS-Ocean, MPAS-Atmosphere, MPAS-Seaice, Omega, and E3SM ship
+unstructured Voronoi meshes — `result.spatial.coord_kind ==
+"unstructured"` after `netcdf-inspect` pairs the history with the
+mesh. Flow differences from the rectilinear path:
+
+1. **Mesh-pairing first.** If `inspect(path)` returned `ok: false`
+   with `subcode: mesh_pairing_required`, prompt the user for a
+   mesh_path from `error.candidates` and retry as
+   `inspect(path, mesh_path=<pick>)`. Subsequent `read_slice` and
+   `render_map` calls all need that same `mesh_path` plumbed
+   through.
+
+2. **`read_slice` returns a 1-D `NCells` field**, not a 2-D
+   `(lat, lon)` array. After time + level selection the shape is
+   `(n_cells,)`. The slice result echoes `mesh_path` so the
+   renderer can pick it up.
+
+3. **Render spec shape changes.** Instead of `slice_ref` + lat/lon
+   coords, supply:
+
+       spec = {
+           "values": [...],        # the 1-D cell field
+           "mesh_path": <mesh>,    # required — geometry source
+           "projection": "Robinson",
+           "colormap": "viridis",
+           "output_path": "...",
+       }
+
+   The renderer detects `mesh_path` and dispatches to the
+   unstructured branch (cycle 8 §3.4) which uses
+   `uxarray.open_grid` + `to_polycollection` for cartopy-native
+   Voronoi polygon fill. Output is still PNG.
+
+4. **Verify via `result.oracle.drawn.grid_kind == "unstructured"`**.
+   The oracle block also carries `n_cells` and `mesh_path` for
+   audit. `coords` / `lat`/`lon` keys absent from result are
+   expected — cells are indexed, not coordinate-axis-shaped.
+
+5. **Default projection: Robinson.** Global cell-mosaic plots
+   read better on Robinson than PlateCarree (the equirectangular
+   stretch at the poles is more obvious in cell-centered
+   rendering).
+
+6. **Region clipping is NOT supported on unstructured meshes yet**
+   (cycle 9+). If the user asks for a region, plot the whole
+   mesh and note the request as deferred.
+
+7. **Non-MPAS unstructured shapes are out of scope cycle 8.**
+   CICE flattened (`ni=N, nj=1`) and E3SM EAMxx dycore
+   (`elem × gp × gp`) currently fail at the inspect gate — surface
+   that to the user; don't try to coerce into the MPAS path.
+
 ## Pitfalls
 
 - **Empty slice, blank plot.** If the region/time selection produces a

@@ -74,9 +74,39 @@ For follow-up resolution beyond `inspect()`:
   contains a `cf_time_decode_failed` warning, surface it.
 - **Variables with no `units` attribute.** Common in research output.
   Note this; the plotting skills will need to ask the user.
-- **Unstructured grids.** ICON, MPAS, FV3 may use unstructured meshes.
-  Detected by absence of regular `lon`/`lat` coordinates. Cycle-3
-  doesn't ship plotting for these — surface this and stop.
+- **Unstructured grids — MPAS family (mesh-history pairing).**
+  MPAS-Ocean, MPAS-Atmosphere, MPAS-Seaice, Omega, and E3SM split
+  geometry from data. A history file ships `Temperature`,
+  `Salinity`, etc. but no `latCell`/`lonCell` — the geometry lives
+  in the matching mesh file (`*_mesh.nc`, `init.nc`,
+  `ocean_mesh.nc`, …) shared by every history snapshot in the run.
+
+  How this shows up in inspect:
+
+  - **Mesh file alone** → `result.spatial.coord_kind = "unstructured"`,
+    with `cell_dim`, `n_cells`, `lat_var`, `lon_var`, `vertex_lat_var`,
+    `vertex_lon_var`, `vertices_on_cell_var` populated. Surface n_cells
+    and the lat/lon ranges; note that no time-varying data is in this
+    file.
+  - **History file alone** → `ok: false` with subcode
+    `mesh_pairing_required`. `error.candidates` lists likely sibling
+    mesh files found in the same directory. The retry param is
+    `mesh_path`.
+
+    **What to do**: surface the candidate list to the user, ask
+    them to pick one (or supply a different path), then retry
+    inspect as `inspect(path, mesh_path=<pick>)`. The paired call
+    returns a combined envelope where `spatial` comes from the
+    mesh and `variables` come from the history; variables that
+    live on the cell dim are tagged `grid_kind: "cell_centered"`.
+    Once paired, plotting flows through
+    `netcdf-plot-map`'s unstructured branch (see that skill's
+    Pitfalls).
+
+  Other unstructured conventions (CICE flattened block-decomposed,
+  E3SM EAMxx dycore `elem×gp×gp`) are NOT yet covered (cycle 9+);
+  for those files `coord_kind` stays absent and plotting is
+  blocked.
 
 ## Verification
 

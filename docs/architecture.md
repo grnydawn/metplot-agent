@@ -90,6 +90,61 @@ This is intentionally human-reviewed. Hermes' fully-autonomous skill writes are
 a feature for general productivity work; for scientific plotting they're a
 liability because subtly wrong refinements compound silently.
 
+## Unstructured-mesh path (cycle 8)
+
+Cycle 8 added a parallel rendering path for MPAS-family files
+(MPAS-Ocean, MPAS-Atmosphere, MPAS-Seaice, Omega, E3SM). Driven by
+cycle-6 Phase A dogfooding: 3/3 real E3SM-class files on the test
+user's disk were unstructured (Voronoi mesh, flattened
+block-decomposed, spectral-element) and rejected at the inspect →
+plot gate.
+
+**The spatial enumeration on the inspect envelope**:
+
+| `result.spatial.coord_kind` | Means | Shipped |
+|---|---|---|
+| `"rectilinear"` | 1-D `lat` and `lon` coord vars | cycle 3 |
+| `"curvilinear"` | 2-D `lat` / `lon` coord arrays (WRF `XLAT`/`XLONG`, ROMS `lat_rho`/`lon_rho`) | cycle 3 |
+| `"unstructured"` | 1-D cell-indexed Voronoi mesh — `cell_dim`, `n_cells`, `lat_var`, `lon_var`, `vertex_lat_var`, `vertex_lon_var`, `vertices_on_cell_var` | cycle 8 (MPAS family) |
+
+**Mesh-history pairing**. MPAS-family files split geometry from
+data: history files (`*.hist.<date>.nc`) carry `Temperature`,
+`Salinity`, etc. but no coords; the matching mesh file
+(`*_mesh.nc` / `init.nc`) carries `latCell`, `lonCell`, and the
+`verticesOnCell` connectivity table. When `inspect(history)`
+detects this shape, it returns `ok: false` with subcode
+`mesh_pairing_required`, a list of likely sibling mesh files in
+the same directory, and `retry_with_param: "mesh_path"`. The
+agent (via `netcdf-inspect/SKILL.md`'s mesh-pairing flow) picks a
+candidate and retries as `inspect(history, mesh_path=mesh)`, which
+returns a combined envelope where `spatial` comes from the mesh
+and `variables` come from the history (cell-centered variables
+are tagged `grid_kind: "cell_centered"`).
+
+**Rendering**. `read_slice(…, mesh_path=…)` returns a 1-D
+`NCells` field; `render_map({"values": …, "mesh_path": …})` opens
+the mesh with `uxarray.open_grid()` and uses
+`uxgrid.to_polycollection()` for cartopy-native Voronoi polygon
+fill. Output is PNG, matching the cycle-2 contract. The oracle
+block tags `drawn.grid_kind = "unstructured"` for downstream
+audit.
+
+**Library choice**. Phase A surveyed `uxarray`, `PyVista`,
+`datashader`, `holoviews/hvplot`, and raw matplotlib `tripcolor +
+mpas_tools`. uxarray won on native MPAS-convention support
+(`open_mfdataset(mesh, hist)` maps 1:1 to the mesh-pairing
+contract) plus xarray-native data model. Documented secondary path
+(matplotlib `tripcolor` + hand-rolled Voronoi unflatten) provides
+a no-new-heavy-deps fallback for installer-budget-constrained
+deployments. See `docs/research/2026-05-11-cycle-8-library-survey.md`
+for the full survey.
+
+**Out of cycle 8** (defer to cycle 9+): CICE flattened
+block-decomposed grids (`ni=N, nj=1`), E3SM-EAMxx dycore
+spectral-element grids (`elem×gp×gp`), region clipping on
+unstructured grids, timeseries / profile plots on unstructured
+grids, multi-file unstructured time-concat.
+
 ## Cycle-5 changes: plugin rename + setup tooling
 
 **Plugin manifest rename (`ncplot-agent` → `ncplot` → `metplot`)**

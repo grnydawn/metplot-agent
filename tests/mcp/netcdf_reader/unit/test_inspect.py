@@ -63,10 +63,19 @@ def test_inspect_tolerates_time_dim_with_no_time_variable(tmp_path, monkeypatch)
     that crash leaked through as `internal_error` with the raw Python
     exception message "input must have type NumPy datetime". The
     inspect envelope should now return `ok: true` with `time = None`
-    and a structured `time_decode_failed` warning instead."""
+    and a structured `time_decode_failed` warning instead.
+
+    Note (cycle 8 Phase B): the fixture now includes both `latCell`
+    AND `lonCell` so the MPAS unstructured-spatial extractor succeeds
+    rather than tripping the new `mesh_pairing_required` ambiguous
+    path. The test's intent is still time-decode resilience; the
+    mesh-coords are scaffolding."""
     monkeypatch.chdir(tmp_path)
     ds = xr.Dataset(
-        {"latCell": (("nCells",), np.linspace(-90.0, 90.0, 5))},
+        {
+            "latCell": (("nCells",), np.linspace(-90.0, 90.0, 5)),
+            "lonCell": (("nCells",), np.linspace(0.0, 359.0, 5)),
+        },
         attrs={"Conventions": "MPAS",
                "config_calendar_type": "gregorian_noleap"},
     )

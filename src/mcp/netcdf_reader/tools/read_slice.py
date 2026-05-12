@@ -69,8 +69,12 @@ def _apply_selectors(da, resolved: dict[str, Any]):
                 isel[d] = resolved["time_index"]
                 break
     if "level_index" in resolved:
+        # Case-insensitive set so MPAS dim casing
+        # (NVertLayers history vs nVertLevels mesh) just works.
+        _lev_dims = {"plev", "lev", "level", "bottom_top",
+                     "nvertlayers", "nvertlevels"}
         for d in da.dims:
-            if d in ("plev", "lev", "level", "bottom_top"):
+            if str(d).lower() in _lev_dims:
                 isel[d] = resolved["level_index"]
                 break
     if "lat_indices" in resolved:
@@ -111,11 +115,12 @@ def read_slice(
     max_inline_bytes: int = 100_000,
     adapter: FormatAdapter,
     ssh_config: dict[str, Any] | None = None,
+    mesh_path: str | None = None,
 ) -> dict[str, Any]:
     spec_env = resolve_spec(
         path, variable, time=time, level=level, lat=lat, lon=lon,
         region=region, regrid=regrid, adapter=adapter,
-        ssh_config=ssh_config,
+        ssh_config=ssh_config, mesh_path=mesh_path,
     )
     if not spec_env["ok"]:
         return spec_env
@@ -158,6 +163,8 @@ def read_slice(
                 "units": ds[variable].attrs.get("units"),
                 "stats": stats,
             }
+            if mesh_path is not None:
+                result["mesh_path"] = mesh_path
             return envelope.success(result)
         finally:
             ds.close()
@@ -188,6 +195,8 @@ def read_slice(
             "units": ds[variable].attrs.get("units"),
             "stats": stats,
         }
+        if mesh_path is not None:
+            result["mesh_path"] = mesh_path
         return envelope.success(result)
     finally:
         ds.close()
