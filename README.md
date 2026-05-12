@@ -25,6 +25,8 @@ plotting for the MPAS family. Current capability summary:
 | Rectilinear lat/lon maps (CMIP, ERA5) | shipping (cycle 3) |
 | Curvilinear maps (WRF, ROMS) | shipping (cycle 3) |
 | Unstructured Voronoi maps (MPAS-Ocean, MPAS-A, MPAS-Seaice, Omega, E3SM) | shipping (cycle 8) |
+| CICE5/6 flattened block-decomposed grids (paired with grid file) | shipping (cycle 9) |
+| EAMxx physics-column grid (paired with scrip-style grid file) | shipping (cycle 9) |
 | Time-series plots | shipping (cycle 3) |
 | Vertical profiles + cross-sections | shipping (cycle 3) |
 | Style-by-reference (extract style from a screenshot) | shipping (cycle 3) |
@@ -33,10 +35,10 @@ plotting for the MPAS family. Current capability summary:
 | 7 build targets (claude-code, cursor, copilot, gemini-cli, codex, antigravity, claude-desktop) | shipping (cycles 4 + 7) |
 | Setup helper for Python deps (cartopy, scipy, MCP servers) | shipping (cycle 5) |
 
-Out of scope this release (cycle 9+): CICE flattened
-block-decomposed grids, EAMxx dycore spectral-element grids, region
-clipping on unstructured grids, contour/streamline on unstructured
-grids, interactive 3-D mesh viewers.
+Out of scope this release (cycle 10+): EAMxx dycore spectral-element
+grids (`elem × gp × gp`), CICE U-grid (velocity-on-edge) plotting,
+region clipping on unstructured grids, contour/streamline on
+unstructured grids, interactive 3-D mesh viewers.
 
 ## Quickstart
 

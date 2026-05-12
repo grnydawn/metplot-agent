@@ -103,10 +103,33 @@ For follow-up resolution beyond `inspect()`:
     `netcdf-plot-map`'s unstructured branch (see that skill's
     Pitfalls).
 
-  Other unstructured conventions (CICE flattened block-decomposed,
-  E3SM EAMxx dycore `elem×gp×gp`) are NOT yet covered (cycle 9+);
-  for those files `coord_kind` stays absent and plotting is
-  blocked.
+- **Unstructured grids — CICE5/6 (cycle 9).** CICE restarts ship
+  per-category thermodynamic + dynamics fields on `(ncat, nj, ni)`
+  (often flattened as `nj=1, ni=N`) but no geometry — `TLAT`/`TLON`
+  live in a separate CICE grid file (`grid.nc`, `cice_grid.nc`,
+  `pop_grid.nc`). Detection fires on the variable-name fingerprint
+  (`aicen`/`vicen`/`Tsfcn`/`iceumask`/…); the bare-restart inspect
+  returns `mesh_pairing_required` with candidate basenames. Once
+  paired (`inspect(path, mesh_path=<grid>)`), `spatial.coord_kind =
+  "unstructured"`, `cell_dim = "ni"`, `grid_shape_2d = [nj, ni]`,
+  and vars on `(nj, ni)` are tagged `cell_centered`.
+
+- **Unstructured grids — EAMxx physics column grid (cycle 9).**
+  EAMxx (SCREAM) files declare `Conventions = CF-1.x` but ship no
+  lat/lon coords; geometry lives in a separate scrip-style file
+  (`*scrip*.nc`, `ne*pg2*.nc`, `ne*lonlat*.nc`). Detection takes
+  precedence over plain CF via `source` / `case` attrs matching
+  `EAMxx` or `SCREAM`. Bare inspect → `mesh_pairing_required`.
+  Paired → `cell_dim = "ncol"`, vars on `ncol` tagged
+  `cell_centered`.
+
+  **EAMxx dycore axis (`elem × gp × gp`) is OUT OF SCOPE (cycle
+  10+).** Inspect surfaces those variables tagged
+  `grid_kind: "dycore_spectral"` along with a structured
+  `dycore_vars_present` warning. Do NOT route those to render_map
+  — they refuse with `unstructured_dycore_unsupported`. Offer the
+  user a physics-axis (`ncol`) variable on the same file as an
+  alternative.
 
 ## Verification
 

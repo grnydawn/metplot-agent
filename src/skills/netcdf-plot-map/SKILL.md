@@ -188,10 +188,36 @@ mesh. Flow differences from the rectilinear path:
    (cycle 9+). If the user asks for a region, plot the whole
    mesh and note the request as deferred.
 
-7. **Non-MPAS unstructured shapes are out of scope cycle 8.**
-   CICE flattened (`ni=N, nj=1`) and E3SM EAMxx dycore
-   (`elem × gp × gp`) currently fail at the inspect gate — surface
-   that to the user; don't try to coerce into the MPAS path.
+7. **CICE flattened block-decomposed grids (cycle 9).** A CICE
+   restart ships geometry separately: bare inspect returns
+   `mesh_pairing_required` with the candidate list pointing at
+   sibling `grid.nc` / `cice_grid.nc` / `pop_grid.nc` files.
+   Once paired (`mesh_path=<grid>`), the renderer picks the
+   pcolormesh path: TLAT/TLON on `(nj, ni)` are 2-D curvilinear
+   coords, and the 1-D `values` (length nj*ni) are reshaped to
+   `(nj, ni)` for `pcolormesh` with a Cartopy
+   `transform=PlateCarree()`. Oracle reports
+   `grid_kind: "unstructured_cice"`.
+
+8. **EAMxx physics-grid files (cycle 9).** Same mesh-pair pattern.
+   Bare inspect returns `mesh_pairing_required` pointing at sibling
+   `*scrip*.nc` / `ne*pg2*.nc` files. Once paired, the renderer
+   picks the scatter path: 1-D `lat[ncol]`/`lon[ncol]` cell centers,
+   no per-cell vertex connectivity, so the field is drawn as filled
+   scatter (square markers). Point-size auto-scales with `ncol`
+   (4.0 px at ne16pg2-ish; 0.5 px at ne1024pg2). Oracle reports
+   `grid_kind: "unstructured_eamxx"`.
+
+9. **EAMxx dycore is OUT OF SCOPE (cycle 10+).** Variables on
+   `elem × gp × gp` (e.g. `v_dyn`, `vtheta_dp_dyn`, `dp3d_dyn`)
+   need HOMME-aware spectral-element reconstruction. If
+   `inspect()` flagged a variable as
+   `grid_kind: "dycore_spectral"` (cycle 9 §3.3 contract), do
+   NOT call render_map; instead, surface that the variable is
+   deferred and offer the user a physics-axis alternative
+   (`T_mid`, `ps`, etc.) on the same file. Calling render_map
+   with `grid_kind: "dycore_spectral"` returns a
+   structured `unstructured_dycore_unsupported` error.
 
 ## Pitfalls
 
