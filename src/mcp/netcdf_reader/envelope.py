@@ -82,6 +82,7 @@ class ErrorCode:
     NOT_4D = "not_4d"
     INTERNAL_ERROR = "internal_error"
     AMBIGUOUS = "ambiguous"
+    UNSTRUCTURED_DYCORE_UNSUPPORTED = "unstructured_dycore_unsupported"
 
 
 class AmbiguitySubcode:
@@ -102,3 +103,4 @@ class WarningCode:
     NON_STANDARD_CALENDAR = "non_standard_calendar"
     PERCENTILE_CLIP_SUGGESTED = "percentile_clip_suggested"
     TIME_DECODE_FAILED = "time_decode_failed"
+    DYCORE_VARS_PRESENT = "dycore_vars_present"

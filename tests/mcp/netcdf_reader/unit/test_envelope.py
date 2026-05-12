@@ -35,6 +35,7 @@ def test_error_code_constants_present():
     assert ErrorCode.CONVENTION_TRANSFORM_UNAVAILABLE == "convention_transform_unavailable"
     assert ErrorCode.NOT_4D == "not_4d"
     assert ErrorCode.AMBIGUOUS == "ambiguous"
+    assert ErrorCode.UNSTRUCTURED_DYCORE_UNSUPPORTED == "unstructured_dycore_unsupported"
 
 def test_warning_code_constants_present():
     assert WarningCode.SLOW_REMOTE_READ == "slow_remote_read"
@@ -43,6 +44,7 @@ def test_warning_code_constants_present():
     assert WarningCode.NON_MONOTONIC_COORD == "non_monotonic_coord"
     assert WarningCode.NON_STANDARD_CALENDAR == "non_standard_calendar"
     assert WarningCode.PERCENTILE_CLIP_SUGGESTED == "percentile_clip_suggested"
+    assert WarningCode.DYCORE_VARS_PRESENT == "dycore_vars_present"
 
 def test_error_uses_code_constants():
     env = error(ErrorCode.FILE_NOT_FOUND, "nope")
