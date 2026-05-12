@@ -320,6 +320,21 @@ def inspect(
             "dims": {str(k): int(v) for k, v in ds.sizes.items()},
             "attrs": {k: _safe(v) for k, v in attrs.items()},
         }
+    except Exception as e:
+        # Cycle 10 Task A0 — exception-safety harness. Any failure
+        # inside the inspect pipeline (convention dispatch, spatial
+        # / time / vertical extraction, paired-merge) MUST surface
+        # as an INTERNAL_ERROR envelope, not a raw Python exception.
+        # F-01 cycle-9 regression: cf.py:extract_time raised
+        # TypeError on hifreq files and the exception escaped to
+        # the caller. Never again.
+        return envelope.error(
+            envelope.ErrorCode.INTERNAL_ERROR,
+            f"{type(e).__name__}: {e}",
+            context={"path": path,
+                     "mesh_path": mesh_path,
+                     "stage": "inspect_pipeline"},
+        )
     finally:
         ds.close()
         if mesh_ds is not None:
