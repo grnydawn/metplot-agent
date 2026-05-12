@@ -12,10 +12,12 @@ from src.mcp.netcdf_reader import envelope, lifecycle
 from src.mcp.netcdf_reader.adapter import NetCDFAdapter
 from src.mcp.netcdf_reader.tools import (
     compute_stats as _stats,
+    dump_cdl as _dump_cdl,
     find as _find,
     inspect as _inspect,
     peek as _peek,
     read_slice as _slice,
+    reduce_variable as _reduce_var,
     resolve_spec as _spec,
     transforms as _transforms,
 )
@@ -37,7 +39,9 @@ def list_tool_names() -> list[str]:
             "peek", "read_slice", "compute_stats",
             "find_variables", "find_time",
             # Cycle 11 — unstructured-mesh helpers
-            "find_nearest_cell", "cells_in_bbox"]
+            "find_nearest_cell", "cells_in_bbox",
+            # Cycle 12 — ncks-parity analysis tools
+            "reduce_variable", "dump_cdl"]
 
 
 def dispatch(name: str, args: dict[str, Any]) -> dict[str, Any]:
@@ -70,6 +74,11 @@ def dispatch(name: str, args: dict[str, Any]) -> dict[str, Any]:
                 cells_in_bbox_tool,
             )
             return cells_in_bbox_tool(adapter=_ADAPTER, **args)
+        # Cycle 12 — ncks-parity analysis tools
+        if name == "reduce_variable":
+            return _reduce_var.reduce_variable(adapter=_ADAPTER, **args)
+        if name == "dump_cdl":
+            return _dump_cdl.dump_cdl(adapter=_ADAPTER, **args)
         return envelope.error("unknown_tool", f"unknown tool: {name}",
                               context={"name": name})
     except TypeError as e:
