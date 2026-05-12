@@ -167,14 +167,20 @@ shared `src/skills/...` build pipeline already in place from cycle
 
 ## 2. Phase A artifacts
 
-### 2.1 Library survey doc — `docs/research/2026-05-NN-cycle-8-library-survey.md`
+### 2.1 Library survey doc — `docs/research/2026-05-11-cycle-8-library-survey.md`
 
 Created at start of Phase A. Sections:
 
-1. **Candidate list** — `uxarray`, `xarray-mpas`, `PyVista`,
-   `datashader`, `holoviews/hvplot` (built on datashader), raw
-   matplotlib `tripcolor` + custom Voronoi unflattening. Add or
-   remove candidates as research surfaces them.
+1. **Candidate list** — `uxarray`, `PyVista`, `datashader`,
+   `holoviews/hvplot` (built on datashader), raw matplotlib
+   `tripcolor` + custom Voronoi unflattening (via
+   `mpas_tools.viz.mesh_to_triangles`). Add or remove candidates
+   as research surfaces them. (Phase A research, 2026-05-11:
+   dropped `xarray-mpas` from the original candidate list —
+   verified it does not exist as a standalone package on PyPI or
+   GitHub; the spec's prior reference was a confusion with the
+   deprecated `pwolfram/mpas_xarray` repo, which was superseded by
+   MPAS-Analysis. See library-survey doc §6.)
 2. **Per-candidate evaluation matrix** (one column per dimension
    listed in Phase A deliverables above; one row per candidate).
 3. **PoC results** — link each candidate to its
@@ -277,7 +283,7 @@ as inputs (or stages copies in `.scratch/`) and produces
 
 ## 5. Open risks
 
-- **Library churn.** uxarray, xarray-mpas, and similar are young projects (≤2 years old as of May 2026). API stability is a real concern; pin versions tightly and document the pin.
+- **Library churn.** uxarray and similar climate-mesh libraries are young projects (≤3 years old as of May 2026). API stability is a real concern; pin versions tightly and document the pin. (`xarray-mpas` — originally listed as a candidate — turned out not to exist as a standalone package; see survey doc §6.)
 
 - **VTK/PyVista install footprint.** PyVista pulls VTK (~50 MB). If selected as primary, cycle 5's installer needs a graceful path for users who can't or don't want that dep.
 
