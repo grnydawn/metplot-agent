@@ -7,6 +7,7 @@ import pytest
 _EXPECTED = {
     "netcdf-inspect", "netcdf-plot-router",
     "netcdf-plot-map", "netcdf-plot-timeseries", "netcdf-plot-profile",
+    "skill-refiner",
 }
 
 
@@ -15,8 +16,8 @@ def test_all_expected_skills_present(built_plugin: Path):
     assert actual == _EXPECTED
 
 
-def test_skill_refiner_excluded(built_plugin: Path):
-    assert not (built_plugin / "skills" / "skill-refiner").exists()
+def test_skill_refiner_included(built_plugin: Path):
+    assert (built_plugin / "skills" / "skill-refiner" / "SKILL.md").is_file()
 
 
 @pytest.mark.parametrize("skill", sorted(_EXPECTED))

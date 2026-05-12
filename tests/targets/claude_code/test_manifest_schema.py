@@ -36,6 +36,7 @@ def test_ships_skills_matches_allowlist(built_plugin: Path) -> None:
     expected = {
         "netcdf-inspect", "netcdf-plot-router",
         "netcdf-plot-map", "netcdf-plot-timeseries", "netcdf-plot-profile",
+        "skill-refiner",
     }
     assert set(m["metplot"]["ships_skills"]) == expected
 
@@ -46,7 +47,7 @@ def test_ships_mcp_servers(built_plugin: Path) -> None:
         "netcdf-reader", "plot-renderer"}
 
 
-def test_skill_refiner_excluded(built_plugin: Path) -> None:
-    """skill-refiner is cycle 6; must NOT be advertised in cycle 4."""
+def test_skill_refiner_included(built_plugin: Path) -> None:
+    """skill-refiner ships starting cycle 6 Phase B."""
     m = json.loads((built_plugin / ".claude-plugin" / "plugin.json").read_text())
-    assert "skill-refiner" not in m["metplot"]["ships_skills"]
+    assert "skill-refiner" in m["metplot"]["ships_skills"]
