@@ -210,3 +210,64 @@ conditions. Reusable for any future dogfood pass.
 - Three-way merge for conflicting refinements.
 - Web/TUI `metplot-refine` review UI.
 - Telemetry on accepted-vs-rejected refinement rates.
+
+## 7. Phase A amendments (2026-05-11)
+
+Phase A surfaced one finding that mandates a follow-on cycle, not a
+Phase B in-scope item. Recorded here per section 0's "edit-in-place"
+contract.
+
+### 7.1 Cycle 8 — unstructured-mesh plotting (Omega / MPAS-Ocean priority)
+
+**Driver:** the `failure_mode` finding "Unstructured-mesh coverage
+gap — 3/3 real-world files unplottable" in
+`docs/research/2026-05-08-cycle-6-dogfood-findings.md`. The cycle-3
+plot pipeline only handles `rectilinear` and `curvilinear` lat/lon
+grids; every real file the dogfood tester had on hand
+(`ocn.hist.0001-02-01_00.00.00.nc`, `cice.nc`, `eamxx.nc`) is
+unstructured (Voronoi, flattened-blocked, and spectral-element
+respectively) and is rejected at the "no spatial coordinates" gate.
+The synthetic `.scratch/synthetic_tas.nc` is the only file currently
+plottable, and is not representative of the operational fleet.
+
+**Why this isn't Phase B in this cycle:** the gap is a scope question
+for `netcdf-reader` + `plot-renderer` + plot skills — three MCP
+servers and three or more SKILL.md files. The refiner machinery
+shipping in Phase B cannot add unstructured-mesh support; that's a
+new plotting code path. Closing the loop on Claude Code (Phase B
+goal) still has value independent of this gap, so Phase B proceeds
+as specified.
+
+**Cycle 8 scope (sketch — to be refined in its own spec):**
+- New `result.spatial.coord_kind` value: `"unstructured"`, with
+  `cell_dim`, `lat_var`, `lon_var` populated from the file (or from
+  a paired mesh file).
+- Mesh-history pairing for MPAS-family files (`*_mesh.nc` next to
+  `*.hist.<date>.nc` — see the dogfood pitfall finding). Cycle-3 has
+  no multi-file plotting concept; cycle 8 introduces one.
+- Renderer paths for the three families seen in cycle-6 dogfood:
+  Voronoi cell-centers (MPAS-Ocean, MPAS-A, MPAS-Seaice, Omega),
+  flattened/blocked (CICE5/6), spectral-element `elem × gp × gp`
+  (E3SM-EAMxx / SCREAM, HOMME dycore).
+- Candidate tooling per the dogfood doc: xarray-MPAS, PyVista,
+  ParaView, datashader. Selection deferred to cycle-8 research phase.
+
+**What cycle 6 task 3 already delivered toward cycle 8** (in the same
+branch — `cycle-6-self-improvement-loop`):
+- MPAS convention detection (commit `f197328`) — `result.convention.primary
+  = "MPAS"` is now reliable on both mesh-style and history-style files,
+  so cycle-8 code paths can branch on that signal without re-implementing
+  detection.
+- Graceful time-decode failure (commit `358d44f`) — `result.time = null`
+  + `time_decode_failed` warning replaces the previous `internal_error`
+  crash on MPAS mesh files, so the renderer can load a mesh-pair without
+  the inspect step blowing up first.
+- Placeholder string normalization (commit `4582217`) — downstream alias
+  resolution on EAMxx / CICE-class files now sees `null` instead of
+  `"MISSING"`, removing one false-positive failure mode the renderer
+  would otherwise hit.
+
+**Out-of-scope for cycle 8** (push to cycle 9+ if surfaced): contour /
+streamline on unstructured grids, GPU rendering paths, interactive
+3D mesh viewers, regridding to a synthetic regular grid for legacy
+tooling.

@@ -237,8 +237,12 @@ workaround in the dogfood guide is a stopgap for Phase A only.
 When dogfooding is complete, fill in below and notify whoever's
 coordinating cycle 6.
 
-- **Sessions completed:** _
-- **Findings count by category:** alias=_, region=_, pitfall=_, user_pref=_, default=_, failure_mode=_, uncategorized=_
-- **New category proposed:** none / _
-- **Stop reason:** (e.g. "categories repeating", "covered all file flavors", "out of test data")
-- **Phase B applier ops justified:** (subset of: replace_section, add_alias, add_region, set_config_default)
+- **Sessions completed:** 3 (one 2026-05-09 — surfaced the plugin-MCP-tool-surface gap; two 2026-05-11 — inspected three real E3SM files + the MPAS mesh, plus consolidated findings).
+- **Findings count by category:** alias=3, region=0, pitfall=5, user_pref=0, default=0, failure_mode=7, uncategorized=0 (total 15).
+- **New category proposed:** none — existing categories covered every finding.
+- **Stop reason:** covered all on-hand file flavors (CMIP synthetic, MPAS-Ocean history, MPAS-Ocean mesh, CICE restart, EAMxx restart), and the dominant failure (3/3 real files unplottable due to unstructured-mesh coverage gap) made further inspection rounds redundant — additional dogfood would surface more variants of the same gap. Three of seven failure_mode items were code-fixable inside cycle-6 (task 3: time-decode crash, MISSING-string normalization, MPAS convention detection) and are now addressed; the rest are scope items for cycle 7+ or skill-refinement targets.
+- **Phase B applier ops justified:**
+  - **`add_alias`** — three alias findings (CICE vocabulary, EAMxx vocabulary, TEOS-10 ocean vocabulary). Largest-evidence op.
+  - **`replace_section`** — five pitfall findings, all of which name a `Pitfalls` section to edit in either `netcdf-inspect/SKILL.md` or `netcdf-plot-map/SKILL.md` / `netcdf-plot-timeseries/SKILL.md`. Two of the failure_mode "partial" findings (missed file-type fingerprints, broken-CF-confidence) also fall through to Pitfalls edits on the skill side.
+  - **`set_config_default`** — two findings name it: the TEOS-10 finding ("surface X → top vertical layer when file has `NVertLayers`-style depth axis") and the precip-units finding ("default-apply `kg/m² → mm/day` conversion when user asks for 'precipitation'"). Smaller-evidence than the other two but justified.
+  - **`add_region`** — **NOT justified** — zero region findings. The applier should keep `add_region`'s `ClickException("not implemented yet")` body, updated to name the cycle that should complete it.
