@@ -1,7 +1,7 @@
 from src.mcp.netcdf_reader.server import dispatch, list_tool_names
 
 
-def test_list_tool_names_exposes_all_12():
+def test_list_tool_names_exposes_all_13():
     names = set(list_tool_names())
     assert names == {
         "inspect", "resolve_spec", "regrid_to_centers",
@@ -11,6 +11,9 @@ def test_list_tool_names_exposes_all_12():
         "find_nearest_cell", "cells_in_bbox",
         # Cycle 12 — ncks-parity analysis tools
         "reduce_variable", "dump_cdl",
+        # Cycle 13 — region lookup (theme C). Theme D adds
+        # slice_along_section → expected count becomes 14.
+        "find_region",
     }
 
 

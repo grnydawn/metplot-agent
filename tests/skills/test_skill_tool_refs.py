@@ -27,9 +27,13 @@ _REAL_TOOLS = {
     # Cycle 12 — ncks-parity analysis tools
     "netcdf-reader.reduce_variable",
     "netcdf-reader.dump_cdl",
+    # Cycle 13 — region lookup + cross-section
+    "netcdf-reader.find_region",
+    "netcdf-reader.slice_along_section",
     "plot-renderer.render_map",
     "plot-renderer.render_timeseries",
     "plot-renderer.render_profile",
+    "plot-renderer.render_section",
 }
 
 # Pattern for `<server>.<tool>` references in skill markdown.
