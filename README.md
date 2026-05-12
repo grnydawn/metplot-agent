@@ -4,8 +4,12 @@ A multi-target AI agent plugin for natural-language plotting from NetCDF data fi
 with a closed-loop skill-refinement layer that brings Hermes-style self-improvement
 to agents that don't have it natively (Claude Code, Claude Desktop, Codex, Cursor).
 
-> Status: scaffolding. The structure is in place; most skills, MCPs, and target
-> builders are stubs marked with TODOs.
+> Status (as of cycle 6 Phase B): the five plotting skills, the two MCP
+> servers, and six target builders (claude-code, cursor, copilot,
+> gemini-cli, codex, antigravity, claude-desktop) are shipping. The
+> closed-loop `skill-refiner` is shipping too, auto-fired by a `Stop`
+> hook on Claude Code and manual-trigger via `/refine` on the other
+> hosts (per-host hook coverage is a cycle 7+ candidate).
 
 ## What this is
 

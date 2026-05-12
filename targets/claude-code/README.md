@@ -34,10 +34,11 @@ build/claude-code/
 └── metplot/
     ├── .claude-plugin/plugin.json   # manifest with cycle metadata
     ├── README.md                    # end-user install + setup instructions
-    ├── skills/                      # 5 SKILL.md packages from cycle 3
+    ├── skills/                      # 6 SKILL.md packages (5 plotting + skill-refiner)
     ├── mcp-servers/                 # netcdf_reader + plot_renderer (installable)
     ├── .mcp.json                    # MCP launch stanzas (entry-point scripts)
-    └── commands/                    # /metplot:setup, /metplot:refine
+    ├── commands/                    # /metplot:setup, /metplot:refine
+    └── hooks/                       # SessionStart (setup) + Stop (refine) hooks
 ```
 
 End users register the build dir as a marketplace and install via
@@ -51,13 +52,22 @@ End users register the build dir as a marketplace and install via
 The marketplace name (`metplot-local`) is exported as
 `MARKETPLACE_NAME` in `build.py`.
 
-## Skill-refiner + Stop hook
+## Skill-refiner + Stop hook (shipped cycle 6 Phase B)
 
-Both are deferred to cycle 6. The cycle-4 build excludes
-`src/skills/skill-refiner/` from the payload and produces no
-`hooks/` directory. The `/refine` slash command stub is included so
-the command name appears in autocomplete; its body explains that the
-feature is on the way.
+The build ships `src/skills/skill-refiner/` in the plugin payload
+and emits `hooks/refine.json` registering a `Stop` matcher that
+spawns a fresh subagent running `/metplot:refine` at session end.
+The subagent invocation is backgrounded (`nohup … &`) so it never
+blocks the parent session, guards against missing `claude` on PATH,
+and always `exit 0`s so a refiner hiccup can't break the host's
+session-end flow. The `/refine` slash command body procedurally
+routes the agent at the skill, reads `.metplot/task-log.jsonl`, and
+writes drafts to `.metplot/refinements/` for human review via
+`metplot-refine`.
+
+Other hosts ship `skill-refiner` too (the allowlist is shared) but
+their `/refine` bodies note the manual-trigger nature — only Claude
+Code wires the native `Stop` hook in cycle 6.
 
 ## MCP server packaging
 
@@ -67,8 +77,10 @@ under `mcp-servers/<name>/`. The build:
 1. Re-roots the package source under `mcp-servers/<name>/src/mcp/<name>/`
    (preserving the `src.mcp.<name>` import path that server.py uses).
 2. Patches the original `pyproject.toml` to add
-   `[tool.setuptools.packages.find]` with `where = ["src"]` and
-   `namespaces = true`.
+   `[tool.setuptools.packages.find]` with `include = ["src", "src.*"]`
+   and `namespaces = true` (cycle-6 task 2 fixed the earlier
+   `where = ["src"]` form, which stripped the `src.` prefix and broke
+   `import src.mcp.<name>...`).
 
 The generated README instructs the end-user to `pip install` each
 server, which puts the entry-point scripts (`metplot-netcdf-reader`,

@@ -96,21 +96,39 @@ evidence:
 ```
 
 The `operation` is one of `append`, `replace_section`, `add_alias`,
-`set_config_default`. The applier knows how to splice each kind into the
-target file.
+`add_region`, or `set_config_default`. The applier knows how to splice
+each kind into the target file.
+
+| Op                  | Status                              | Target shape                                  |
+|---------------------|-------------------------------------|-----------------------------------------------|
+| `append`            | shipping (cycle 4)                  | end of named `## Section`                     |
+| `replace_section`   | shipping (cycle 6 Phase B)          | body of named `## Section`                    |
+| `add_alias`         | shipping (cycle 6 Phase B)          | between `REFINER_INSERT_BELOW`/`ABOVE` markers in aliases.md |
+| `set_config_default`| shipping (cycle 6 Phase B)          | round-trip YAML frontmatter `key: value`      |
+| `add_region`        | stubbed; deferred (zero cycle-6 Phase A findings) | parallel splice into regions.md + regions.json |
 
 ## Trigger options per target
 
-- **Claude Code** — register a `Stop` hook that runs the refiner skill in a
-  fresh subagent at session end. The hook is part of the built plugin.
-- **Claude Desktop** — no hook system; user invokes `/refine` manually at
-  end of session.
-- **Codex** — manual; the AGENTS.md instructs the agent to consider invoking
-  the refiner after multi-step plotting tasks.
-- **Hermes** — Hermes' own learning loop will fire its `skill_manage` tool;
-  the `skill-refiner` we ship is wired to write to the same `.metplot/`
-  refinement queue rather than directly modifying skills, so the human
-  review step still happens.
+- **Claude Code** — ships a `Stop` hook (`hooks/refine.json`) that
+  spawns a fresh subagent running `/metplot:refine` at every session
+  end. Backgrounded so the parent session-end is never blocked;
+  always `exit 0` so a refiner hiccup never breaks the host flow.
+- **Cursor, Copilot, Gemini CLI, Antigravity** — `skill-refiner`
+  ships in the bundle and the `/refine` slash command (or workflow,
+  for Antigravity) routes to it, but native `Stop`-hook auto-fire
+  is cycle 7+ work. Refinement is manual-trigger only on these
+  hosts.
+- **Claude Desktop** — no skill loader and no slash commands.
+  `skill-refiner` is concatenated into `project_instructions.md`;
+  invoke manually by asking the model "run the skill-refiner
+  procedure for this session" at end of session.
+- **Codex** — slash-command authoring format is undocumented as of
+  May 2026, so no `/refine` ships on this host yet. `skill-refiner`
+  IS bundled and can be invoked manually.
+- **Hermes** — Hermes' own learning loop will fire its `skill_manage`
+  tool; the `skill-refiner` we ship is wired to write to the same
+  `.metplot/` refinement queue rather than directly modifying
+  skills, so the human review step still happens.
 
 ## What this gets you that "just trust the agent" doesn't
 

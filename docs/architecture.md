@@ -159,9 +159,13 @@ Hosts without a native skill loader (Claude Desktop) still get the markdown
 bodies via concatenation into a project instructions document, with
 frontmatter stripped at build time.
 
-Hosts without a hook system (Antigravity, Claude Desktop) lose the
-automatic skill-refiner closed loop (cycle 6); the `/refine` command
-becomes a manual trigger instead.
+Hosts without a hook system (Antigravity, Claude Desktop, Codex) and
+hosts where per-host hook wiring is out of cycle-6 Phase B scope
+(Cursor, Copilot, Gemini CLI) lose the automatic skill-refiner
+closed loop; the `/refine` command (or `skill-refiner` invoked
+manually for Claude Desktop) becomes a manual trigger instead. Only
+Claude Code wires the `Stop` hook in cycle 6; the other hosts wait
+for cycle 7+ to extend native-hook coverage.
 
 See `docs/research/2026-05-08-multi-host-survey.md` for the survey that
 informed this matrix.
