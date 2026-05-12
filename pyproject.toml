@@ -85,3 +85,9 @@ exclude = "src/mcp/netcdf_reader/pyproject.toml|src/mcp/plot-renderer|src/mcp/ne
 [[tool.mypy.overrides]]
 module = ["cartopy", "cartopy.*"]
 ignore_missing_imports = true
+
+# uxarray (cycle-8 unstructured-mesh path) doesn't ship type stubs
+# as of v2026.04.1.
+[[tool.mypy.overrides]]
+module = ["uxarray", "uxarray.*"]
+ignore_missing_imports = true

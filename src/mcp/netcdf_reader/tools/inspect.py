@@ -96,6 +96,10 @@ def inspect(
     # leaking the opened history dataset's file handle.
     mesh_ds = None
     if cls_mesh is not None:
+        # If cls_mesh is set, mesh_path was non-None on entry; this
+        # assert narrows the Optional[str] for mypy and is a real
+        # contract check.
+        assert mesh_path is not None
         try:
             mesh_ds = adapter.open(cls_mesh.paths or [mesh_path],
                                     ssh_config=ssh_config)
@@ -212,6 +216,7 @@ def inspect(
 
         files = list(cls.paths or [])
         if mesh_ds is not None and cls_mesh is not None:
+            assert mesh_path is not None  # narrowed by cls_mesh check
             files.extend(cls_mesh.paths or [mesh_path])
         result = {
             "path": cls.raw,
