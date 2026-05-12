@@ -34,6 +34,8 @@ series. Current capability summary:
 | E3SM Coupler (CPL) inspect detection | shipping (cycle 10) |
 | Multi-file unstructured time-series (monthly globs + mesh) | shipping (cycle 10) |
 | Time-decode fallback on undecodable time origins (year-0001 noleap) | shipping (cycle 10) |
+| Unstructured time-series rendering (single cell / regional / global mean, MPAS family) | shipping (cycle 11) |
+| Unstructured vertical profile rendering (cell-indexed, MPAS family) | shipping (cycle 11) |
 | Time-series plots | shipping (cycle 3) |
 | Vertical profiles + cross-sections | shipping (cycle 3) |
 | Style-by-reference (extract style from a screenshot) | shipping (cycle 3) |

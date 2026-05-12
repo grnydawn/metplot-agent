@@ -22,6 +22,8 @@ heuristic as `conventions/mpas.py:_to_degrees_if_radians`.
 """
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import xarray as xr
 

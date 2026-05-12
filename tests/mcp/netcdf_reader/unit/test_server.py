@@ -1,12 +1,14 @@
 from src.mcp.netcdf_reader.server import dispatch, list_tool_names
 
 
-def test_list_tool_names_exposes_all_8():
+def test_list_tool_names_exposes_all_10():
     names = set(list_tool_names())
     assert names == {
         "inspect", "resolve_spec", "regrid_to_centers",
         "peek", "read_slice", "compute_stats",
         "find_variables", "find_time",
+        # Cycle 11 — unstructured-mesh helpers
+        "find_nearest_cell", "cells_in_bbox",
     }
 
 
