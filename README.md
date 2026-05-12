@@ -4,12 +4,22 @@ A multi-target AI agent plugin for natural-language plotting from NetCDF data fi
 with a closed-loop skill-refinement layer that brings Hermes-style self-improvement
 to agents that don't have it natively (Claude Code, Claude Desktop, Codex, Cursor).
 
-> Status (as of cycle 6 Phase B): the five plotting skills, the two MCP
+> Status (as of cycle 8 Phase B): the five plotting skills, the two MCP
 > servers, and six target builders (claude-code, cursor, copilot,
 > gemini-cli, codex, antigravity, claude-desktop) are shipping. The
 > closed-loop `skill-refiner` is shipping too, auto-fired by a `Stop`
 > hook on Claude Code and manual-trigger via `/refine` on the other
-> hosts (per-host hook coverage is a cycle 7+ candidate).
+> hosts (per-host hook coverage is a cycle 9+ candidate).
+>
+> **Unstructured-mesh plotting is shipping for the MPAS family**
+> (MPAS-Ocean, MPAS-Atmosphere, MPAS-Seaice, Omega, E3SM). Inspect
+> auto-detects MPAS history files and surfaces a
+> `mesh_pairing_required` ambiguous envelope with the suggested
+> sibling-mesh path; the paired `inspect(path, mesh_path=…)` /
+> `read_slice(…, mesh_path=…)` / `render_map({…, "mesh_path": …})`
+> pipeline produces global cell-mosaic maps via `uxarray`. CICE
+> flattened block-decomposed grids and EAMxx dycore
+> spectral-element grids are deferred to cycle 9+.
 
 ## What this is
 
