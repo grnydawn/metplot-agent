@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any
 
 from src.mcp.netcdf_reader import cache, envelope
 from src.mcp.netcdf_reader.conventions import cf as _cf
+from src.mcp.netcdf_reader.conventions import mpas as _mpas
 from src.mcp.netcdf_reader.conventions import roms as _roms
 from src.mcp.netcdf_reader.conventions import wrf as _wrf
 from src.mcp.netcdf_reader.paths.classify import (
@@ -104,6 +105,11 @@ def inspect(
             variables = _cf.extract_variables(ds)
             spatial = _roms.extract_spatial_roms(ds)
             vertical = _roms.extract_vertical_roms(ds)
+            t = _cf.extract_time(ds)
+        elif primary == "MPAS":
+            variables = _cf.extract_variables(ds)
+            spatial = _mpas.extract_spatial_mpas(ds)
+            vertical = _cf.extract_vertical(ds)
             t = _cf.extract_time(ds)
         else:
             variables = _cf.extract_variables(ds)

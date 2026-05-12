@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from typing import Any
 
+import numpy as np
 import xarray as xr
 
 # MPAS canonical dim names, lowercased for case-insensitive matching.
@@ -113,3 +114,87 @@ def detect(ds: xr.Dataset, attrs: dict[str, Any]) -> dict[str, Any] | None:
         "evidence": evidence,
         "candidates": None,
     }
+
+
+def _to_degrees_if_radians(arr: np.ndarray, attrs: dict[str, Any]
+                            ) -> np.ndarray:
+    """MPAS-Ocean ships latCell / lonCell in radians, often with no
+    `units` attr (Phase A library-survey finding #1). Detect by units
+    attr first, then by value range (lonCell in [0, 2π] fits inside
+    |max| ≤ 2π+ε; real degree values would exceed that immediately).
+    """
+    units = ""
+    raw = attrs.get("units")
+    if isinstance(raw, str):
+        units = raw.lower()
+    if "radian" in units or units == "rad":
+        return np.degrees(arr)
+    if "degree" in units:
+        return arr
+    # No or ambiguous units — fall back to range detection.
+    finite = arr[np.isfinite(arr)]
+    if finite.size and float(np.abs(finite).max()) <= 2 * np.pi + 0.01:
+        return np.degrees(arr)
+    return arr
+
+
+def extract_spatial_mpas(ds: xr.Dataset) -> dict[str, Any] | None:
+    """Return the cycle-8 unstructured-mesh spatial envelope, or
+    None if this file doesn't carry the canonical MPAS cell-centered
+    geometry.
+
+    Output shape (per cycle-8 spec §3.2):
+
+        {
+            "coord_kind": "unstructured",
+            "cell_dim": "nCells",
+            "n_cells": 7153,
+            "lat_var": "latCell",
+            "lon_var": "lonCell",
+            "vertex_lat_var": "latVertex",
+            "vertex_lon_var": "lonVertex",
+            "vertices_on_cell_var": "verticesOnCell",
+            "lon_convention": "0..360",
+            "lat_range": [min, max],
+            "lon_range": [min, max],
+        }
+    """
+    cell_dim = _has_dim_ci(ds, _MPAS_CELL_DIM_NAMES)
+    if cell_dim is None:
+        return None
+    if "latCell" not in ds.variables or "lonCell" not in ds.variables:
+        # The history-file shape — coord vars live in the sibling mesh
+        # file. The caller (inspect.py) should emit the
+        # `mesh_pairing_required` ambiguous envelope for this case.
+        return None
+
+    lat = _to_degrees_if_radians(ds["latCell"].values, ds["latCell"].attrs)
+    lon = _to_degrees_if_radians(ds["lonCell"].values, ds["lonCell"].attrs)
+
+    lon_min = float(np.nanmin(lon))
+    lon_max = float(np.nanmax(lon))
+    if lon_min >= 0 and lon_max > 180:
+        lon_convention = "0..360"
+    elif lon_min < 0:
+        lon_convention = "-180..180"
+    else:
+        lon_convention = "mixed"
+
+    out: dict[str, Any] = {
+        "coord_kind": "unstructured",
+        "cell_dim": cell_dim,
+        "n_cells": int(ds.sizes[cell_dim]),
+        "lat_var": "latCell",
+        "lon_var": "lonCell",
+        "vertex_lat_var": (
+            "latVertex" if "latVertex" in ds.variables else None),
+        "vertex_lon_var": (
+            "lonVertex" if "lonVertex" in ds.variables else None),
+        "vertices_on_cell_var": (
+            "verticesOnCell"
+            if "verticesOnCell" in ds.variables else None),
+        "lon_convention": lon_convention,
+        "lat_range": [float(np.nanmin(lat)), float(np.nanmax(lat))],
+        "lon_range": [lon_min, lon_max],
+    }
+    return out
