@@ -134,8 +134,8 @@ def _authenticate(host: str, user: str, port: int,
 
 def main(argv: list[str] | None = None) -> int:
     ns = build_parser().parse_args(argv)
-    user = ns.user or os.environ.get("USER") or "root"
-    sock_path = default_socket_path(ns.host, ns.socket_dir)
+    host, user = resolve_user_and_host(ns)
+    sock_path = default_socket_path(host, ns.socket_dir)
 
     if Path(sock_path).exists():
         print(f"ERROR: {sock_path} already exists. Another broker may "
@@ -147,9 +147,9 @@ def main(argv: list[str] | None = None) -> int:
         extra_allowed = {s.strip() for s in ns.allow_exec.split(",")
                           if s.strip()}
 
-    print(f"Connecting to {user}@{ns.host}:{ns.port}...", file=sys.stderr)
+    print(f"Connecting to {user}@{host}:{ns.port}...", file=sys.stderr)
     try:
-        holder = _authenticate(ns.host, user, ns.port, ns.keepalive)
+        holder = _authenticate(host, user, ns.port, ns.keepalive)
     except paramiko.AuthenticationException:
         print("ERROR: authentication failed.", file=sys.stderr)
         return 4
