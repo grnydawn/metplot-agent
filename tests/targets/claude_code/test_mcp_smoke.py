@@ -95,3 +95,17 @@ def test_ssh_broker_entry_point_registered(built_plugin):
         "expected metplot-ssh-broker entry-point in netcdf_reader pyproject")
     assert "src.ssh_broker.cli:main" in pp_text, (
         "expected entry-point target src.ssh_broker.cli:main")
+
+
+def test_ssh_broker_module_in_bundle(built_plugin):
+    """Cycle 14 — broker CLI module must be in the bundled source so
+    `pip install` of the plugin actually installs an importable
+    src.ssh_broker.cli."""
+    bundle_src = built_plugin / "mcp-servers" / "netcdf_reader" / "src" / "ssh_broker"
+    assert bundle_src.is_dir(), (
+        f"expected src/ssh_broker/ inside the netcdf_reader bundle "
+        f"at {bundle_src}, not found")
+    assert (bundle_src / "cli.py").exists(), (
+        "cli.py missing in bundled ssh_broker — pip install of the "
+        "plugin would fail to resolve metplot-ssh-broker entry-point")
+    assert (bundle_src / "__init__.py").exists()

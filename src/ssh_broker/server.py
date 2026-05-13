@@ -92,6 +92,10 @@ def serve_forever(
     sessions: dict[int, BrokerSession] = {}
 
     last_activity = time.time()
+    # Cycle-14: self-exit on connection loss (spec §1.6).
+    # Track when the holder first went dead so we can flush pending
+    # write buffers before exiting (one extra poll cycle).
+    holder_dead_since: float | None = None
 
     try:
         while not stop.is_set():
@@ -142,6 +146,17 @@ def serve_forever(
             if idle_timeout is not None:
                 if time.time() - last_activity > idle_timeout:
                     break
+            # Cycle-14: self-exit on connection loss (spec §1.6).
+            # Record when we first noticed the holder was dead, then
+            # wait at least one extra poll cycle before exiting so that
+            # any in-flight CONNECTION_LOST replies finish flushing.
+            if not holder.is_alive():
+                if holder_dead_since is None:
+                    holder_dead_since = time.time()
+                elif time.time() - holder_dead_since > poll_interval:
+                    pending = any(s.write_buf for s in sessions.values())
+                    if not pending:
+                        break
     finally:
         for sess in list(sessions.values()):
             try:
