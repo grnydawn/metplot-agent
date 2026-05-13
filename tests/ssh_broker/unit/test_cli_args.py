@@ -124,3 +124,12 @@ def test_resolve_user_and_host_falls_back_to_USER(monkeypatch):
     host, user = resolve_user_and_host(ns)
     assert host == "home.example"
     assert user == "carol"
+
+
+def test_resolve_user_and_host_falls_back_to_root_when_USER_unset(monkeypatch):
+    monkeypatch.delenv("USER", raising=False)
+    p = build_parser()
+    ns = p.parse_args(["home.example"])
+    host, user = resolve_user_and_host(ns)
+    assert host == "home.example"
+    assert user == "root"
