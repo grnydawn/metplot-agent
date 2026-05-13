@@ -2,7 +2,10 @@
 
 User invokes this in their own terminal BEFORE launching Claude Code:
 
-    metplot-ssh-broker home.ccs.ornl.gov
+    metplot-ssh-broker grnydawn@home.ccs.ornl.gov
+
+(`user@host` matches the `ssh` convention. Plain hostname + --user
+also works; --user takes precedence on conflict.)
 
 The CLI prompts via getpass (passcode visible only to the user's
 terminal), passes it to paramiko.connect(), drops it from memory,
@@ -39,7 +42,10 @@ def build_parser() -> argparse.ArgumentParser:
             "MCP uses without ever seeing your credential."
         ),
     )
-    p.add_argument("host", help="remote hostname (e.g. home.ccs.ornl.gov)")
+    p.add_argument(
+        "host",
+        help="remote hostname or user@host (e.g. grnydawn@home.ccs.ornl.gov)",
+    )
     p.add_argument("--user", default=None,
                     help="remote username (default: $USER)")
     p.add_argument("--port", type=int, default=22, help="SSH port (default 22)")
