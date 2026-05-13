@@ -2,7 +2,10 @@
 
 User invokes this in their own terminal BEFORE launching Claude Code:
 
-    metplot-ssh-broker home.ccs.ornl.gov
+    metplot-ssh-broker grnydawn@home.ccs.ornl.gov
+
+(`user@host` matches the `ssh` convention. Plain hostname + --user
+also works; --user takes precedence on conflict.)
 
 The CLI prompts via getpass (passcode visible only to the user's
 terminal), passes it to paramiko.connect(), drops it from memory,
@@ -39,7 +42,10 @@ def build_parser() -> argparse.ArgumentParser:
             "MCP uses without ever seeing your credential."
         ),
     )
-    p.add_argument("host", help="remote hostname (e.g. home.ccs.ornl.gov)")
+    p.add_argument(
+        "host",
+        help="remote hostname or user@host (e.g. grnydawn@home.ccs.ornl.gov)",
+    )
     p.add_argument("--user", default=None,
                     help="remote username (default: $USER)")
     p.add_argument("--port", type=int, default=22, help="SSH port (default 22)")
@@ -69,6 +75,45 @@ def default_socket_path(host: str, socket_dir: str | None) -> str:
     return str(Path(base) / f"{host}.sock")
 
 
+def _split_user_host(
+    host_arg: str, explicit_user: str | None
+) -> tuple[str, str | None]:
+    """Parse `user@host` syntax. --user wins on conflict. Split on first @.
+
+    Returns (host, user). user may be None if no prefix and no explicit_user.
+    Exits with code 2 on empty username or empty host.
+    """
+    if "@" not in host_arg:
+        return host_arg, explicit_user
+    prefix, _, rest = host_arg.partition("@")
+    if not prefix:
+        print(
+            f"ERROR: invalid host argument '{host_arg}': "
+            f"empty username before '@'",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+    if not rest:
+        print(
+            f"ERROR: invalid host argument '{host_arg}': "
+            f"empty host after '@'",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+    return rest, (explicit_user if explicit_user else prefix)
+
+
+def resolve_user_and_host(ns: argparse.Namespace) -> tuple[str, str]:
+    """Final (host, user) after user@host split + $USER fallback.
+
+    The returned `user` is always a non-empty string (defaults to
+    $USER, then 'root' if $USER is unset).
+    """
+    host, user_from_prefix = _split_user_host(ns.host, ns.user)
+    user = user_from_prefix or os.environ.get("USER") or "root"
+    return host, user
+
+
 def _authenticate(host: str, user: str, port: int,
                    keepalive: int) -> SessionHolder:
     """Read passcode interactively; connect; drop credential immediately."""
@@ -95,8 +140,8 @@ def _authenticate(host: str, user: str, port: int,
 
 def main(argv: list[str] | None = None) -> int:
     ns = build_parser().parse_args(argv)
-    user = ns.user or os.environ.get("USER") or "root"
-    sock_path = default_socket_path(ns.host, ns.socket_dir)
+    host, user = resolve_user_and_host(ns)
+    sock_path = default_socket_path(host, ns.socket_dir)
 
     if Path(sock_path).exists():
         print(f"ERROR: {sock_path} already exists. Another broker may "
@@ -108,9 +153,9 @@ def main(argv: list[str] | None = None) -> int:
         extra_allowed = {s.strip() for s in ns.allow_exec.split(",")
                           if s.strip()}
 
-    print(f"Connecting to {user}@{ns.host}:{ns.port}...", file=sys.stderr)
+    print(f"Connecting to {user}@{host}:{ns.port}...", file=sys.stderr)
     try:
-        holder = _authenticate(ns.host, user, ns.port, ns.keepalive)
+        holder = _authenticate(host, user, ns.port, ns.keepalive)
     except paramiko.AuthenticationException:
         print("ERROR: authentication failed.", file=sys.stderr)
         return 4
