@@ -15,50 +15,6 @@ or Claude Desktop). After installing, you can say things like:
 
 and the agent walks the file, slices data, and renders a PNG.
 
-## Status
-
-Cycle 13 (shipped 2026-05-12) bundled four follow-on themes:
-CICE/EAMxx cell-axis selectors, ELM/CPL map render, multi-cell
-overlay + named-region lookup on unstructured grids, and
-great-circle cross-section plots. Tool counts: netcdf-reader
-14, plot-renderer 4. Current capability summary:
-
-| Capability | Status |
-|---|---|
-| Rectilinear lat/lon maps (CMIP, ERA5) | shipping (cycle 3) |
-| Curvilinear maps (WRF, ROMS) | shipping (cycle 3) |
-| Unstructured Voronoi maps (MPAS-Ocean, MPAS-A, MPAS-Seaice, Omega, E3SM) | shipping (cycle 8) |
-| CICE5/6 flattened block-decomposed grids (paired with grid file) | shipping (cycle 9) |
-| EAMxx physics-column grid (paired with scrip-style grid file) | shipping (cycle 9) |
-| E3SM Land Model (ELM) inspect detection | shipping (cycle 10) |
-| E3SM Coupler (CPL) inspect detection | shipping (cycle 10) |
-| Multi-file unstructured time-series (monthly globs + mesh) | shipping (cycle 10) |
-| Time-decode fallback on undecodable time origins (year-0001 noleap) | shipping (cycle 10) |
-| Unstructured time-series rendering (single cell / regional / global mean, MPAS family) | shipping (cycle 11) |
-| Unstructured vertical profile rendering (cell-indexed, MPAS family) | shipping (cycle 11) |
-| ncks-style analysis (hyperslab stride + dim reduction + CDL dump; bit-exact-vs-NCO tested) | shipping (cycle 12) |
-| Unstructured cell-axis selectors for CICE (`ni`) + EAMxx (`ncol`) families | shipping (cycle 13) |
-| ELM gridcell-level map render + CPL single-domain map render (closes detect-only gap) | shipping (cycle 13) |
-| Multi-cell overlay timeseries + named-region lookup (`find_region`) on unstructured | shipping (cycle 13) |
-| Great-circle cross-section plots (`slice_along_section` + `render_section`) on unstructured | shipping (cycle 13) |
-| Time-series plots | shipping (cycle 3) |
-| Vertical profiles + cross-sections | shipping (cycle 3) |
-| Style-by-reference (extract style from a screenshot) | shipping (cycle 3) |
-| Multi-file glob (time-concat) | shipping (cycle 3) |
-| Style-refining skill-refiner loop (auto on Claude Code, manual elsewhere) | shipping (cycle 6) |
-| 7 build targets (claude-code, cursor, copilot, gemini-cli, codex, antigravity, claude-desktop) | shipping (cycles 4 + 7) |
-| Setup helper for Python deps (cartopy, scipy, MCP servers) | shipping (cycle 5) |
-
-Out of scope this release (cycle 13+): EAMxx dycore
-spectral-element grids (`elem × gp × gp`), ELM PFT-mosaic /
-landunit / column-level visualization, CPL multi-domain
-overlay rendering, CICE U-grid (velocity-on-edge) plotting,
-region clipping on the unstructured map renderer itself
-(cells_in_bbox + find_region cover the selector side; the
-renderer still draws the full mesh), contour / streamline on
-unstructured grids, time-animation of cross-sections,
-interactive 3-D mesh viewers.
-
 ## Quickstart
 
 The fastest path to a plot:
