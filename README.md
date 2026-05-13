@@ -47,7 +47,7 @@ For NetCDF files on hosts that require interactive auth (RSA SecurID passcode, D
 metplot-ssh-broker grnydawn@home.ccs.ornl.gov
 ```
 
-Pass the username inline as `user@host` (like `ssh`), or use `--user grnydawn` separately if you prefer.
+Pass the username inline as `user@host` (like `ssh`), or separately with `--user yourname`; if both are given, `--user` takes precedence.
 
 > `command not found`? `metplot-ssh-broker` lives inside the metplot virtualenv used by `/metplot:setup` and isn't on PATH by default. Either activate the venv (`source /path/to/metplot-agent/.venv/bin/activate`), call by absolute path (`/path/to/metplot-agent/.venv/bin/metplot-ssh-broker …`), or install system-wide with `pipx install /path/to/metplot-agent/build/<target>/metplot/mcp-servers/netcdf_reader`. Verify with `metplot-ssh-broker --help`.
 
