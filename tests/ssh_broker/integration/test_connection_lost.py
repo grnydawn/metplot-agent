@@ -22,7 +22,8 @@ def _round_trip(sock_path, req):
         buf = b""
         while not buf.endswith(b"\n"):
             chunk = s.recv(8192)
-            if not chunk: break
+            if not chunk:
+                break
             buf += chunk
     return json.loads(buf.decode("utf-8"))
 

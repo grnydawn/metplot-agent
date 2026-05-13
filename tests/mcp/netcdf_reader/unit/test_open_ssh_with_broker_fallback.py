@@ -9,7 +9,6 @@ from __future__ import annotations
 import json
 import socket
 import threading
-import time
 from pathlib import Path
 
 from src.mcp.netcdf_reader.paths.ssh import (
@@ -78,7 +77,8 @@ def test_open_ssh_with_broker_fallback_returns_client_when_ping_ok(
             buf = b""
             while not buf.endswith(b"\n"):
                 c = conn.recv(4096)
-                if not c: break
+                if not c:
+                    break
                 buf += c
             conn.sendall((json.dumps({"jsonrpc": "2.0", "id": 1,
                                         "result": {"alive": True}}) + "\n")

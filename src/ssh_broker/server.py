@@ -110,7 +110,7 @@ def serve_forever(
                                   selectors.EVENT_READ | selectors.EVENT_WRITE,
                                   data=sess)
                 else:
-                    sess: BrokerSession = key.data
+                    sess: BrokerSession = key.data  # type: ignore[no-redef]
                     if mask & selectors.EVENT_READ:
                         try:
                             chunk = sess.sock.recv(4096)

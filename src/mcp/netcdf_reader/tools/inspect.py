@@ -80,7 +80,7 @@ def inspect(
                                   context={"path": mesh_path})
 
     # Cycle 14: fast path via broker dump_header for ssh://*.nc
-    if cls.kind == PathKind.SSH_REMOTE and cls.remote_path:
+    if cls.kind == PathKind.SSH_REMOTE and cls.remote_path and cls.host:
         _suffix = cls.remote_path.lower()
         if _suffix.endswith((".nc", ".nc4", ".cdf")):
             from src.mcp.netcdf_reader.paths.ssh import (

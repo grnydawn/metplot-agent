@@ -17,11 +17,9 @@ Reference: paramiko/demos/demo_server.py.
 """
 from __future__ import annotations
 
-import os
 import shlex
 import socket
 import threading
-import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -42,7 +40,7 @@ class _RootedSFTPHandler(paramiko.SFTPServerInterface):
 
     @classmethod
     def with_root(cls, root: str):
-        return type(f"_SFTPHandler_bound", (cls,), {"_ROOT": root})
+        return type("_SFTPHandler_bound", (cls,), {"_ROOT": root})
 
     def _real(self, path: str) -> str:
         # If the client sends the actual real path (e.g. sftp.listdir(root)),

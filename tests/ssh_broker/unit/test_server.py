@@ -13,8 +13,6 @@ import time
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
-
 from src.ssh_broker.server import _dispatch_one, serve_forever
 
 
@@ -242,7 +240,6 @@ def test_dispatch_one_internal_error_for_unknown_exception():
     """If a method raises a non-BrokerError, we return INTERNAL_ERROR."""
     holder = _live_holder()
     # Patch METHODS["ping"] to raise something unexpected.
-    from src.ssh_broker import server as srv
     from src.ssh_broker.methods import METHODS
 
     orig = METHODS["ping"]

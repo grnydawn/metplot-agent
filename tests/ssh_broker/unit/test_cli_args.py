@@ -5,8 +5,6 @@ spawns a server thread, which is integration territory.
 """
 from __future__ import annotations
 
-import os
-
 import pytest
 
 from src.ssh_broker.cli import build_parser, default_socket_path

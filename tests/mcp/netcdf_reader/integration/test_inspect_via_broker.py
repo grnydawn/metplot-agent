@@ -33,11 +33,11 @@ from src.ssh_broker.session_holder import SessionHolder
 # Simplest reliable approach: import the fixture function and re-export.
 
 # Import the fixture so pytest finds it.
-from tests.ssh_broker.conftest import inproc_sshd  # noqa: F401
+from tests.ssh_broker.conftest import inproc_sshd  # noqa: F401,F811
 
 
 @pytest.fixture
-def broker_and_holder(inproc_sshd, tmp_path, monkeypatch):
+def broker_and_holder(inproc_sshd, tmp_path, monkeypatch):  # noqa: F811
     """Yield (sock_path, holder, server_thread, stop_event) — a running
     broker against the in-proc sshd, with XDG_RUNTIME_DIR pointing
     where discover_broker_socket() will find it."""
@@ -77,8 +77,7 @@ def broker_and_holder(inproc_sshd, tmp_path, monkeypatch):
         holder.close()
 
 
-def test_inspect_uses_dump_header_via_broker(broker_and_holder,
-                                              inproc_sshd):
+def test_inspect_uses_dump_header_via_broker(broker_and_holder, inproc_sshd):  # noqa: F811
     """inspect('ssh://127.0.0.1/<root>/alpha.nc') hits the dump_header
     fast path (in-proc sshd emulates `ncdump -h` → stub CDL exit 0).
     Result envelope has source='dump_header'."""
@@ -102,8 +101,7 @@ def test_inspect_returns_broker_required_when_socket_missing(monkeypatch,
     assert env["error"]["subcode"] == "broker_required"
 
 
-def test_classify_ssh_glob_via_broker_end_to_end(broker_and_holder,
-                                                   inproc_sshd):
+def test_classify_ssh_glob_via_broker_end_to_end(broker_and_holder, inproc_sshd):  # noqa: F811
     """Glob ssh:// URL → classify() returns SSH_MULTI list."""
     from src.mcp.netcdf_reader.paths.classify import classify, PathKind
 

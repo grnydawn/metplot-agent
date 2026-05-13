@@ -189,8 +189,11 @@ def test_exec_argv_with_timeout(tmp_path):
 
     def _server_loop():
         srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        if Path(sock).exists(): Path(sock).unlink()
-        srv.bind(sock); srv.listen(1); srv.settimeout(2)
+        if Path(sock).exists():
+            Path(sock).unlink()
+        srv.bind(sock)
+        srv.listen(1)
+        srv.settimeout(2)
         try:
             conn, _ = srv.accept()
         except socket.timeout:
@@ -199,7 +202,8 @@ def test_exec_argv_with_timeout(tmp_path):
             buf = b""
             while not buf.endswith(b"\n"):
                 c = conn.recv(8192)
-                if not c: break
+                if not c:
+                    break
                 buf += c
             req = json.loads(buf.decode())
             received_params.update(req["params"])

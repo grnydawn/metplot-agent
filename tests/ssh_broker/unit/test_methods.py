@@ -9,13 +9,13 @@ from __future__ import annotations
 import base64
 import hashlib
 import stat as statmod
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 import pytest
 
 from src.ssh_broker.exec_policy import BUILTIN_ALLOWLIST
 from src.ssh_broker.methods import (
-    METHODS, BrokerError, ConnectionLost, SFTPError, ToolNotFoundError,
+    METHODS, ConnectionLost, SFTPError, ToolNotFoundError,
     ToolNotInAllowlistError, dump_header, dump_metadata, exec_,
     get_chunk, get_full, glob, listdir, ping, stat,
 )
@@ -142,8 +142,8 @@ def test_get_full_writes_local_and_returns_sha256(tmp_path):
     remote = "/remote.nc"
     local = str(tmp_path / "out.nc")
 
-    def fake_get(r, l):
-        with open(l, "wb") as fh:
+    def fake_get(r, local_dst):
+        with open(local_dst, "wb") as fh:
             fh.write(b"abc" * 10)
 
     sftp = MagicMock()

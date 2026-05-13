@@ -8,9 +8,7 @@ from __future__ import annotations
 
 import threading
 import time
-from unittest.mock import MagicMock, call
-
-import pytest
+from unittest.mock import MagicMock
 
 from src.ssh_broker.session_holder import SessionHolder
 
@@ -114,7 +112,7 @@ def _wire_exec_session(transport, stdout_bytes: bytes = b"",
 def test_exec_command_closes_sftp_before_opening_exec_channel():
     client, transport, sftp = _mk_client_mocks()
     h = SessionHolder(client=client, host="h", user="u")
-    channel = _wire_exec_session(transport)
+    _wire_exec_session(transport)
     h.exec_command("ncdump -h /foo.nc", timeout=10)
     # SFTP.close() must have been called BEFORE transport.open_session
     sftp.close.assert_called()

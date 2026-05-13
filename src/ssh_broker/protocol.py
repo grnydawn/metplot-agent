@@ -62,7 +62,7 @@ def make_error(req_id: int, code: int, message: str) -> Response:
             "error": {"code": code, "message": message}}
 
 
-def encode_message(msg: dict[str, Any]) -> bytes:
+def encode_message(msg: "Request | Response | dict[str, Any]") -> bytes:
     """Serialize to a single newline-terminated UTF-8 line."""
     return (json.dumps(msg, separators=(",", ":")) + "\n").encode("utf-8")
 
