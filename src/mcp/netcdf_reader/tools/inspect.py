@@ -37,6 +37,31 @@ def inspect(
     except ClassifyError as e:
         # Distinguish "doesn't exist" from "unsupported scheme"
         msg = str(e)
+        if msg.startswith("broker_required:"):
+            # Extract host from ssh:// URL
+            host = path.split("://", 1)[1].split("/", 1)[0].split("@")[-1]
+            # Strip any port suffix
+            host = host.split(":", 1)[0]
+            return envelope.ambiguous(
+                subcode=envelope.AmbiguitySubcode.BROKER_REQUIRED,
+                message=msg,
+                candidates=[
+                    {"value": "start_broker",
+                     "label": f"Run `metplot-ssh-broker {host}` "
+                               f"in your terminal first",
+                     "param": "broker_socket",
+                     "sensitive": False,
+                     "evidence": [],
+                     "confidence": 1.0},
+                ],
+                prompt=(
+                    f"Remote glob expansion requires a running "
+                    f"broker. Run `metplot-ssh-broker {host}` in "
+                    f"your terminal, then retry this inspect."
+                ),
+                retry_with_param="broker_socket",
+                context={"host": host, "path": path},
+            )
         code = (envelope.ErrorCode.UNSUPPORTED_PATH_SCHEME
                 if "unsupported scheme" in msg or "malformed" in msg
                 else envelope.ErrorCode.FILE_NOT_FOUND)
