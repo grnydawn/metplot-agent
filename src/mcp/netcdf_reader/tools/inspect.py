@@ -54,6 +54,20 @@ def inspect(
             return envelope.error(code, msg,
                                   context={"path": mesh_path})
 
+    # Cycle 14: fast path via broker dump_header for ssh://*.nc
+    if cls.kind == PathKind.SSH_REMOTE and cls.remote_path:
+        _suffix = cls.remote_path.lower()
+        if _suffix.endswith((".nc", ".nc4", ".cdf")):
+            from src.mcp.netcdf_reader.paths.ssh import (
+                open_ssh_with_broker_fallback,
+            )
+            _broker = open_ssh_with_broker_fallback(cls.host)
+            if _broker is not None:
+                _shallow = _inspect_via_dump_header(
+                    _broker, cls.remote_path)
+                if _shallow is not None:
+                    return _shallow
+
     is_remote = cls.kind in (PathKind.REMOTE_URL, PathKind.SSH_REMOTE)
     # Cycle 8 task 3: don't read/write the inspection cache when a
     # mesh_path is supplied. The cache key only encodes the primary
@@ -361,6 +375,46 @@ def _safe(v: Any) -> Any:
     if isinstance(v, (str, int, float, bool)) or v is None:
         return v
     return str(v)
+
+
+def _inspect_via_dump_header(broker, remote_path: str) -> dict[str, Any] | None:
+    """Cycle-14 fast path: ask the broker for the CDL header only.
+
+    Returns a SHALLOW envelope (variables + dimensions + global_attrs
+    only, plus `result.source = "dump_header"`) on success. Returns
+    None when ncdump isn't available remotely, the file isn't readable,
+    or the CDL doesn't parse — caller falls back to the full
+    get_full → xarray.open_dataset path.
+    """
+    from src.mcp.netcdf_reader.cdl_parser import CDLParseError, parse_cdl
+
+    try:
+        r = broker.dump_header(remote_path)
+    except Exception:
+        return None
+    if r.get("exit_code") != 0:
+        return None
+    try:
+        parsed = parse_cdl(r["cdl"])
+    except CDLParseError:
+        return None
+
+    return {
+        "ok": True,
+        "result": {
+            "source": "dump_header",
+            "name": parsed["name"],
+            "dimensions": parsed["dimensions"],
+            "variables": [
+                {"name": v["name"], "dtype": v["type"],
+                 "dims": v["dim_names"], "attrs": v["attrs"]}
+                for v in parsed["variables"]
+            ],
+            "global_attrs": parsed["global_attrs"],
+            "cdl_header": r["cdl"],
+        },
+        "warnings": [],
+    }
 
 
 def _mesh_pairing_required_envelope(
