@@ -93,6 +93,7 @@ class AmbiguitySubcode:
     REGION = "region"
     MULTI_FILE_COMBINE = "multi_file_combine"
     MESH_PAIRING_REQUIRED = "mesh_pairing_required"
+    BROKER_REQUIRED = "broker_required"
 
 
 class WarningCode:

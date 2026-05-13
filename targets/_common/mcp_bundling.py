@@ -54,6 +54,14 @@ def bundle_mcp_servers(src_root: Path, dst_root: Path) -> list[dict[str, Any]]:
         bundled_src.parent.mkdir(parents=True)
         shutil.copytree(src, bundled_src)
 
+        # Cycle-14: co-bundle src/ssh_broker/ so the
+        # metplot-ssh-broker entry-point resolves after pip install.
+        # Only the netcdf_reader bundle declares that entry-point.
+        if pkg_dir == "netcdf_reader":
+            ssh_broker_src = src_root / "ssh_broker"
+            if ssh_broker_src.is_dir():
+                shutil.copytree(ssh_broker_src, dst / "src" / "ssh_broker")
+
         # Patch pyproject.toml
         pyproject_text = (src / "pyproject.toml").read_text()
         if "[tool.setuptools.packages.find]" not in pyproject_text:

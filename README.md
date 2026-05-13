@@ -81,6 +81,39 @@ whatever field) to render.
 A full walkthrough lives in `docs/user-guide.md`. Feature-by-feature
 test prompts in `docs/tester-guide.md`.
 
+## Remote file access (OLCF and other OTP-protected hosts)
+
+For NetCDF files on hosts that require interactive auth (RSA SecurID passcode, Duo PIN+token, etc.) — like OLCF's `home.ccs.ornl.gov` — use **metplot-ssh-broker** so your credential never enters the AI's context.
+
+**One-time setup in your own terminal, BEFORE launching Claude Code:**
+
+```bash
+metplot-ssh-broker home.ccs.ornl.gov
+```
+
+You'll be prompted for your passcode. The broker:
+- reads it via `getpass.getpass()` (never echoes, never logs)
+- authenticates once via paramiko
+- **drops the passcode from memory immediately** after `connect()`
+- opens ONE SSH session channel and serializes SFTP + short-lived read-only exec through it (compatible with `MaxSessions=1`)
+- exposes a `0600` UNIX socket at `$XDG_RUNTIME_DIR/metplot-ssh/<host>.sock`
+
+**Then launch Claude Code.** Any `ssh://<host>/path` reference in your prompts is automatically routed through the broker — no credential enters the chat. When you're done, `Ctrl-C` the broker.
+
+**Capabilities exposed via the broker:**
+- File ops: listdir, stat, glob, partial-read, full-fetch
+- Read-only remote commands (allowlist): `ncdump`, `ls`, `cat`, `head`, `tail`, `wc`, `file`, `stat`
+- Extend the allowlist with `--allow-exec=ncks,find`
+
+**Bandwidth-saving fast path:** `inspect()` on an `ssh://*.nc` path issues `ncdump -h` remotely and parses the CDL header (~10 KB) instead of transferring the whole file. Falls back to a full fetch if `ncdump` is missing on the remote host.
+
+**Limits:**
+- SFTP + short-lived read-only exec — no remote shell, no write operations
+- One broker per host — run multiple brokers for multiple remotes
+- No auto-reconnect — if the connection dies, restart the broker (and re-enter the passcode in your terminal)
+
+See `docs/architecture/ssh-broker.md` for the full design.
+
 ## Install per host
 
 > The build output for every target lands at `build/<target>/`.

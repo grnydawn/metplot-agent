@@ -28,29 +28,58 @@ problems with the current SSH path:
    refused by peer` on every additional channel.
 
 The architectural insight that unlocks both problems: paramiko
-opens **one** SSH channel (the SFTP subsystem) and multiplexes
-all file operations at the SFTP **protocol** level inside that
-one channel. So a long-lived paramiko process can serve many
-file requests through a single OLCF-acceptable connection. We
-just need that paramiko process to live **outside** Claude
-Code.
+opens **one** SSH session channel at a time (SFTP subsystem OR
+exec — never both concurrently), and SFTP multiplexes all file
+operations at the **protocol** level inside that one channel. So
+a long-lived paramiko process serializing through a single session
+slot serves many file requests through a single OLCF-acceptable
+connection. We just need that paramiko process to live **outside**
+Claude Code.
+
+**Channel state machine (one slot, two uses):**
+
+- Default state: SFTP channel held open.
+- `exec` request: close SFTP → open exec → run command → close exec.
+- Next SFTP request: lazily reopens SFTP.
+- All channel transitions serialize through one mutex inside the
+  broker. The on-disk JSON-RPC clients see a uniform interface; the
+  broker hides the channel multiplexing.
+
+This adds a meaningful capability: the MCP can run `ncdump -h
+/path/to/file.nc` on the remote host and receive a ~10 KB CDL
+header instead of transferring a 5 GB NetCDF just to inspect it.
+
+**Exec is read-only by contract.** Built-in tool allowlist:
+`ncdump`, `ls`, `cat`, `head`, `tail`, `wc`, `file`, `stat`. The
+`--allow-exec=NAME[,NAME...]` CLI flag extends this set at
+broker-start (e.g. `--allow-exec=ncks,find`); the user accepts
+responsibility for additions. `argv` is always a **list of
+strings** at the JSON-RPC layer — each element is `shlex.quote`d
+on the broker before joining for `exec_command`, blocking shell
+injection. No redirections, pipes, command chaining, or write
+operations (`rm`, `mv`, `cp`, `mkdir`, `chmod`, `dd`, `tee`, `>`,
+`>>`, `|`, `&&`, `;`). Two high-level methods wrap the most common
+read-only commands so the MCP doesn't have to construct argv:
+`dump_header(path)` (→ `ncdump -h <path>`) and `dump_metadata(path)`
+(→ `ncks -m <path>` when ncks is on PATH).
 
 The cycle-14 design:
 
 ```
-┌────────────────┐    one TCP + one SFTP channel    ┌─────────────────┐
-│  metplot-ssh-  │─────────────────────────────────▶│ remote sshd     │
-│  broker        │   (held open, keepalive 30s)     │ (OLCF, generic) │
-│  (Python CLI)  │                                   └─────────────────┘
-│                │
+┌────────────────┐  one TCP, one session channel    ┌─────────────────┐
+│  metplot-ssh-  │  at-a-time:                       │ remote sshd     │
+│  broker        │    [SFTP] ←→ [exec read-only]    │ (OLCF, generic) │
+│  (Python CLI)  │  serialized via SessionHolder    └─────────────────┘
+│                │  mutex; keepalive 30s on TCP
 │  paramiko      │
 │  SSHClient +   │
-│  SFTPClient    │
+│  SessionHolder │
 └────────────────┘
         ▲
         │ JSON-RPC over UNIX domain socket
         │ $XDG_RUNTIME_DIR/metplot-ssh/<host>.sock  (mode 0600)
-        │ methods: listdir, stat, glob, get_chunk, get_full
+        │ methods: listdir, stat, glob, get_chunk, get_full,
+        │          ping, dump_header, dump_metadata, exec
         ▼
 ┌────────────────┐
 │ Claude Code +  │   no SSH knowledge, no credential
@@ -97,25 +126,50 @@ Cycle 14 is successful when all of the following hold:
    passes the credential to `paramiko.SSHClient.connect()`
    exactly once; immediately drops it (variable falls out of
    scope, no log, no env, no disk).
-3. **One SFTP channel per broker.** Broker opens
-   `client.open_sftp()` after connect. All subsequent file
-   ops dispatch through that single `SFTPClient` — no
-   additional `exec_command` or session channels. Compatible
-   with `MaxSessions=1` servers.
+3. **One session channel at a time per broker.** `SessionHolder`
+   owns the SSH transport and arbitrates a single session-channel
+   slot via an internal mutex. Default state holds SFTP open. On
+   an `exec` request: close SFTP → open exec → run → close exec
+   → next SFTP request lazily reopens SFTP. Never two session
+   channels concurrently. Compatible with `MaxSessions=1`
+   servers. Connection-level invariant; no per-request paramiko
+   reconnects.
 4. **UNIX socket exposes JSON-RPC.** Broker listens at
    `${socket_dir}/<host>.sock` with mode `0600`, owned by
-   `$UID`. JSON-RPC 2.0 over newline-delimited JSON. Methods:
-   - `listdir(path)` → list of `{name, size, mode, mtime,
-     is_dir, is_link}` entries
-   - `stat(path)` → single entry of same shape, or
-     `{error: not_found}`
-   - `glob(pattern)` → list of absolute paths matching shell
-     glob (`*`, `?`, `[...]`); broker walks the parent dir
-     and filters with `fnmatch`
-   - `get_chunk(path, offset, length)` → base64-encoded bytes
-   - `get_full(remote_path, local_path)` → `{bytes_copied,
-     sha256}`; broker uses `SFTPClient.get()`
-   - `ping()` → `{alive: true, host, connected_at}`
+   `$UID`. JSON-RPC 2.0 over newline-delimited JSON. Nine
+   methods:
+   - **File-op methods (SFTP-backed):**
+     - `listdir(path)` → list of `{name, size, mode, mtime,
+       is_dir, is_link}` entries
+     - `stat(path)` → single entry of same shape, or
+       `{error: not_found}`
+     - `glob(pattern)` → list of absolute paths matching shell
+       glob (`*`, `?`, `[...]`); broker walks the parent dir
+       and filters with `fnmatch`
+     - `get_chunk(path, offset, length)` → base64-encoded bytes
+     - `get_full(remote_path, local_path)` → `{bytes_copied,
+       sha256}`; broker uses `SFTPClient.get()`
+   - **Exec methods (session-channel backed, read-only):**
+     - `dump_header(path)` → `{cdl: str, exit_code: int}`;
+       internally runs `ncdump -h <path>`. No user-supplied
+       flags. Closes SFTP → opens exec → runs → closes exec.
+     - `dump_metadata(path)` → `{ncks_m: str, exit_code: int}`;
+       internally runs `ncks -m <path>`. Same channel cycle.
+       Returns `error.code = -32002` if `ncks` not on remote
+       PATH.
+     - `exec(argv, timeout=60)` → `{stdout_b64, stderr_b64,
+       exit_code}`. Generic escape hatch. `argv` is a list of
+       strings (never one shell string). Each element is
+       `shlex.quote`d on the broker side and joined for
+       `transport.exec_command()`. `argv[0]` must be in the
+       built-in read-only allowlist (`ncdump`, `ls`, `cat`,
+       `head`, `tail`, `wc`, `file`, `stat`) or in the
+       additional list passed at broker-start via
+       `--allow-exec`. Anything else: `error.code = -32003,
+       message: "tool not in exec allowlist: <name>"`.
+   - **Lifecycle:**
+     - `ping()` → `{alive: true, host, connected_at,
+       sftp_open: bool, allowed_exec_tools: list[str]}`
 5. **Keepalive + idle-shutdown.** Broker sends
    `transport.set_keepalive(30)` to keep the OLCF connection
    alive across ClientAliveInterval. If no JSON-RPC request
@@ -135,8 +189,10 @@ Cycle 14 is successful when all of the following hold:
    `src/mcp/netcdf_reader/paths/ssh_broker.py`. Constructor
    takes a socket path; methods mirror the subset of
    `paramiko.SFTPClient` the rest of the MCP uses (`listdir`,
-   `stat`, `get`, plus the `glob` extension). All ops issue
-   a JSON-RPC request and parse the response.
+   `stat`, `get`, plus the `glob` extension) **and adds the
+   three exec-backed methods** (`dump_header`, `dump_metadata`,
+   `exec`). All ops issue a JSON-RPC request and parse the
+   response.
 8. **Adapter dispatch.** `paths/ssh.py` gets a new
    `open_ssh_with_broker_fallback(path, ssh_config=None)`
    that:
@@ -154,6 +210,14 @@ Cycle 14 is successful when all of the following hold:
    or `dump_cdl`.
 10. **All cycle-12 SSH tests still pass.** The fallback path
     is unchanged; only the broker-present path is new.
+10a. **`inspect()` prefers `dump_header` when broker is present.**
+    Cycle-14 optimization: when an `ssh://path.nc` is inspected
+    AND a broker is reachable, the MCP calls `broker.dump_header(
+    remote_path)` first, parses the CDL into the envelope (cycle-12
+    CDL parser already handles this shape), and only falls back to
+    `get_full → xarray.open_dataset` if `ncdump` is missing on the
+    remote host or returns a non-zero exit. Bandwidth saved: ~10 KB
+    vs ~MB-GB per inspect.
 
 #### Theme C — Remote glob expansion
 
@@ -202,10 +266,23 @@ Cycle 14 is successful when all of the following hold:
   server drops the connection (idle kill, daily reboot), the
   broker exits — user starts a new one. Auto-reconnect would
   require storing the passcode, which we explicitly refuse.
-- **Remote `exec` over the broker.** The broker is SFTP-only.
-  Remote command execution (e.g., calling `ncks` on the remote
-  host) needs a separate session channel that OLCF would
-  refuse anyway under `MaxSessions=1`.
+- **Remote write operations of any kind.** The `exec` RPC method
+  is strictly read-only-by-allowlist. `rm`, `mv`, `cp`, `mkdir`,
+  `chmod`, `chown`, `dd`, `tee`, `touch`, `ln`, shell
+  redirections (`>`, `>>`), pipes (`|`), and command chaining
+  (`&&`, `;`) are not supported — argv is a list, never a shell
+  string. Writing-tool names are not added to the built-in
+  allowlist and users adding them via `--allow-exec` should
+  understand the risk; the broker still `shlex.quote`s every
+  argv element so injection through metacharacters is blocked.
+- **Long-running remote commands.** `exec` has a default
+  timeout of 60 seconds. Anything longer (e.g., remote
+  pre-processing) is out of scope; pre-stage with `get_full`
+  and run locally instead.
+- **Parallel SFTP + exec.** Channels are serialized one at a
+  time by the `SessionHolder` mutex. Concurrent JSON-RPC
+  requests queue. Acceptable for MCP workloads which are
+  inherently sequential per tool call.
 - **Globus / GridFTP integration.** Cycle 15+ candidate;
   conceptually orthogonal (Globus has its own daemon model).
 - **Windows broker.** UNIX-domain-socket-only this cycle.
@@ -226,23 +303,24 @@ Cycle 14 is successful when all of the following hold:
 | File | Change |
 |---|---|
 | `src/ssh_broker/__init__.py` (NEW) | Package marker. |
-| `src/ssh_broker/cli.py` (NEW) | `metplot-ssh-broker` entry-point: argparse → prompt for passcode → paramiko connect → SFTP open → fork to background → JSON-RPC server loop. |
-| `src/ssh_broker/protocol.py` (NEW) | JSON-RPC 2.0 over newline-delimited JSON. `Request`, `Response`, `Error` typed dicts. Method registry. |
-| `src/ssh_broker/server.py` (NEW) | UNIX-socket server: `socket.AF_UNIX` + `SOCK_STREAM`, mode `0600` enforced via `os.fchmod`. Handles concurrent clients via `selectors` (single-threaded; SFTP operations are serialized — OLCF can't parallelize anyway). |
-| `src/ssh_broker/methods.py` (NEW) | The six JSON-RPC methods (`listdir`, `stat`, `glob`, `get_chunk`, `get_full`, `ping`). Each takes the active `SFTPClient` + JSON params. |
-| `src/ssh_broker/sftp_holder.py` (NEW) | Holds the paramiko transport + SFTPClient; keepalive thread; `is_alive()` health check. |
-| `build/claude-code/metplot/pyproject.toml` | Add `[project.scripts]` entry `metplot-ssh-broker = "src.ssh_broker.cli:main"`. |
+| `src/ssh_broker/cli.py` (NEW) | `metplot-ssh-broker` entry-point: argparse (incl. `--allow-exec`) → prompt for passcode → paramiko connect → `SessionHolder` build → JSON-RPC server loop. Foreground process. |
+| `src/ssh_broker/protocol.py` (NEW) | JSON-RPC 2.0 over newline-delimited JSON. `Request`, `Response`, `Error` typed dicts. Error codes: stdlib + broker-specific (`-32000` connection_lost, `-32001` sftp_error, `-32002` tool_not_found, `-32003` tool_not_in_allowlist). |
+| `src/ssh_broker/server.py` (NEW) | UNIX-socket server: `socket.AF_UNIX` + `SOCK_STREAM`, mode `0600` enforced via `os.chmod`. Handles concurrent clients via `selectors` (single-threaded; channel ops serialize through `SessionHolder` mutex). |
+| `src/ssh_broker/methods.py` (NEW) | The nine JSON-RPC methods: file-op (`listdir`, `stat`, `glob`, `get_chunk`, `get_full`), exec-backed (`dump_header`, `dump_metadata`, `exec`), and `ping`. Each takes the `SessionHolder` + JSON params. Exec methods check the read-only allowlist before opening the exec channel. |
+| `src/ssh_broker/session_holder.py` (NEW) | `SessionHolder` — owns the SSH transport; arbitrates a single session-channel slot via a `threading.Lock`. State machine: `sftp_open` ↔ `exec_in_flight`. Methods: `with_sftp(fn)`, `exec_command(argv, timeout)`, `is_alive()`, `close()`. Hard invariant in code: never two concurrent session channels. |
+| `src/ssh_broker/exec_policy.py` (NEW) | `BUILTIN_ALLOWLIST = {"ncdump", "ls", "cat", "head", "tail", "wc", "file", "stat"}`. `is_allowed(tool_name, extra_allowed)` returns bool. `quote_argv(argv)` returns a `shlex`-quoted joined string for `transport.exec_command()`. Pure functions; trivially testable. |
+| `build/claude-code/metplot/mcp-servers/netcdf_reader/pyproject.toml` | Add `[project.scripts]` entry `metplot-ssh-broker = "src.ssh_broker.cli:main"` alongside the existing `metplot-netcdf-reader` entry. |
 
 ### 3.2 MCP adapter (consumer side)
 
 | File | Change |
 |---|---|
-| `src/mcp/netcdf_reader/paths/ssh_broker.py` (NEW) | `BrokerSFTPClient` — subset of paramiko's `SFTPClient` API surface that the MCP actually uses (`listdir_attr`, `stat`, `get`, plus extension `glob_remote`). Talks JSON-RPC over the UNIX socket. |
+| `src/mcp/netcdf_reader/paths/ssh_broker.py` (NEW) | `BrokerSFTPClient` — subset of paramiko's `SFTPClient` API surface (`listdir_attr`, `stat`, `get`) plus broker extensions (`glob_remote`, `dump_header`, `dump_metadata`, `exec_argv`). Talks JSON-RPC over the UNIX socket. |
 | `src/mcp/netcdf_reader/paths/ssh.py` | Add `open_ssh_with_broker_fallback(path, ssh_config=None)`. Existing `open_sftp_file` becomes the no-broker fallback. |
 | `src/mcp/netcdf_reader/paths/classify.py` | When `_has_glob(plain)` AND scheme is ssh, call the broker `glob` method; return new `PathKind.SSH_MULTI`. Clean envelope on broker absent. |
 | `src/mcp/netcdf_reader/paths/__init__.py` | Export `PathKind.SSH_MULTI`. |
 | `src/mcp/netcdf_reader/adapter.py` | `NetCDFAdapter.open()` routes ssh paths through `open_ssh_with_broker_fallback`. |
-| `src/mcp/netcdf_reader/tools/inspect.py` | `broker_required` error subcode wired into the ambiguous-envelope path (alongside existing `ssh_auth_needed`). Carries actionable `prompt`. |
+| `src/mcp/netcdf_reader/tools/inspect.py` | (a) `broker_required` error subcode in the ambiguous-envelope path (alongside existing `ssh_auth_needed`). (b) When a broker is present for an `ssh://*.nc` path, call `broker.dump_header(remote_path)` first and parse the CDL into the inspect envelope; fall back to the staging path (`broker.get → xarray.open_dataset`) only if `ncdump` is missing on the remote or exits non-zero. |
 
 ### 3.3 Skills
 
@@ -257,14 +335,19 @@ Cycle 14 is successful when all of the following hold:
 | File | Status |
 |---|---|
 | `tests/ssh_broker/unit/test_protocol.py` (NEW) | JSON-RPC envelope shapes; round-trip `Request` ↔ wire ↔ `Response`. |
-| `tests/ssh_broker/unit/test_methods.py` (NEW) | The six methods against a `MagicMock` SFTPClient. |
+| `tests/ssh_broker/unit/test_methods.py` (NEW) | The nine methods against a `MagicMock` `SessionHolder`. |
+| `tests/ssh_broker/unit/test_session_holder.py` (NEW) | `SessionHolder` channel state machine — SFTP held by default, exec closes SFTP then reopens, mutex serializes concurrent ops, `is_alive()` honest. |
+| `tests/ssh_broker/unit/test_exec_policy.py` (NEW) | `BUILTIN_ALLOWLIST` content, `is_allowed()` accepts built-in + extra, rejects writers (`rm`, `mv`, `cp`, etc.). `quote_argv()` blocks shell injection (e.g. `argv=["ls", ">foo"]` → quoted, not redirected). |
 | `tests/ssh_broker/unit/test_socket_permissions.py` (NEW) | Socket is created with mode `0600`; non-owner connect attempts fail. |
-| `tests/ssh_broker/integration/test_inproc_sshd.py` (NEW) | Spins an **in-process paramiko sshd** (paramiko ships `paramiko.ServerInterface` for this), starts the broker against it, runs a round-trip listdir + get_chunk. No real network. |
+| `tests/ssh_broker/integration/test_inproc_sshd.py` (NEW) | Spins an **in-process paramiko sshd** (paramiko ships `paramiko.ServerInterface` for this), starts the broker against it, runs a round-trip listdir + get_chunk + dump_header. No real network. |
+| `tests/ssh_broker/integration/test_channel_state_machine.py` (NEW) | After a `dump_header` exec, the next `listdir` succeeds (SFTP gets lazily reopened). Verifies the state machine end-to-end against the in-proc sshd. |
+| `tests/ssh_broker/integration/test_exec_allowlist_enforcement.py` (NEW) | `exec(argv=["rm","-rf","/"])` → `tool_not_in_allowlist` even when wrapped in a single string. `--allow-exec=ncks` lets `argv=["ncks","-m","/path"]` through but still rejects `argv=["rm",...]`. |
 | `tests/ssh_broker/integration/test_idle_shutdown.py` (NEW) | Broker exits within 5s of `--idle-timeout 2`. |
 | `tests/ssh_broker/integration/test_connection_lost.py` (NEW) | Kill the in-proc sshd mid-session; broker reports `connection_lost` and exits. |
-| `tests/mcp/netcdf_reader/unit/test_ssh_broker_client.py` (NEW) | `BrokerSFTPClient` against a mock UNIX-socket server; verifies it speaks the JSON-RPC protocol. |
+| `tests/mcp/netcdf_reader/unit/test_ssh_broker_client.py` (NEW) | `BrokerSFTPClient` against a mock UNIX-socket server; verifies it speaks the JSON-RPC protocol; covers `dump_header` / `dump_metadata` / `exec_argv`. |
 | `tests/mcp/netcdf_reader/unit/test_ssh_classify_glob.py` (NEW) | `ssh://host/path/*.nc` with a mock broker returns `SSH_MULTI`; same URL without broker returns `broker_required` envelope. |
-| `tests/mcp/netcdf_reader/integration/test_inspect_via_broker.py` (NEW) | `inspect()` with `ssh://` path + in-proc broker + in-proc sshd; full round-trip. |
+| `tests/mcp/netcdf_reader/unit/test_inspect_dump_header_path.py` (NEW) | When broker is present, `inspect()` calls `dump_header` (not `get_full`); falls back to `get_full` when `dump_header` returns non-zero. |
+| `tests/mcp/netcdf_reader/integration/test_inspect_via_broker.py` (NEW) | `inspect()` with `ssh://` path + in-proc broker + in-proc sshd; full round-trip via the header-only path. |
 | `tests/targets/claude_code/test_mcp_smoke.py` | Verify `metplot-ssh-broker` is registered as an entry-point in the built plugin pyproject. |
 
 ### 3.5 Documentation
@@ -288,12 +371,21 @@ Cycle 14 is successful when all of the following hold:
    cycle-12 SSH code path still works (with the same
    per-call passcode prompt as today). The broker is purely
    additive opt-in.
-5. **Honest about limits.** SFTP-only; one host per broker;
-   no auto-reconnect. The error envelope on connection loss
-   tells the user exactly what happened.
-6. **One channel per broker.** Hard invariant — never
-   `exec_command`, never a second SFTP channel. OLCF
-   `MaxSessions=1` compatibility is a design contract.
+5. **Honest about limits.** SFTP + short-lived read-only exec;
+   one host per broker; no auto-reconnect. The error envelope
+   on connection loss tells the user exactly what happened.
+6. **One session channel at a time.** Hard invariant — at most
+   one session channel open on the broker's SSH transport
+   (either SFTP or exec). Transitions go through the
+   `SessionHolder` mutex. OLCF `MaxSessions=1` compatibility is
+   a design contract.
+7. **Exec is read-only by allowlist.** Hard invariant — the
+   broker rejects any `exec(argv)` whose `argv[0]` isn't in
+   `BUILTIN_ALLOWLIST` ∪ `--allow-exec` set at startup. Writers
+   (`rm`, `mv`, `cp`, `mkdir`, etc.) are never in the built-in
+   list; users adding them via `--allow-exec` accept the risk.
+   `shlex.quote` blocks shell-metacharacter injection through
+   user-supplied `argv` elements.
 
 ## 5. Open risks
 
@@ -333,8 +425,11 @@ Cycle 14 is successful when all of the following hold:
 - Globus / GridFTP integration for high-throughput transfers
 - Windows broker (named pipe transport)
 - Broker-side LRU cache of remote file chunks
-- Remote `exec` channel — OLCF-incompatible, would need
-  per-call OTP
+- Long-running remote commands (>60s) via the broker — would
+  need streaming exec output, channel-level cancellation, and
+  progress reporting; current `exec` is short-lived only.
+- Remote write operations via any path — the broker is
+  read-only-exec by contract; this is a sustained non-goal.
 - Auto-restart of broker after connection loss (would require
   the very credential persistence we explicitly refuse)
 - Shared broker daemon across multiple user sessions on the

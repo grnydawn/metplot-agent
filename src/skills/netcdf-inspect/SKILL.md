@@ -17,9 +17,13 @@ description: Inspect a NetCDF file before doing anything else with it. Lists var
 ## Quick reference
 
 1. Call `netcdf-reader.inspect(path=<path>)`.
-2. If the response envelope is `ok: false` with subcode `ssh_auth_needed`,
-   prompt the user for SSH credentials per the candidates list, then retry
-   with `ssh_config={user, host, port, auth: {...}}`.
+2. If the response envelope is `ok: false`:
+   - subcode `ssh_auth_needed` → defer to the `netcdf-remote` skill, which
+     guides the user to start `metplot-ssh-broker` in their own terminal.
+     This avoids any in-chat passcode entry.
+   - subcode `broker_required` → also defer to `netcdf-remote`. The MCP is
+     telling you remote glob expansion needs a broker socket.
+   - any other subcode → surface to the user verbatim and stop.
 3. Read `result.kind`, `result.convention`, `result.variables`,
    `result.dimensions`, `result.spatial`, `result.time`, `result.vertical`.
 4. Summarize for the user (see "What to surface" below).

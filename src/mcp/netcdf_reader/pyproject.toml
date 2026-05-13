@@ -26,3 +26,4 @@ roms = ["xroms>=0.5"]
 
 [project.scripts]
 metplot-netcdf-reader = "src.mcp.netcdf_reader.server:main"
+metplot-ssh-broker = "src.ssh_broker.cli:main"

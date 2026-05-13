@@ -232,3 +232,41 @@ def open_sftp_file(client: paramiko.SSHClient, remote_path: str):
     can read directly from this (it requires seek/tell/read)."""
     sftp = client.open_sftp()
     return sftp.open(remote_path, "rb")
+
+
+# ── Cycle 14: Broker integration ────────────────────────────────
+
+def _broker_socket_dir() -> str:
+    """The directory we expect brokers to register sockets in."""
+    runtime = os.environ.get("XDG_RUNTIME_DIR")
+    if runtime:
+        return os.path.join(runtime, "metplot-ssh")
+    return "/tmp/metplot-ssh"
+
+
+def discover_broker_socket(host: str) -> str | None:
+    """Return the path of a running broker's socket for `host`, or None."""
+    p = Path(_broker_socket_dir()) / f"{host}.sock"
+    if p.exists():
+        return str(p)
+    return None
+
+
+def open_ssh_with_broker_fallback(host: str):
+    """If a broker socket is present and answers ping, return a
+    BrokerSFTPClient. Else return None — caller falls back to direct
+    paramiko (cycle-12 behavior).
+    """
+    sock = discover_broker_socket(host)
+    if sock is None:
+        return None
+    # Lazy import — keep this dependency out of cycle-12 callers.
+    from src.mcp.netcdf_reader.paths.ssh_broker import (
+        BrokerRPCError, BrokerSFTPClient,
+    )
+    client = BrokerSFTPClient(socket_path=sock)
+    try:
+        client.ping()
+    except (OSError, BrokerRPCError):
+        return None
+    return client

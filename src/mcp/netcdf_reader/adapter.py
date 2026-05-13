@@ -79,9 +79,14 @@ class NetCDFAdapter:
                 from src.mcp.netcdf_reader.paths.ssh import (
                     SSHConfig, parse_ssh_config_for_host,
                     silent_auth_chain, connect_explicit, open_sftp_file,
+                    open_ssh_with_broker_fallback,
                 )
                 assert cls.host is not None
                 assert cls.remote_path is not None
+                # Cycle 14: prefer broker if available.
+                broker = open_ssh_with_broker_fallback(cls.host)
+                if broker is not None:
+                    return self._open_via_broker(broker, cls.remote_path)
                 if ssh_config:
                     cfg = SSHConfig(
                         host=ssh_config.get("host") or cls.host,
@@ -114,6 +119,22 @@ class NetCDFAdapter:
 
         from src.mcp.netcdf_reader.paths.multi_file import open_multi_file
         return open_multi_file(paths)
+
+    def _open_via_broker(self, broker, remote_path: str) -> xr.Dataset:
+        """Stage the remote file locally via the broker, then open
+        with xarray. Cycle-14 path; bypasses paramiko entirely.
+        """
+        import tempfile
+        from pathlib import Path as _Path
+        with tempfile.NamedTemporaryFile(
+            prefix="metplot-broker-", suffix=_Path(remote_path).suffix,
+            delete=False,
+        ) as tmp:
+            local = tmp.name
+        broker.get(remote_path, local)
+        return _open_with_decode_fallback(
+            lambda decode: xr.open_dataset(
+                local, decode_times=decode, chunks="auto"))
 
     def detect_conventions(self, ds: xr.Dataset, attrs: dict[str, Any]) -> dict[str, Any]:
         from src.mcp.netcdf_reader.conventions import cf as _cf
