@@ -535,7 +535,10 @@ In **your own terminal, BEFORE launching your agent**:
 metplot-ssh-broker grnydawn@home.ccs.ornl.gov
 ```
 
-The `user@host` prefix is the recommended way to pass your remote username — same form as `ssh`. You can also use `--user yourname` separately; if both are given, `--user` wins.
+The `user@host` prefix is the recommended way to pass
+your remote username — same form as `ssh`. You can also
+use `--user yourname` separately; if both are given,
+`--user` takes precedence.
 
 You'll be prompted for your passcode. After auth, the
 broker prints the socket path and stays running. Leave it
