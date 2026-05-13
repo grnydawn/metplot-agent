@@ -31,7 +31,8 @@ troubleshooting.
 9. [Slash commands cheat-sheet](#9-slash-commands-cheat-sheet)
 10. [Reference data: aliases, regions, colormaps](#10-reference-data-aliases-regions-colormaps)
 11. [Troubleshooting](#11-troubleshooting)
-12. [File-format support matrix](#12-file-format-support-matrix)
+12. [Remote file access via metplot-ssh-broker](#12-remote-file-access-via-metplot-ssh-broker)
+13. [File-format support matrix](#13-file-format-support-matrix)
 
 ---
 
@@ -39,11 +40,19 @@ troubleshooting.
 
 `metplot-agent` is a thin layer between you and two MCP servers:
 
-- **`netcdf-reader`** (8 tools): `inspect`, `read_slice`,
+- **`netcdf-reader`** (14 tools): `inspect`, `read_slice`,
   `find_variables`, `find_time`, `resolve_spec`, `peek`,
-  `compute_stats`, `regrid_to_centers`.
-- **`plot-renderer`** (3 tools): `render_map`,
-  `render_timeseries`, `render_profile`.
+  `compute_stats`, `regrid_to_centers`, `reduce_variable`,
+  `dump_cdl`, `find_region`, `slice_along_section`,
+  and two more (see `src/mcp/netcdf_reader/server.py`).
+- **`plot-renderer`** (4 tools): `render_map`,
+  `render_timeseries`, `render_profile`, `render_section`.
+
+For NetCDF files on OTP-protected remote hosts (OLCF /
+ALCF / NERSC), there is also **`metplot-ssh-broker`** — a
+separate CLI you run in your own terminal that lets the
+agent reach `ssh://host/path.nc` URLs without ever seeing
+your passcode. See §12.
 
 Five skills (markdown files with YAML frontmatter) guide the agent
 on when to call which MCP tool. You don't invoke skills directly
@@ -510,7 +519,146 @@ spans > 6 orders of magnitude (cycle-2 spec §7).
 
 ---
 
-## 12. File-format support matrix
+## 12. Remote file access via metplot-ssh-broker
+
+For NetCDF files on remote hosts that require interactive
+auth (RSA SecurID, Duo PIN+token, hosts that reject
+ssh-agent / identity-file auth) — like OLCF's
+`home.ccs.ornl.gov` — use **`metplot-ssh-broker`** so your
+credential never enters the agent's chat context.
+
+### Quickstart
+
+In **your own terminal, BEFORE launching your agent**:
+
+```bash
+metplot-ssh-broker home.ccs.ornl.gov
+```
+
+You'll be prompted for your passcode. After auth, the
+broker prints the socket path and stays running. Leave it
+open (or background with `&`); `Ctrl-C` when you're done.
+
+Then in your agent, reference remote files via `ssh://`
+URLs as if they were local:
+
+> **You**: Inspect `ssh://home.ccs.ornl.gov/autofs/nccs-svm1_proj/cli190/me/data/eam_h0.nc`.
+>
+> **Agent**: (auto-detects broker, calls `inspect` →
+> routes through `broker.dump_header` → parses the CDL
+> envelope without transferring the file)
+> Found a CF-1.8 file with 47 variables. Header was
+> 8.4 KB; full file is 1.2 GB and stayed remote.
+
+> **You**: Map T2 from this file for the first time step.
+>
+> **Agent**: (broker stages the file locally via SFTP,
+> then renders)
+> Wrote `.metplot/plots/eam_T2_t0.png`.
+
+Globs also work:
+
+> **You**: Inspect `ssh://home.ccs.ornl.gov/data/era5_t2m_2024-*.nc`.
+>
+> **Agent**: (broker.glob_remote expands the pattern,
+> classifier returns `kind: ssh_multi`)
+> 12 monthly files matched. Combined time range
+> 2024-01-01..2024-12-31.
+
+### What the broker can do
+
+| Capability | Behavior |
+|---|---|
+| File ops (SFTP-backed) | `listdir`, `stat`, `glob`, partial-read (`get_chunk`), full-fetch (`get_full`) |
+| Header-only inspect | `inspect()` on `ssh://*.nc` runs `ncdump -h` remotely (~10 KB roundtrip) instead of transferring the whole file. Falls back to a full fetch if `ncdump` is missing on the remote host. |
+| Read-only remote commands | Built-in allowlist: `ncdump`, `ls`, `cat`, `head`, `tail`, `wc`, `file`, `stat`. Extend with `--allow-exec=ncks,find` at broker start. |
+| Remote glob expansion | `ssh://host/data/*.nc` expands via the broker to individual ssh URLs |
+
+### What the broker won't do (by design)
+
+- **Write operations**: `rm`, `mv`, `cp`, `mkdir`,
+  `chmod`, shell redirection (`>`), pipes (`|`), command
+  chaining (`&&` / `;`) — all blocked. `argv` is a list
+  of strings, each `shlex.quote`d before joining for
+  `transport.exec_command()`. No shell-metacharacter
+  interpretation.
+- **Auto-reconnect**: if the SSH transport dies (network
+  blip, OLCF idle-kill), the broker reports
+  `connection_lost` and exits within ~5 seconds. You
+  restart with a fresh passcode.
+- **Multi-host in one process**: one broker per remote.
+  Run two brokers in two terminals for two remotes.
+- **Concurrent operations**: all SFTP/exec ops serialize
+  through a single SSH session channel — OLCF
+  `MaxSessions=1` design contract.
+
+### How the credential stays safe
+
+1. You enter the passcode into the broker's
+   `getpass.getpass()` prompt in your own terminal. It
+   never echoes, never logs, never reaches stdout.
+2. The broker passes the passcode to
+   `paramiko.SSHClient.connect()` exactly once.
+3. The local variable is overwritten and `del`-ed in
+   `_authenticate()` before any other broker code runs.
+4. The agent / MCP / Claude Code never sees the passcode
+   — they only talk JSON-RPC to the broker's `0600` UNIX
+   socket at `$XDG_RUNTIME_DIR/metplot-ssh/<host>.sock`.
+
+For the protocol, channel state machine, and full threat
+model, see `docs/architecture/ssh-broker.md`.
+
+### Troubleshooting
+
+> **"The agent asks me to set up the broker but I already
+> did."**
+
+The agent detects brokers via the socket file. Check:
+
+```bash
+ls -la $XDG_RUNTIME_DIR/metplot-ssh/
+# or, without XDG_RUNTIME_DIR:
+ls -la /tmp/metplot-ssh/
+```
+
+If the socket is missing, the broker isn't running (it
+exited, or you started it for a different host). Re-run
+`metplot-ssh-broker <host>` in your terminal.
+
+> **`broker_required` envelope on `ssh://host/data/*.nc`.**
+
+Remote glob expansion needs a broker — without one the
+MCP can't reach the remote filesystem to list files.
+Start the broker, then retry.
+
+> **"Connection lost — broker exited."**
+
+Restart the broker. OLCF's `ClientAliveInterval` may
+idle-kill the TCP connection if there's no activity for
+a while; the broker's default 30-second keepalive
+usually handles this. If your site is stricter, lower
+`--keepalive` to 15 or 10 seconds at start.
+
+> **`tool not in exec allowlist: <name>`**
+
+The agent tried to run a remote command that isn't in
+the read-only allowlist. To allow a specific tool (e.g.
+`ncks` for `ncks -m` metadata extraction), restart the
+broker with `--allow-exec=ncks`. Writers (`rm`, `mv`,
+`cp`, etc.) are not in the built-in allowlist; adding
+them is your responsibility and is generally
+discouraged.
+
+> **"Two brokers, same host."**
+
+The broker refuses to start if a socket already exists
+at its discovery path. Kill the first broker (`Ctrl-C`
+in its terminal, or `pkill -f 'metplot-ssh-broker
+<host>'`) before starting a new one.
+
+---
+
+## 13. File-format support matrix
 
 | Convention | Shape | inspect | plot map | plot timeseries | plot profile |
 |---|---|---|---|---|---|
@@ -528,10 +676,13 @@ spans > 6 orders of magnitude (cycle-2 spec §7).
 | FV3 | unstructured (cubed-sphere) | (cycle 9+) | (cycle 9+) | (cycle 9+) | (cycle 9+) |
 
 **Remote sources**: HTTPS URLs (NetCDF-via-HTTP) and SSH paths
-(`ssh://host:/path/file.nc`) are supported by `inspect` and
-`read_slice`. SSH auth is handled via the `ssh_auth_needed`
-ambiguous envelope — the agent prompts you for an identity file,
-password, or ssh-config alias on first connection.
+(`ssh://host/path/file.nc`) are supported by `inspect` and
+`read_slice`. For OTP-protected SSH hosts (OLCF / ALCF /
+NERSC), use **`metplot-ssh-broker`** so your credential never
+enters the agent's context — see §12 above. Without a broker,
+the MCP falls back to direct paramiko auth, which may prompt
+for an identity file or password depending on the host's
+config — that flow is preserved for non-OTP cases.
 
 ---
 
