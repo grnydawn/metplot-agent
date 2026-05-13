@@ -539,6 +539,22 @@ You'll be prompted for your passcode. After auth, the
 broker prints the socket path and stays running. Leave it
 open (or background with `&`); `Ctrl-C` when you're done.
 
+> **`metplot-ssh-broker: command not found`?** The launcher
+> ships inside the metplot virtualenv used by `/metplot:setup`,
+> which isn't on your shell PATH by default. Pick one:
+>
+> - **Activate the venv first** (per-session):
+>   `source /path/to/metplot-agent/.venv/bin/activate`,
+>   then `metplot-ssh-broker home.ccs.ornl.gov`.
+> - **Call by absolute path** (no activation):
+>   `/path/to/metplot-agent/.venv/bin/metplot-ssh-broker home.ccs.ornl.gov`.
+> - **Install system-wide** (so the command is on PATH everywhere):
+>   `pipx install /path/to/metplot-agent/build/<target>/metplot/mcp-servers/netcdf_reader`
+>   (or `pip install --user <same path>`). Restart your shell
+>   afterward.
+>
+> Verify with `metplot-ssh-broker --help`.
+
 Then in your agent, reference remote files via `ssh://`
 URLs as if they were local:
 
