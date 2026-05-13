@@ -97,6 +97,17 @@ def _split_user_host(
     return rest, (explicit_user if explicit_user else prefix)
 
 
+def resolve_user_and_host(ns: argparse.Namespace) -> tuple[str, str]:
+    """Final (host, user) after user@host split + $USER fallback.
+
+    The returned `user` is always a non-empty string (defaults to
+    $USER, then 'root' if $USER is unset).
+    """
+    host, user_from_prefix = _split_user_host(ns.host, ns.user)
+    user = user_from_prefix or os.environ.get("USER") or "root"
+    return host, user
+
+
 def _authenticate(host: str, user: str, port: int,
                    keepalive: int) -> SessionHolder:
     """Read passcode interactively; connect; drop credential immediately."""

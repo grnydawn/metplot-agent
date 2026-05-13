@@ -7,7 +7,12 @@ from __future__ import annotations
 
 import pytest
 
-from src.ssh_broker.cli import _split_user_host, build_parser, default_socket_path
+from src.ssh_broker.cli import (
+    _split_user_host,
+    build_parser,
+    default_socket_path,
+    resolve_user_and_host,
+)
 
 
 def test_parser_accepts_host_positional():
@@ -110,3 +115,12 @@ def test_split_user_host_empty_host_rejected(capsys):
     assert excinfo.value.code == 2
     captured = capsys.readouterr()
     assert "empty host after '@'" in captured.err
+
+
+def test_resolve_user_and_host_falls_back_to_USER(monkeypatch):
+    monkeypatch.setenv("USER", "carol")
+    p = build_parser()
+    ns = p.parse_args(["home.example"])
+    host, user = resolve_user_and_host(ns)
+    assert host == "home.example"
+    assert user == "carol"
