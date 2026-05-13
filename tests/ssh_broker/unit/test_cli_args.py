@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.ssh_broker.cli import build_parser, default_socket_path
+from src.ssh_broker.cli import _split_user_host, build_parser, default_socket_path
 
 
 def test_parser_accepts_host_positional():
@@ -74,3 +74,39 @@ def test_parser_help_does_not_crash():
     p = build_parser()
     with pytest.raises(SystemExit):
         p.parse_args(["--help"])
+
+
+def test_split_user_host_no_prefix():
+    assert _split_user_host("home.example", None) == ("home.example", None)
+
+
+def test_split_user_host_prefix_without_explicit_user():
+    assert _split_user_host("alice@home.example", None) == ("home.example", "alice")
+
+
+def test_split_user_host_explicit_user_overrides_prefix_silently(capsys):
+    result = _split_user_host("alice@home.example", "bob")
+    assert result == ("home.example", "bob")
+    captured = capsys.readouterr()
+    assert captured.err == ""  # no warning
+    assert captured.out == ""
+
+
+def test_split_user_host_multiple_at_signs_split_on_first():
+    assert _split_user_host("a@b@c.example", None) == ("b@c.example", "a")
+
+
+def test_split_user_host_empty_username_rejected(capsys):
+    with pytest.raises(SystemExit) as excinfo:
+        _split_user_host("@home.example", None)
+    assert excinfo.value.code == 2
+    captured = capsys.readouterr()
+    assert "empty username before '@'" in captured.err
+
+
+def test_split_user_host_empty_host_rejected(capsys):
+    with pytest.raises(SystemExit) as excinfo:
+        _split_user_host("alice@", None)
+    assert excinfo.value.code == 2
+    captured = capsys.readouterr()
+    assert "empty host after '@'" in captured.err

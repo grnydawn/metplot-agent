@@ -69,6 +69,34 @@ def default_socket_path(host: str, socket_dir: str | None) -> str:
     return str(Path(base) / f"{host}.sock")
 
 
+def _split_user_host(
+    host_arg: str, explicit_user: str | None
+) -> tuple[str, str | None]:
+    """Parse `user@host` syntax. --user wins on conflict. Split on first @.
+
+    Returns (host, user). user may be None if no prefix and no explicit_user.
+    Exits with code 2 on empty username or empty host.
+    """
+    if "@" not in host_arg:
+        return host_arg, explicit_user
+    prefix, _, rest = host_arg.partition("@")
+    if not prefix:
+        print(
+            f"ERROR: invalid host argument '{host_arg}': "
+            f"empty username before '@'",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+    if not rest:
+        print(
+            f"ERROR: invalid host argument '{host_arg}': "
+            f"empty host after '@'",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
+    return rest, (explicit_user if explicit_user else prefix)
+
+
 def _authenticate(host: str, user: str, port: int,
                    keepalive: int) -> SessionHolder:
     """Read passcode interactively; connect; drop credential immediately."""
