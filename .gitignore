@@ -34,8 +34,18 @@ uv.lock
 *.nc4
 !tests/fixtures/*.nc
 
-# Claude Code local config
-.claude/
+# Claude Code local config is ignored, EXCEPT the committed super-board pipeline
+# artifacts: the Telegram notifier script and the board config. Everything else
+# under .claude/ (settings, other skills, the per-machine `active` pointer) stays
+# local-only. Pattern: ignore each level's contents, then re-include the path
+# down to the files we want tracked.
+.claude/*
+!.claude/bin/
+.claude/bin/*
+!.claude/bin/super-board-notify.sh
+!.claude/super-board/
+.claude/super-board/*
+!.claude/super-board/configs/
 
 # pinned-real-files integration fixtures (gitignored, populated by download_samples.sh)
 tests/mcp/netcdf_reader/integration/data/
