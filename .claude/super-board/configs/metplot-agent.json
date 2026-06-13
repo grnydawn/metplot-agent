@@ -18,7 +18,7 @@
     "remote": "git@github.com:grnydawn/metplot-agent.git"
   },
   "base_branch": "master",
-  "columns": ["Ready", "Building", "QA", "Review", "Done", "Blocked", "Skipped"],
+  "columns": ["Backlog", "Ready", "Building", "QA", "Review", "Done", "Blocked", "Skipped"],
   "paths": {
     "project_md": "docs/super-board/PROJECT.md",
     "pre_flight_md": "docs/super-board/pre-flight.md",

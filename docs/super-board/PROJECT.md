@@ -29,3 +29,19 @@ A typical ticket is "done" when:
 - `make lint` (skill-manifest validation) is clean, and `ruff` + `mypy` pass.
 - The change is made in the canonical `src/` tree (not in generated `build/` or in `targets/` unless host-specific), and affected build targets still build via `python -m tools.build <target>`.
 - The feature behaves as described end-to-end (e.g., inspect → slice → render produces the expected plot), and skill changes are documented per the refinement note.
+
+## Board conventions (super-board)
+
+The GitHub Project board uses one column beyond the standard super-board set:
+
+- **Backlog** — a *staging* column. `super-board run` never dispatches Backlog
+  cards: the wave planner (`super-board-wave-plan.sh`) only pulls from
+  `Ready`/`QA`/`Review`, so anything in Backlog sits untouched by workers.
+  `super-board lint` **does** scan Backlog, so you can park rough or future
+  tickets there and sharpen their acceptance criteria before promoting them.
+  Workflow: draft in **Backlog** → `super-board lint` → move to **Ready** when
+  it's ready for the autonomous loop.
+
+  Note: the lint-side scan of Backlog is configured in the installed super-board
+  skill (`references/lint.md`), which lives under the gitignored `.claude/` tree;
+  re-apply it after a skill upgrade if lint stops scanning Backlog.
