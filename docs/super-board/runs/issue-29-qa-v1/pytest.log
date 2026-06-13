@@ -1,0 +1,17 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0 -- /home/youngsung/repos/github/metplot-agent/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /home/youngsung/repos/github/metplot-agent/.worktrees/issue-29-qa
+configfile: pyproject.toml
+plugins: anyio-4.13.0, mock-3.15.1
+collecting ... collected 7 items
+
+tests/docs/test_installation_doc.py::test_ac1_doc_exists_linked_and_covers_7_targets PASSED [ 14%]
+tests/docs/test_installation_doc.py::test_ac2_each_host_has_build_install_enable_verify PASSED [ 28%]
+tests/docs/test_installation_doc.py::test_ac3_mcp_extra_documented_matches_pyproject PASSED [ 42%]
+tests/docs/test_installation_doc.py::test_ac4_prerequisites_python_and_cartopy_syslibs PASSED [ 57%]
+tests/docs/test_installation_doc.py::test_ac5_per_tool_verify_inspect_then_plot PASSED [ 71%]
+tests/docs/test_installation_doc.py::test_ac6_make_lint_clean PASSED     [ 85%]
+tests/docs/test_installation_doc.py::test_ac6_all_relative_links_and_anchors_resolve PASSED [100%]
+
+============================== 7 passed in 0.13s ===============================
