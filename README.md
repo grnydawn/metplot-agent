@@ -80,6 +80,10 @@ See `docs/architecture/ssh-broker.md` for the full design.
 > Each build dir ships its own self-contained `README.md` with
 > host-specific install instructions; the sections below are the
 > condensed version.
+>
+> For the full reference — prerequisites, Python dependency setup, and a
+> per-host "verify it works" check for all seven targets — see
+> [`docs/installation.md`](docs/installation.md).
 
 ### Claude Code
 
@@ -290,6 +294,9 @@ rm -rf .metplot
 
 ## Next steps
 
+- **Installing**: `docs/installation.md` is the full per-host install
+  reference (prerequisites, dependency setup, verify steps) for all
+  seven targets.
 - **First-time users**: read `docs/user-guide.md` for a guided
   walkthrough — installation reminders, the inspect → slice →
   render pipeline, plotting recipes (rectilinear / WRF / ROMS /
