@@ -1,0 +1,13 @@
+===== AC1: --list shows copilot-cli AND copilot =====
+antigravity
+claude-code
+claude-desktop
+codex
+copilot
+copilot-cli
+cursor
+gemini-cli
+hermes
+--- assertion ---
+AC1a copilot-cli present: PASS
+AC1b copilot present: PASS

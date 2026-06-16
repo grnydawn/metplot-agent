@@ -1,0 +1,131 @@
+........................................................................ [ 21%]
+..........FF............................................................ [ 42%]
+........................................................................ [ 63%]
+........................................................................ [ 84%]
+..................................s........s........                     [100%]
+=================================== FAILURES ===================================
+__________________ test_bundled_server_imports[netcdf_reader] __________________
+
+built_plugin = PosixPath('/private/var/folders/h_/nchl5wtn7mb3cqp54g4lqv481_nk2c/T/pytest-of-8yk/pytest-50/build5/metplot')
+server = {'package_dir': 'netcdf_reader', 'expected_tool_count': 14}
+
+    @pytest.mark.parametrize("server", _SERVERS,
+                             ids=lambda s: s["package_dir"])
+    def test_bundled_server_imports(built_plugin: Path, server: _Server) -> None:
+        """Verify the bundle's own source answers `from src.mcp.<pkg>...`.
+    
+        Why the precaution: the canonical repo's `src/` is already on
+        sys.path during pytest, so a sloppier test would silently resolve
+        via the canonical path even when the bundle is broken (the cycle-6
+        pyproject regression hid behind exactly that). To force the bundle
+        to answer, we put `<bundle>/` (NOT `<bundle>/src/`) at sys.path[0]
+        and evict any cached `src.*` modules, then assert that the resolved
+        server module's file lives inside the bundle.
+        """
+        bundle_root = built_plugin / "mcp-servers" / server["package_dir"]
+        sys.path.insert(0, str(bundle_root))
+        _evict_src_modules()
+        try:
+            modname = f"src.mcp.{server['package_dir']}.server"
+>           mod = importlib.import_module(modname)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/targets/claude_code/test_mcp_smoke.py:54: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1406: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1371: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1342: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:938: in _load_unlocked
+    ???
+<frozen importlib._bootstrap_external>:759: in exec_module
+    ???
+<frozen importlib._bootstrap>:491: in _call_with_frames_removed
+    ???
+/private/var/folders/h_/nchl5wtn7mb3cqp54g4lqv481_nk2c/T/pytest-of-8yk/pytest-50/build5/metplot/mcp-servers/netcdf_reader/src/mcp/netcdf_reader/server.py:12: in <module>
+    from src.mcp.netcdf_reader.adapter import NetCDFAdapter
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    # src/mcp/netcdf_reader/adapter.py
+    """Format-specific: NetCDFAdapter implements the FormatAdapter protocol
+    that lives at the seam between cycle 1's reader and a future _core/
+    package. See spec §11."""
+    from __future__ import annotations
+    
+    from typing import Any
+    
+>   import xarray as xr
+E   ModuleNotFoundError: No module named 'xarray'
+
+/private/var/folders/h_/nchl5wtn7mb3cqp54g4lqv481_nk2c/T/pytest-of-8yk/pytest-50/build5/metplot/mcp-servers/netcdf_reader/src/mcp/netcdf_reader/adapter.py:9: ModuleNotFoundError
+__________________ test_bundled_server_imports[plot_renderer] __________________
+
+built_plugin = PosixPath('/private/var/folders/h_/nchl5wtn7mb3cqp54g4lqv481_nk2c/T/pytest-of-8yk/pytest-50/build5/metplot')
+server = {'package_dir': 'plot_renderer', 'expected_tool_count': 4}
+
+    @pytest.mark.parametrize("server", _SERVERS,
+                             ids=lambda s: s["package_dir"])
+    def test_bundled_server_imports(built_plugin: Path, server: _Server) -> None:
+        """Verify the bundle's own source answers `from src.mcp.<pkg>...`.
+    
+        Why the precaution: the canonical repo's `src/` is already on
+        sys.path during pytest, so a sloppier test would silently resolve
+        via the canonical path even when the bundle is broken (the cycle-6
+        pyproject regression hid behind exactly that). To force the bundle
+        to answer, we put `<bundle>/` (NOT `<bundle>/src/`) at sys.path[0]
+        and evict any cached `src.*` modules, then assert that the resolved
+        server module's file lives inside the bundle.
+        """
+        bundle_root = built_plugin / "mcp-servers" / server["package_dir"]
+        sys.path.insert(0, str(bundle_root))
+        _evict_src_modules()
+        try:
+            modname = f"src.mcp.{server['package_dir']}.server"
+>           mod = importlib.import_module(modname)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/targets/claude_code/test_mcp_smoke.py:54: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/homebrew/Cellar/python@3.14/3.14.6/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap>:1406: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1371: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:1342: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:938: in _load_unlocked
+    ???
+<frozen importlib._bootstrap_external>:759: in exec_module
+    ???
+<frozen importlib._bootstrap>:491: in _call_with_frames_removed
+    ???
+/private/var/folders/h_/nchl5wtn7mb3cqp54g4lqv481_nk2c/T/pytest-of-8yk/pytest-50/build5/metplot/mcp-servers/plot_renderer/src/mcp/plot_renderer/server.py:9: in <module>
+    from src.mcp.plot_renderer.tools import (
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """FORMAT-SPECIFIC (cartopy-aware): map rendering.
+    
+    This is the only file in cycle-2 that imports cartopy. The seam test
+    allows it; other tools must not import cartopy.
+    """
+    from __future__ import annotations
+    
+    from typing import Any
+    
+>   import matplotlib.pyplot as plt
+E   ModuleNotFoundError: No module named 'matplotlib'
+
+/private/var/folders/h_/nchl5wtn7mb3cqp54g4lqv481_nk2c/T/pytest-of-8yk/pytest-50/build5/metplot/mcp-servers/plot_renderer/src/mcp/plot_renderer/tools/render_map.py:10: ModuleNotFoundError
+=========================== short test summary info ============================
+SKIPPED [1] tests/targets/test_all_targets_buildable.py:40: hermes target stub unverified by cycle-7 research
+SKIPPED [1] tests/targets/test_all_targets_have_setup.py:40: hermes target stub; cycle-5 doesn't update it
+FAILED tests/targets/claude_code/test_mcp_smoke.py::test_bundled_server_imports[netcdf_reader]
+FAILED tests/targets/claude_code/test_mcp_smoke.py::test_bundled_server_imports[plot_renderer]
+2 failed, 336 passed, 2 skipped in 2.77s

@@ -1,0 +1,9 @@
+........................................................................ [ 21%]
+........................................................................ [ 42%]
+........................................................................ [ 63%]
+........................................................................ [ 84%]
+.................................s........s........                      [100%]
+=========================== short test summary info ============================
+SKIPPED [1] tests/targets/test_all_targets_buildable.py:40: hermes target stub unverified by cycle-7 research
+SKIPPED [1] tests/targets/test_all_targets_have_setup.py:40: hermes target stub; cycle-5 doesn't update it
+337 passed, 2 skipped, 1 deselected in 2.89s

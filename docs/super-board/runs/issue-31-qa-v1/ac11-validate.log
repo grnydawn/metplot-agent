@@ -1,0 +1,37 @@
+building copilot-cli → build/copilot-cli
+  done.
+validating copilot-cli...
+============================= test session starts ==============================
+platform darwin -- Python 3.14.6, pytest-9.1.0, pluggy-1.6.0 -- /Users/8yk/repos/github/metplot-agent/.worktrees/issue-31-qa/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/8yk/repos/github/metplot-agent/.worktrees/issue-31-qa
+configfile: pyproject.toml
+collecting ... collected 24 items
+
+tests/targets/copilot_cli/test_manifest.py::test_parses PASSED           [  4%]
+tests/targets/copilot_cli/test_manifest.py::test_required_fields PASSED  [  8%]
+tests/targets/copilot_cli/test_manifest.py::test_metplot_cycle_7 PASSED  [ 12%]
+tests/targets/copilot_cli/test_manifest.py::test_metplot_ships_skills PASSED [ 16%]
+tests/targets/copilot_cli/test_manifest.py::test_metplot_ships_mcp_servers PASSED [ 20%]
+tests/targets/copilot_cli/test_mcp_config.py::test_uses_mcpServers_not_servers PASSED [ 25%]
+tests/targets/copilot_cli/test_mcp_config.py::test_each_server_local_stdio[netcdf-reader-metplot-netcdf-reader] PASSED [ 29%]
+tests/targets/copilot_cli/test_mcp_config.py::test_each_server_local_stdio[plot-renderer-metplot-plot-renderer] PASSED [ 33%]
+tests/targets/copilot_cli/test_mcp_servers_bundled.py::test_re_rooted_source[netcdf_reader] PASSED [ 37%]
+tests/targets/copilot_cli/test_mcp_servers_bundled.py::test_re_rooted_source[plot_renderer] PASSED [ 41%]
+tests/targets/copilot_cli/test_mcp_servers_bundled.py::test_pyproject_patched[netcdf_reader] PASSED [ 45%]
+tests/targets/copilot_cli/test_mcp_servers_bundled.py::test_pyproject_patched[plot_renderer] PASSED [ 50%]
+tests/targets/copilot_cli/test_setup_files.py::test_setup_sh_present PASSED [ 54%]
+tests/targets/copilot_cli/test_setup_files.py::test_setup_sh_executable PASSED [ 58%]
+tests/targets/copilot_cli/test_setup_files.py::test_setup_ps1_present PASSED [ 62%]
+tests/targets/copilot_cli/test_setup_files.py::test_install_deps_bundled PASSED [ 66%]
+tests/targets/copilot_cli/test_skills_copied.py::test_all_expected_skills_present PASSED [ 70%]
+tests/targets/copilot_cli/test_skills_copied.py::test_skill_refiner_included PASSED [ 75%]
+tests/targets/copilot_cli/test_skills_copied.py::test_skill_md_present[netcdf-inspect] PASSED [ 79%]
+tests/targets/copilot_cli/test_skills_copied.py::test_skill_md_present[netcdf-plot-map] PASSED [ 83%]
+tests/targets/copilot_cli/test_skills_copied.py::test_skill_md_present[netcdf-plot-profile] PASSED [ 87%]
+tests/targets/copilot_cli/test_skills_copied.py::test_skill_md_present[netcdf-plot-router] PASSED [ 91%]
+tests/targets/copilot_cli/test_skills_copied.py::test_skill_md_present[netcdf-plot-timeseries] PASSED [ 95%]
+tests/targets/copilot_cli/test_skills_copied.py::test_skill_md_present[skill-refiner] PASSED [100%]
+
+============================== 24 passed in 0.18s ==============================
+  validation passed.

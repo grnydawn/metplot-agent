@@ -1,0 +1,5 @@
+===== AC2: build copilot-cli, artifacts + shared helpers =====
+building copilot-cli → build/copilot-cli
+  done.
+build exit=0
+AC2a build/copilot-cli/metplot exists: PASS
