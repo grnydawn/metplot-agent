@@ -198,6 +198,48 @@ Or run `/metplot:setup` from the Copilot chat.
 **Verify it works.** Ask Copilot chat to **inspect a sample `.nc` file**
 and **render a plot**; confirm variables are listed and a PNG is written.
 
+> This VS Code plugin registers MCP via `.vscode/mcp.json` using the
+> `servers` key. The **standalone Copilot CLI** below uses a different
+> file and key — see the next section.
+
+### GitHub Copilot CLI
+
+This is the **standalone GitHub Copilot CLI** (the terminal coding
+agent), a separate host from the VS Code plugin above. The key
+difference is the MCP registration surface (covered below).
+
+**Build:**
+
+```bash
+python -m tools.build copilot-cli
+```
+
+**Install / point.** Register the bundled MCP launch config with the
+standalone CLI by merging `build/copilot-cli/metplot/mcp-config.json`
+into your user-level `~/.copilot/mcp-config.json`. Unlike the VS Code
+plugin's `.vscode/mcp.json` (which uses the `servers` key), the CLI
+reads `~/.copilot/mcp-config.json` using the **`mcpServers`** key, with
+each server declared as a **`type: "local"`** stdio entry. Do not
+confuse the two Copilot hosts: the file name *and* the top-level key
+differ.
+
+**Enable skills + MCP servers.** Install the two MCP server packages:
+
+```bash
+pip install ./build/copilot-cli/metplot/mcp-servers/netcdf_reader
+pip install ./build/copilot-cli/metplot/mcp-servers/plot_renderer
+```
+
+Then make the skills discoverable. The CLI auto-reads skills from
+`.claude/skills/` and `.agents/skills/`; copy the bundled
+`build/copilot-cli/metplot/skills/` tree to `~/.copilot/skills/metplot/`
+(user-level) or into a project `.agents/skills/` directory. Or run
+`/metplot:setup` from a CLI session to install the Python dependencies.
+
+**Verify it works.** In a Copilot CLI session, ask it to **inspect a
+sample `.nc` file** and then **render a plot**; confirm the variables
+are listed and a PNG is written.
+
 ### Gemini CLI
 
 **Build:**

@@ -29,6 +29,7 @@ _BUILDS: list[tuple[str, str]] = [
     ("claude-code",  "skills/skill-refiner/SKILL.md"),
     ("cursor",       "skills/skill-refiner/SKILL.md"),
     ("copilot",      "skills/skill-refiner/SKILL.md"),
+    ("copilot-cli",  "skills/skill-refiner/SKILL.md"),
     ("gemini-cli",   "skills/skill-refiner/SKILL.md"),
     ("codex",        "skills/skill-refiner/SKILL.md"),
     ("antigravity",  ".agent/skills/skill-refiner/SKILL.md"),
