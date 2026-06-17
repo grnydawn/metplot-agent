@@ -9,6 +9,7 @@ import asyncio
 from typing import Any
 
 from src.mcp.netcdf_reader import envelope, lifecycle
+from src.mcp.netcdf_reader import schemas as _schemas
 from src.mcp.netcdf_reader.adapter import NetCDFAdapter
 from src.mcp.netcdf_reader.tools import (
     compute_stats as _stats,
@@ -118,7 +119,7 @@ def make_server() -> "Server":
     async def _list_tools() -> list[Any]:
         return [
             types.Tool(name=n, description=f"netcdf-reader.{n}",
-                       inputSchema={"type": "object"})
+                       inputSchema=_schemas.schema_for(n))
             for n in list_tool_names()
         ]
 
