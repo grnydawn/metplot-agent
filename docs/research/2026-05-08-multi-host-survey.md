@@ -337,7 +337,13 @@ compatibility).
 extensions view (search `@agentPlugins`), from the Awesome Copilot
 marketplace (`copilot plugin install <name>@awesome-copilot`), or from
 a Git URL via "Chat: Install Plugin From Source". Currently in
-Preview. The plugin system also works in the Copilot CLI.
+Preview. The plugin system also works in the **standalone Copilot CLI**
+— but the CLI does **not** reuse the VS Code plugin's `.vscode/mcp.json`
+`servers` surface for MCP. The standalone CLI registers MCP servers via
+`~/.copilot/mcp-config.json` using the **`mcpServers`** key with
+per-server **`type: "local"`** stdio entries, distinct from the VS Code
+plugin. That difference is why metplot ships a separate `copilot-cli`
+build target (see `targets/copilot-cli/build.py`).
 
 **Porting effort: moderate.** Skill files are directly portable. Key
 differences from Claude Code: (1) `plugin.json` is at the plugin root

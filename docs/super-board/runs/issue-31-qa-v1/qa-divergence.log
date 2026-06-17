@@ -1,0 +1,12 @@
+=== QA-owned divergence test ===
+============================= test session starts ==============================
+platform darwin -- Python 3.14.6, pytest-9.1.0, pluggy-1.6.0 -- /Users/8yk/repos/github/metplot-agent/.worktrees/issue-31-qa/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/8yk/repos/github/metplot-agent/.worktrees/issue-31-qa
+configfile: pyproject.toml
+collecting ... collected 2 items
+
+tests/targets/copilot_cli/test_qa_surface_divergence.py::test_cli_and_vscode_use_different_top_level_keys PASSED [ 50%]
+tests/targets/copilot_cli/test_qa_surface_divergence.py::test_cli_servers_declare_local_type PASSED [100%]
+
+============================== 2 passed in 0.09s ===============================

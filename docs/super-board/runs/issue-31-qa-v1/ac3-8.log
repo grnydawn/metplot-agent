@@ -1,0 +1,73 @@
+===== AC3/AC4: mcp_config tests =====
+...                                                                      [100%]
+3 passed in 0.09s
+exit=0
+
+===== AC5: skills_copied =====
+........                                                                 [100%]
+8 passed in 0.11s
+exit=0
+
+===== AC6: mcp_servers_bundled =====
+....                                                                     [100%]
+4 passed in 0.08s
+exit=0
+
+===== AC7: setup files (global + per-host) =====
+...F....s....                                                            [100%]
+=================================== FAILURES ===================================
+______________________ test_target_ships_setup_sh[codex] _______________________
+
+tmp_path = PosixPath('/private/var/folders/h_/nchl5wtn7mb3cqp54g4lqv481_nk2c/T/pytest-of-8yk/pytest-40/test_target_ships_setup_sh_cod0')
+target = 'codex'
+
+    @pytest.mark.parametrize("target", _list_targets())
+    def test_target_ships_setup_sh(tmp_path, target: str):
+        if target == "hermes":
+            pytest.skip("hermes target stub; cycle-5 doesn't update it")
+        out = tmp_path / target
+        out.mkdir()
+>       mod = _load_build(target)
+              ^^^^^^^^^^^^^^^^^^^
+
+tests/targets/test_all_targets_have_setup.py:43: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/targets/test_all_targets_have_setup.py:33: in _load_build
+    spec.loader.exec_module(mod)
+<frozen importlib._bootstrap_external>:759: in exec_module
+    ???
+<frozen importlib._bootstrap>:491: in _call_with_frames_removed
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """Build the Codex CLI/Desktop plugin from src/.
+    
+    Codex's plugin format: `.codex-plugin/plugin.json` manifest at the root,
+    `skills/<name>/SKILL.md` directly (Codex loads SKILL.md natively as of
+    2026), and MCP servers configured in `config.toml` (TOML format —
+    distinct from Claude Code's JSON).
+    
+    Codex Desktop shares the format; one target covers both.
+    """
+    
+    from __future__ import annotations
+    
+    import json
+    import shutil
+    from pathlib import Path
+    
+>   import tomli_w
+E   ModuleNotFoundError: No module named 'tomli_w'
+
+targets/codex/build.py:17: ModuleNotFoundError
+=========================== short test summary info ============================
+SKIPPED [1] tests/targets/test_all_targets_have_setup.py:40: hermes target stub; cycle-5 doesn't update it
+FAILED tests/targets/test_all_targets_have_setup.py::test_target_ships_setup_sh[codex]
+1 failed, 11 passed, 1 skipped in 0.25s
+exit=1
+
+===== AC8: manifest =====
+.....                                                                    [100%]
+5 passed in 0.05s
+exit=0
+
