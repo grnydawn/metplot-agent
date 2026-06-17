@@ -1,0 +1,7 @@
+.......................                                                  [100%]
+=============================== warnings summary ===============================
+tests/mcp/test_issue_34_qa.py::test_ac2_inspect_with_path_returns_ok
+  <frozen importlib._bootstrap>:491: RuntimeWarning: numpy.ndarray size changed, may indicate binary incompatibility. Expected 16 from C header, got 96 from PyObject
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+23 passed, 1 warning in 0.78s
