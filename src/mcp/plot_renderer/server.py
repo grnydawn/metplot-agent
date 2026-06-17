@@ -6,6 +6,7 @@ import asyncio
 from typing import Any
 
 from src.mcp.plot_renderer import envelope
+from src.mcp.plot_renderer import schemas as _schemas
 from src.mcp.plot_renderer.tools import (
     render_map as _map,
     render_profile as _profile,
@@ -61,7 +62,7 @@ def make_server() -> "Server":
     async def _list_tools() -> list[Any]:
         return [
             types.Tool(name=n, description=f"plot-renderer.{n}",
-                       inputSchema={"type": "object"})
+                       inputSchema=_schemas.schema_for(n))
             for n in list_tool_names()
         ]
 

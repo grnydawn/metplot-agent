@@ -1,0 +1,25 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.6, pytest-9.1.0, pluggy-1.6.0 -- /Users/8yk/repos/github/metplot-agent/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/8yk/repos/github/metplot-agent/.worktrees/issue-34-qa
+configfile: pyproject.toml
+plugins: anyio-4.14.0
+collecting ... collected 10 items
+
+tests/mcp/test_issue_34_qa.py::test_ac1_netcdf_schema_required_matches_live_signatures PASSED [ 10%]
+tests/mcp/test_issue_34_qa.py::test_ac1_plot_renderer_exposes_spec_with_fields PASSED [ 20%]
+tests/mcp/test_issue_34_qa.py::test_ac1_live_list_tools_handler_returns_populated_schemas PASSED [ 30%]
+tests/mcp/test_issue_34_qa.py::test_ac2_inspect_with_path_returns_ok PASSED [ 40%]
+tests/mcp/test_issue_34_qa.py::test_ac2_read_slice_with_path_and_variable_returns_data PASSED [ 50%]
+tests/mcp/test_issue_34_qa.py::test_ac3_missing_required_arg_returns_error_envelope PASSED [ 60%]
+tests/mcp/test_issue_34_qa.py::test_ac3_missing_spec_returns_error_envelope PASSED [ 70%]
+tests/mcp/test_issue_34_qa.py::test_ac4_no_tool_uses_the_empty_object_schema[src.mcp.netcdf_reader.schemas-src.mcp.netcdf_reader.server] PASSED [ 80%]
+tests/mcp/test_issue_34_qa.py::test_ac4_no_tool_uses_the_empty_object_schema[src.mcp.plot_renderer.schemas-src.mcp.plot_renderer.server] PASSED [ 90%]
+tests/mcp/test_issue_34_qa.py::test_ac5_inspect_then_timeseries_flow_through_mcp PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/mcp/test_issue_34_qa.py::test_ac2_inspect_with_path_returns_ok
+  <frozen importlib._bootstrap>:491: RuntimeWarning: numpy.ndarray size changed, may indicate binary incompatibility. Expected 16 from C header, got 96 from PyObject
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 10 passed, 1 warning in 1.51s =========================
